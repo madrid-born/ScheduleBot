@@ -3,6 +3,7 @@
 public class UpdateData
 {
     public long ChatId { get; set; }
+    public string? Username { get; set; }
     public int MessageId { get; set; }
     public bool IsCallback { get; set; }
     public string? CallbackData { get; set; }

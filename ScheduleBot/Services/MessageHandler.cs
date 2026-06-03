@@ -1,6 +1,7 @@
 ﻿using ScheduleBot.Models;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.Services;
 
@@ -17,7 +18,7 @@ public class MessageHandler(
         try
         {
             var updateData = ExtractUpdateDataAsync(update);
-            if(!await userService.CheckUserStatusAsync(updateData.ChatId)) return;
+            if(!await userService.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
             {
                 await HandleCallbackAsync(updateData);
@@ -41,9 +42,10 @@ public class MessageHandler(
         {
             data.IsCallback = true;
             data.ChatId = update.CallbackQuery.Message!.Chat.Id;
+            data.Username = update.CallbackQuery.Message!.Chat.Username;
             data.MessageId = update.CallbackQuery.Message.MessageId;
             data.CallbackData = update.CallbackQuery.Data;
-            data.DataSeparated = (update.CallbackQuery.Data ?? "").Split("-").ToList();
+            data.DataSeparated = (update.CallbackQuery.Data ?? "").Split("\\").ToList();
             if (update.CallbackQuery.Message.Text == null) return data;
             data.MessageText = update.CallbackQuery.Message.Text;
             data.MessageSeparated = (update.CallbackQuery.Message.Text ?? "").Split('"').ToList();
@@ -51,6 +53,7 @@ public class MessageHandler(
         else if (update.Message != null)
         {
             data.ChatId = update.Message.Chat.Id;
+            data.Username = update.Message.Chat.Username;
             data.MessageId = update.Message.MessageId;
             data.MessageText = update.Message.Text;
             data.MessageSeparated = (update.Message.Text ?? "").Split('"').ToList();
@@ -60,7 +63,9 @@ public class MessageHandler(
             if (update.Message.ReplyToMessage == null) return data;
             data.IsReplied = true;
             data.RepliedMessage = update.Message.ReplyToMessage.Text;
-            data.ReplyMessageSeparated = (update.Message.ReplyToMessage.Text ?? "").Split('"').ToList();
+            
+            data.ReplyMessageSeparated = (update.Message.ReplyToMessage.Text ?? "").Split('\n').ToList();
+            if (data.ReplyMessageSeparated.Count == 0) data.ReplyMessageSeparated.Add(update.Message.ReplyToMessage.Text!);
 
             if (update.Message.ReplyToMessage.Text != "Enter the name of the product") return data;
             data.Command = "AddItem";
@@ -74,32 +79,42 @@ public class MessageHandler(
     {
         switch (data.DataSeparated[0])
         {
-            case "Cart":
-                // await HandleCartCallback(data);
+            case CallBacks.Register:
+                await userService.HandleCallBack(data);
                 break;
         }
     }
 
     private async Task HandleMessageAsync(UpdateData data)
     {
+        var flag = true;
         if (data.IsReplied)
         {
-            if (data.RepliedMessage == "Please enter your Name")
+            flag = false;
+            switch (data.ReplyMessageSeparated[0])
             {
-                // data.ReplyMessageSeparated = ["", data.MessageText ?? ""];
-                // await userService.RegisterUserAsync(data.ChatId, name, email, _adminChatId, bot);
-                // await bot.SendMessage(data.ChatId, "Please enter your Email", replyMarkup: new ForceReplyMarkup());
-                // await bot.SendMessage(data.ChatId, message, parseMode: ParseMode.Markdown, replyMarkup: GetMainKeyboard());
+                case Messages.EnterYourName: await userService.AskForEmail(data); break;
+                case Messages.EnterYourEmail: await userService.RegisterUser(data); break;
+                default: flag = true; break;
             }
         }
-        
         switch (data.MessageText)
         {
-            case "ExampleCommand":
-                // var carts = await db.GetUserCartsAsync(data.ChatId);
-                // await bot.SendMessage(data.ChatId, "Enter the name of the product", replyMarkup: new ForceReplyMarkup());
-                // await cartService.ShowCartSelectionAsync(data.ChatId, data.MessageId, "RemoveItem", null, bot);
+            case "/start":
+                await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: GetMainKeyboard());
+                break;
+            default:
+                if (flag) await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: GetMainKeyboard());
                 break;
         }
+    }
+    
+    public static ReplyKeyboardMarkup GetMainKeyboard()
+    {
+        return new ReplyKeyboardMarkup
+        ([
+            [new KeyboardButton("Project 1")],
+        ])
+        { ResizeKeyboard = true };
     }
 }
