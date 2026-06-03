@@ -1,0 +1,6 @@
+@ScheduleBot_HostAddress = http://localhost:5208
+
+GET {{ScheduleBot_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
