@@ -9,6 +9,7 @@ public class MessageHandler(
     ITelegramBotClient bot,
     DatabaseService db,
     UserService userService,
+    CycleTrackerService cycleTracker,
     IConfiguration configuration)
 {
     private readonly long _adminChatId = configuration.GetValue<long>("Telegram:AdminChatId");
@@ -82,6 +83,9 @@ public class MessageHandler(
             case CallBacks.Register:
                 await userService.HandleCallBack(data);
                 break;
+            case CallBacks.Cycle:
+                await cycleTracker.HandleCallBack(data);
+                break;
         }
     }
 
@@ -95,6 +99,9 @@ public class MessageHandler(
             {
                 case Messages.EnterYourName: await userService.AskForEmail(data); break;
                 case Messages.EnterYourEmail: await userService.RegisterUser(data); break;
+                case Messages.SetupTracker: await cycleTracker.SaveLastPeriodStart(data); break;
+                case Messages.AskForCycleLength: await cycleTracker.SaveCycleLength(data); break;
+                case Messages.AskForPeriodLength: await cycleTracker.SavePeriodLength(data); break;
                 default: flag = true; break;
             }
         }
@@ -102,6 +109,12 @@ public class MessageHandler(
         {
             case "/start":
                 await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: GetMainKeyboard());
+                break;
+            case "/SetupPeriod":
+                await cycleTracker.AskForLastPeriodStart(data);
+                break;
+            case "/EditPeriod":
+                await cycleTracker.ShowEditMenu(data.ChatId);
                 break;
             default:
                 if (flag) await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: GetMainKeyboard());
@@ -113,7 +126,7 @@ public class MessageHandler(
     {
         return new ReplyKeyboardMarkup
         ([
-            [new KeyboardButton("Project 1")],
+            [new KeyboardButton("🌸 Period Tracker"), new KeyboardButton("ℹ️ About")],
         ])
         { ResizeKeyboard = true };
     }

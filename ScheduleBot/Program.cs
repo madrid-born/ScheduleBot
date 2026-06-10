@@ -46,6 +46,7 @@ builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken
 builder.Services.AddScoped<DatabaseService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<MessageHandler>();
+builder.Services.AddScoped<CycleTrackerService>();
 builder.Services.AddHostedService<BotPollingService>();
 
 var app = builder.Build();

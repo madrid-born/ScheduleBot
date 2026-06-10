@@ -10,27 +10,11 @@ public class DatabaseService(AppDbContext context)
         return await context.Users.FirstOrDefaultAsync(u => u.ChatId == telId);
     }
 
-    public async Task<User> InsertUser(long dataChatId, string name, string email, string username)
-    {
-        var newUser = new User
-        {
-            Id = Guid.Empty,
-            ChatId = dataChatId,
-            Name = name,
-            Username = username,
-            Email = email,
-            IsAccepted = false
-        };
-        
-        context.Users.Add(newUser);
-        await context.SaveChangesAsync();
-
-        return newUser;
-    }
-
+    #region Register
+    
     public async Task UpdateUserAcceptance(long chatId, bool isAccepted)
     {
-        var user = await context.Users.FirstOrDefaultAsync(u => u.ChatId == chatId);
+        var user = await GetUserByTelId(chatId);
         if (user != null)
         {
             if (isAccepted) user.IsAccepted = isAccepted;
@@ -73,4 +57,79 @@ public class DatabaseService(AppDbContext context)
         }
         return user!;
     }
+
+    #endregion
+
+    #region CycleTracker
+
+    public async Task<CycleDetail?> LoadCycle(long chatId)
+    {
+        var user = await GetUserByTelId(chatId);
+        return await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
+    }
+    
+    public async Task AddNewCycle(long chatId, DateTime lastStart)
+    {
+        var user = await GetUserByTelId(chatId);
+        var cycleDetail = new CycleDetail
+        {
+            Id = Guid.NewGuid(),
+            UserId = user!.Id,
+            LastStart = lastStart,
+        };
+        
+        context.CycleDetails.Add(cycleDetail);
+        await context.SaveChangesAsync();
+    }
+    
+    public async Task SaveCycleLength(long chatId, int length)
+    {
+        var user = await GetUserByTelId(chatId);
+        var cycleDetail = await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
+        if (cycleDetail == null) throw new Exception("No available cycle had been found");
+        cycleDetail.CycleLength = length;
+        await context.SaveChangesAsync();
+    }
+    
+    public async Task SavePeriodLength(long chatId, int length)
+    {
+        var user = await GetUserByTelId(chatId);
+        var cycleDetail = await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
+        if (cycleDetail == null) throw new Exception("No available cycle had been found");
+        cycleDetail.PeriodLength = length;
+        var end = cycleDetail.LastStart?.AddDays(length);
+        if (DateTime.Now > end)
+        {
+            cycleDetail.LastStart = null;
+            cycleDetail.LastEnd = end;
+        }
+        await context.SaveChangesAsync();
+    }
+
+    public async Task SetNotify(long chatId, int mode, Guid cycleId = default)
+    {
+        var user = await GetUserByTelId(chatId);
+        if (cycleId == Guid.Empty)
+            cycleId = (await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id))!.Id;
+        var notify = await context.CycleNotifies.FirstOrDefaultAsync(n => n.CycleId == cycleId && n.ReceiverId == user!.Id);
+        if (notify == null)
+        {
+            notify = new CycleNotify
+            {
+                Id = Guid.NewGuid(),
+                CycleId = cycleId,
+                ReceiverId = user!.Id,
+                NotifyMode = mode
+            };
+            context.CycleNotifies.Add(notify);
+        }
+        else
+        {
+            notify.NotifyMode = mode;
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    #endregion
 }

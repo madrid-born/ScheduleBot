@@ -78,18 +78,8 @@ public class UserService(ITelegramBotClient bot, DatabaseService db, IConfigurat
             InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}\\{CallBacks.AcceptRegister}\\{user.ChatId}"),
             InlineKeyboardButton.WithCallbackData(Messages.No, $"{CallBacks.Register}\\{CallBacks.RejectRegister}\\{user.ChatId}"),
         ]]);
-        try
-        {
-            await bot.SendMessage(_adminChatId, adminMessage, replyMarkup: keyboard);
-            await bot.SendMessage(data.ChatId, Messages.RegistrationSuccessful);
-
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            // throw;
-        }
-    
+        await bot.SendMessage(_adminChatId, adminMessage, replyMarkup: keyboard);
+        await bot.SendMessage(data.ChatId, Messages.RegistrationSuccessful);
     }
     
     private async Task AdminApproval(UpdateData data, bool accept)

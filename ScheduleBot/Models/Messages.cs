@@ -10,6 +10,8 @@ public static class Messages
     public const string Rejected = "rejected";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
     public const string NotFound = "Command not found or something went wrong.";
+    public const string InvalidDate = "Invalid date format. Please use YYYY-MM-DD";
+    public const string InvalidInteger = "Invalid Integer format. Please use a Natural Number";
     
     #endregion
     
@@ -25,7 +27,31 @@ public static class Messages
     public const string UserAcceptanceTemplate = "Admin {0} you";
     
     #endregion
+    
+    #region CycleTracker
+    
+    public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
+    public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):";
+    public const string AskForCycleLength = "What is your average cycle length (days between periods)?";
+    public const string AskForPeriodLength = "How many days does your period typically last?";
+    public const string AskForNotifyMode = "How often would you like to receive notifications?";
+    public static readonly List<string> NotifyModes = ["Every day", "Weekly", "Start & End only", "3 days before + during period"];
+    public const string SetupComplete = "Period tracker setup complete!";
+    public const string EditPeriodReminder = " You can use /EditPeriod to update your cycle.";
+    public const string SetNotifyComplete = "You'll receive notifications\n{0}.";
+    
+    //public const string Daily = "Every day";
+    //public const string Weekly = "Weekly";
+    //public const string StartAndEnd = "Start & End only";
+    //public const string DuringAndBefore = "3 days before + during period";
+    
+    
+    
+    public const string CycleTrackerWelcome = "🌸 Period Tracker\n\nTrack your menstrual cycle, get daily insights, and never miss a period!";
+    public const string CycleSetupComplete = "✅ Period tracker setup complete!";
+    public const string NoActiveTracker = "❌ You don't have an active period tracker. Click the Period Tracker button to set one up.";
 
+    #endregion
 }
 
 public static class CallBacks
@@ -37,5 +63,20 @@ public static class CallBacks
     public const string AcceptRegister = "AcceptRegister";
     public const string RejectRegister = "RejectRegister";
     
+    #endregion
+    
+    #region CycleTracker
+
+    public const string Cycle = "Cycle";
+    public const string SetNotifyMode = "SetNotifyMode";
+    
+    
+
+    
+    public const string Setup = "Setup";
+    public const string EditPeriod = "EditPeriod";
+    public const string NewPeriod = "NewPeriod";
+    public const string ViewStatus = "ViewStatus";
+
     #endregion
 }

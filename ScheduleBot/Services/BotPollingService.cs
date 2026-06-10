@@ -1,4 +1,5 @@
-﻿using Telegram.Bot;
+﻿using ScheduleBot.Models;
+using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -30,6 +31,18 @@ public class BotPollingService(
             cancellationToken: stoppingToken
         );
 
+        _ = Task.Run(async () =>
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                using var scope = serviceProvider.CreateScope();
+                var cycleTracker = scope.ServiceProvider.GetRequiredService<CycleTrackerService>();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await cycleTracker.CheckAndSendNotifications();
+                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+            }
+        }, stoppingToken);
+        
         await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 
