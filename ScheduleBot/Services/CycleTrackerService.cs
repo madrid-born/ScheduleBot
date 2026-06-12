@@ -13,6 +13,22 @@ public class CycleTrackerService(
 {
     private readonly TimeSpan _notificationHour = new TimeSpan(8, 0, 0);
 
+    public async Task HandleSection(UpdateData data)
+    {
+        switch (data.MessageText![3..])
+        {
+            case Messages.PeriodTrackerMessage:
+                await StartSection(data);
+                break;
+            case Messages.KeyboardSetup:
+                await AskForLastPeriodStart(data);
+                break;
+            case Messages.KeyboardCheckNotifications:
+                // await AskForLastPeriodStart(data);
+                break;
+        }
+    }
+
     public async Task HandleCallBack(UpdateData data)
     {
         switch (data.DataSeparated[1])
@@ -41,6 +57,21 @@ public class CycleTrackerService(
         }
     }
 
+    private async Task StartSection(UpdateData data)
+    {
+        await bot.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: GetKeyboard());
+    }
+
+    private static ReplyKeyboardMarkup GetKeyboard()
+    {
+        return new ReplyKeyboardMarkup
+            ([
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardSetup)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardCheckNotifications)],
+            ])
+            { ResizeKeyboard = true };
+    }
+
     public async Task AskForLastPeriodStart(UpdateData data)
     {
         var existing = await db.LoadCycle(data.ChatId);
@@ -55,15 +86,36 @@ public class CycleTrackerService(
 
     public async Task SaveLastPeriodStart(UpdateData data)
     {
-        if (!DateTime.TryParse(data.MessageText, out var lastStart))
+        var date = DateValidation(data.MessageText);
+        if (date == null)
         {
             await bot.SendMessage(data.ChatId, Messages.InvalidDate);
             await bot.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
             return;
         }
         
-        await db.AddNewCycle(data.ChatId, lastStart);
+        await db.AddNewCycle(data.ChatId, (DateTime)date);
         await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+    }
+
+    private DateTime? DateValidation(string? dataMessageText)
+    {
+        DateTime? date = null;
+        var firstDigit = dataMessageText![1..];
+        switch (firstDigit)
+        {
+            case "1":
+                // TODO : make JalaliDate
+                break;
+            case "2":
+                if (DateTime.TryParse(dataMessageText, out var gregorianDate))
+                {
+                    date = gregorianDate;
+                }
+                break;
+        }
+
+        return date;
     }
 
     public async Task SaveCycleLength(UpdateData data)

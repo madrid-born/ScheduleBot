@@ -2,6 +2,23 @@
 
 public static class Messages
 {
+    #region Command
+    
+    public const string Start = "/start";
+    public const string SetupPeriod = "/SetupPeriod";
+    public const string EditPeriod = "/EditPeriod";
+    
+    #endregion
+    
+    #region MainKeyboard
+    
+    public const string PeriodTrackerSymbol = "🌸 ";
+    public const string PeriodTrackerMessage = "Period Tracker";
+    public const string PeriodTracker = PeriodTrackerSymbol + PeriodTrackerMessage;
+    public const string About = "ℹ️ About";
+    
+    #endregion
+
     #region Universal
     
     public const string Yes = "Yes";
@@ -30,8 +47,12 @@ public static class Messages
     
     #region CycleTracker
     
+    public const string KeyboardSetup = "Setup Period";
+    public const string KeyboardCheckNotifications = "Check My Current Notifications";
+    
+    public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
     public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
-    public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):";
+    public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):\nBoth Jalali and Gregorian dates would work\nBut remember to enter like 1405-03-07 or 2026-06-05";
     public const string AskForCycleLength = "What is your average cycle length (days between periods)?";
     public const string AskForPeriodLength = "How many days does your period typically last?";
     public const string AskForNotifyMode = "How often would you like to receive notifications?";

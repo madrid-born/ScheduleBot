@@ -91,42 +91,87 @@ public class MessageHandler(
 
     private async Task HandleMessageAsync(UpdateData data)
     {
-        var flag = true;
-        if (data.IsReplied)
+        var checkReplied = await CheckReplied(data);
+        var checkCommand = await CheckCommand(data);
+        var checkKeyboard = await CheckKeyboard(data);
+
+        if (!checkReplied && !checkCommand && !checkKeyboard)
         {
-            flag = false;
-            switch (data.ReplyMessageSeparated[0])
-            {
-                case Messages.EnterYourName: await userService.AskForEmail(data); break;
-                case Messages.EnterYourEmail: await userService.RegisterUser(data); break;
-                case Messages.SetupTracker: await cycleTracker.SaveLastPeriodStart(data); break;
-                case Messages.AskForCycleLength: await cycleTracker.SaveCycleLength(data); break;
-                case Messages.AskForPeriodLength: await cycleTracker.SavePeriodLength(data); break;
-                default: flag = true; break;
-            }
-        }
-        switch (data.MessageText)
-        {
-            case "/start":
-                await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: GetMainKeyboard());
-                break;
-            case "/SetupPeriod":
-                await cycleTracker.AskForLastPeriodStart(data);
-                break;
-            case "/EditPeriod":
-                await cycleTracker.ShowEditMenu(data.ChatId);
-                break;
-            default:
-                if (flag) await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: GetMainKeyboard());
-                break;
+            await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: GetMainKeyboard());
         }
     }
-    
+
+    private async Task<bool> CheckReplied(UpdateData data)
+    {
+        var flag = false;
+        if (!data.IsReplied) return flag;
+        switch (data.ReplyMessageSeparated[0])
+        {
+            case Messages.EnterYourName:
+                await userService.AskForEmail(data);
+                flag = true;
+                break;
+            case Messages.EnterYourEmail:
+                await userService.RegisterUser(data); 
+                flag = true;
+                break;
+            case Messages.SetupTracker:
+                await cycleTracker.SaveLastPeriodStart(data);
+                flag = true;
+                break;
+            case Messages.AskForCycleLength:
+                await cycleTracker.SaveCycleLength(data); 
+                flag = true;
+                break;
+            case Messages.AskForPeriodLength:
+                await cycleTracker.SavePeriodLength(data);
+                flag = true;
+                break;
+        }
+        return flag;
+    }
+
+    private async Task<bool> CheckCommand(UpdateData data)
+    {
+        var flag = false;
+        if (data.MessageText![..1] != "/") return flag;
+        switch (data.MessageText)
+        {
+            case Messages.Start:
+                await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: GetMainKeyboard());
+                flag = true;
+                break;
+            case Messages.SetupPeriod:
+                await cycleTracker.AskForLastPeriodStart(data);
+                flag = true;
+                break;
+            case Messages.EditPeriod:
+                await cycleTracker.ShowEditMenu(data.ChatId);
+                flag = true;
+                break;
+        }
+        return flag;
+    }
+
+    private async Task<bool> CheckKeyboard(UpdateData data)
+    {
+        var flag = false;
+        var keyboardSymbol = data.MessageText![..3];
+        switch (keyboardSymbol)
+        {
+            case Messages.PeriodTrackerSymbol:
+                await cycleTracker.HandleSection(data);
+                flag = true;
+                break;
+        }
+        return flag;
+    }
+
     public static ReplyKeyboardMarkup GetMainKeyboard()
     {
         return new ReplyKeyboardMarkup
         ([
-            [new KeyboardButton("🌸 Period Tracker"), new KeyboardButton("ℹ️ About")],
+            [new KeyboardButton(Messages.PeriodTracker), new KeyboardButton(Messages.About)],
         ])
         { ResizeKeyboard = true };
     }
