@@ -100,8 +100,17 @@ public class DatabaseService(AppDbContext context)
         var end = cycleDetail.LastStart?.AddDays(length);
         if (DateTime.Now > end)
         {
-            cycleDetail.LastStart = null;
             cycleDetail.LastEnd = end;
+            
+            var cycleHistory = new CycleHistory
+            {
+                CycleId = cycleDetail.Id,
+                Count = 1,
+                Start = (DateTime)cycleDetail.LastStart!,
+                End = (DateTime)end
+            };
+        
+            context.CycleHistories.Add(cycleHistory);
         }
         await context.SaveChangesAsync();
     }
