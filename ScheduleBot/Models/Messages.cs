@@ -13,8 +13,7 @@ public static class Messages
     #region MainKeyboard
     
     public const string PeriodTrackerSymbol = "🌸 ";
-    public const string PeriodTrackerMessage = "Period Tracker";
-    public const string PeriodTracker = PeriodTrackerSymbol + PeriodTrackerMessage;
+    public const string PeriodTracker = "Period Tracker";
     public const string About = "ℹ️ About";
     
     #endregion
@@ -48,7 +47,8 @@ public static class Messages
     #region CycleTracker
     
     public const string KeyboardSetup = "Setup Period";
-    public const string KeyboardCheckNotifications = "Check My Current Notifications";
+    public const string AddToCycle = "Add To My Cycle Notification";
+    public const string JoinToCycle = "Join To Someone Cycle Notification";
     
     public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
     public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
@@ -60,6 +60,10 @@ public static class Messages
     public const string SetupComplete = "Period tracker setup complete!";
     public const string EditPeriodReminder = " You can use /EditPeriod to update your cycle.";
     public const string SetNotifyComplete = "You'll receive notifications\n{0}.";
+    public const string SetNotifyCompleteGuest = "You have been successfully added to {0}'s Cycle Notification\nAnd you'll receive notifications\n{1}.";
+    public const string ShareCycleId = "Your cycle id is mentioned below\nYou can share it with anyone who you want them to get notified.\n\n`{0}`";
+    public const string AskForCycleId = "Please enter the id you received from the person you want to join on their notification.";
+    public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
     
     //public const string Daily = "Every day";
     //public const string Weekly = "Weekly";

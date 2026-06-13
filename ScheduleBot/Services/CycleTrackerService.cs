@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 using ScheduleBot.Models;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.Services;
@@ -17,14 +19,17 @@ public class CycleTrackerService(
     {
         switch (data.MessageText![3..])
         {
-            case Messages.PeriodTrackerMessage:
+            case Messages.PeriodTracker:
                 await StartSection(data);
                 break;
             case Messages.KeyboardSetup:
                 await AskForLastPeriodStart(data);
                 break;
-            case Messages.KeyboardCheckNotifications:
-                // await AskForLastPeriodStart(data);
+            case Messages.AddToCycle:
+                await AddToCycle(data);
+                break;
+            case Messages.JoinToCycle:
+                await JoinToCyclePressed(data);
                 break;
         }
     }
@@ -33,27 +38,31 @@ public class CycleTrackerService(
     {
         switch (data.DataSeparated[1])
         {
-            case "Setup":
-                await AskForLastPeriodStart(data);
-                break;
-            case "SetLastStart":
-                await SaveLastPeriodStart(data);
-                break;
-            case "SetPeriodLength":
-                await SavePeriodLength(data);
-                break;
-            case "EditPeriod":
-                await ShowEditMenu(data.ChatId);
-                break;
-            case "NewPeriod":
-                await RecordNewPeriodStart(data);
-                break;
-            case "ViewStatus":
-                await SendCycleStatus(data.ChatId);
-                break;
-            case "SetNotifyMode":
+            case CallBacks.SetNotifyMode:
                 await SetNotifyMode(data);
                 break;
+
+            // case "Setup":
+            //     await AskForLastPeriodStart(data);
+            //     break;
+            // case "SetLastStart":
+            //     await SaveLastPeriodStart(data);
+            //     break;
+            // case "SetPeriodLength":
+            //     await SavePeriodLength(data);
+            //     break;
+            // case "EditPeriod":
+            //     await ShowEditMenu(data.ChatId);
+            //     break;
+            // case "NewPeriod":
+            //     await RecordNewPeriodStart(data);
+            //     break;
+            // case "ViewStatus":
+            //     await SendCycleStatus(data.ChatId);
+            //     break;
+            // case "SetNotifyMode":
+            //     await SetNotifyMode(data);
+            //     break;
         }
     }
 
@@ -67,14 +76,15 @@ public class CycleTrackerService(
         return new ReplyKeyboardMarkup
             ([
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardSetup)],
-                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardCheckNotifications)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.AddToCycle)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.JoinToCycle)],
             ])
             { ResizeKeyboard = true };
     }
 
-    public async Task AskForLastPeriodStart(UpdateData data)
+    private async Task AskForLastPeriodStart(UpdateData data)
     {
-        var existing = await db.LoadCycle(data.ChatId);
+        var existing = await db.LoadCycleByTelId(data.ChatId);
         if (existing != null)
         {
             await bot.SendMessage(data.ChatId, Messages.AvailableCycle);
@@ -98,24 +108,37 @@ public class CycleTrackerService(
         await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
     }
 
-    private DateTime? DateValidation(string? dataMessageText)
+    private static DateTime? DateValidation(string? dataMessageText)
     {
         DateTime? date = null;
-        var firstDigit = dataMessageText![1..];
-        switch (firstDigit)
+        try
         {
-            case "1":
-                // TODO : make JalaliDate
-                break;
-            case "2":
-                if (DateTime.TryParse(dataMessageText, out var gregorianDate))
-                {
-                    date = gregorianDate;
-                }
-                break;
+            var firstDigit = dataMessageText![1..];
+            switch (firstDigit)
+            {
+                case "1":
+                    date = ConvertJalali(dataMessageText);
+                    break;
+                case "2":
+                    if (DateTime.TryParse(dataMessageText, out var gregorianDate))
+                    {
+                        date = gregorianDate;
+                    }
+                    break;
+            }
         }
+        catch (Exception e) { /*ignored*/ }
 
         return date;
+    }
+
+    private static DateTime ConvertJalali(string date)
+    {
+        var pc = new PersianCalendar();
+        var year = int.Parse(date.Substring(0, 4));
+        var month = int.Parse(date.Substring(4, 2));
+        var day = int.Parse(date.Substring(6, 2));
+        return pc.ToDateTime(year, month, day, 0, 0, 0, 0);
     }
 
     public async Task SaveCycleLength(UpdateData data)
@@ -144,14 +167,14 @@ public class CycleTrackerService(
         await ShowNotifyModeMenu(data.ChatId);
     }
 
-    private async Task ShowNotifyModeMenu(long chatId)
+    private async Task ShowNotifyModeMenu(long chatId, Guid cycleId = default)
     {
         var keyboard = new InlineKeyboardMarkup(Enumerable.Range(0, Messages.NotifyModes.Count)
             .Select(i => new[]
             {
                 InlineKeyboardButton.WithCallbackData(
                     Messages.NotifyModes[i],
-                    $"{CallBacks.Cycle}\\{CallBacks.SetNotifyMode}\\{i}")
+                    $"{CallBacks.Cycle}\\{CallBacks.SetNotifyMode}\\{i}\\{cycleId}")
             })
         );
 
@@ -162,14 +185,53 @@ public class CycleTrackerService(
     {
         var chatId = data.ChatId;
         var mode = int.Parse(data.DataSeparated[2]);
-        await db.SetNotify(data.ChatId, mode);
+        var isParsed = Guid.TryParse(data.DataSeparated[3], out var cycleId);
+        await db.SetNotify(data.ChatId, mode, cycleId);
         await bot.DeleteMessage(data.ChatId, data.MessageId);
-        await bot.SendMessage(chatId, Messages.SetupComplete, replyMarkup: MessageHandler.GetMainKeyboard());
-        await bot.SendMessage(chatId, Messages.EditPeriodReminder, replyMarkup: MessageHandler.GetMainKeyboard());
-        await bot.SendMessage(chatId, string.Format(Messages.SetNotifyComplete, Messages.NotifyModes[mode]),
-            replyMarkup: MessageHandler.GetMainKeyboard());
+        var message = string.Format(Messages.SetNotifyComplete, Messages.NotifyModes[mode]);
+        if (isParsed)
+        {
+            var ownerName = db.GetUserNameByCycleId(cycleId);
+            message = string.Format(Messages.SetNotifyCompleteGuest, ownerName, Messages.NotifyModes[mode]);
+        }
+        else
+        {
+            await bot.SendMessage(chatId, Messages.SetupComplete);
+            await bot.SendMessage(chatId, Messages.EditPeriodReminder);
+        }
+        await bot.SendMessage(chatId, message, replyMarkup: MessageHandler.GetMainKeyboard());
     }
 
+    private async Task AddToCycle(UpdateData data)
+    {
+        var result = (await db.LoadCycleByTelId(data.ChatId))!.Id;
+        await bot.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), replyMarkup: MessageHandler.GetMainKeyboard());
+    }
+    
+    private async Task JoinToCyclePressed(UpdateData data)
+    {
+        await bot.SendMessage(data.ChatId, Messages.AskForCycleId, replyMarkup: new ForceReplyMarkup());
+    }
+    
+    public async Task JoinToCycleById(UpdateData data)
+    {
+        var flag = Guid.TryParse(data.MessageText, out var cycleId);
+        if (flag && await db.LoadCycleByCycleId(cycleId) != null)
+        {
+            await ShowNotifyModeMenu(data.ChatId, cycleId);
+        }
+        else
+        {
+            await bot.SendMessage(data.ChatId, Messages.CycleIdIsWrong, replyMarkup: MessageHandler.GetMainKeyboard());
+        }
+    }
+        
+        
+        
+        
+        
+        
+        
     public async Task ShowEditMenu(long chatId)
     {
         // var cycleDetail = await db.CycleDetails.FirstOrDefaultAsync(c => c.UserId == chatId);

@@ -127,6 +127,10 @@ public class MessageHandler(
                 await cycleTracker.SavePeriodLength(data);
                 flag = true;
                 break;
+            case Messages.AskForCycleId:
+                await cycleTracker.JoinToCycleById(data);
+                flag = true;
+                break;
         }
         return flag;
     }
@@ -141,14 +145,14 @@ public class MessageHandler(
                 await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: GetMainKeyboard());
                 flag = true;
                 break;
-            case Messages.SetupPeriod:
-                await cycleTracker.AskForLastPeriodStart(data);
-                flag = true;
-                break;
-            case Messages.EditPeriod:
-                await cycleTracker.ShowEditMenu(data.ChatId);
-                flag = true;
-                break;
+            // case Messages.SetupPeriod:
+            //     await cycleTracker.AskForLastPeriodStart(data);
+            //     flag = true;
+            //     break;
+            // case Messages.EditPeriod:
+            //     await cycleTracker.ShowEditMenu(data.ChatId);
+            //     flag = true;
+            //     break;
         }
         return flag;
     }
@@ -170,9 +174,9 @@ public class MessageHandler(
     public static ReplyKeyboardMarkup GetMainKeyboard()
     {
         return new ReplyKeyboardMarkup
-        ([
-            [new KeyboardButton(Messages.PeriodTracker), new KeyboardButton(Messages.About)],
-        ])
-        { ResizeKeyboard = true };
+            ([
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.PeriodTracker), new KeyboardButton(Messages.About)],
+            ])
+            { ResizeKeyboard = true };
     }
 }

@@ -62,7 +62,7 @@ public class DatabaseService(AppDbContext context)
 
     #region CycleTracker
 
-    public async Task<CycleDetail?> LoadCycle(long chatId)
+    public async Task<CycleDetail?> LoadCycleByTelId(long chatId)
     {
         var user = await GetUserByTelId(chatId);
         return await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
@@ -108,17 +108,17 @@ public class DatabaseService(AppDbContext context)
 
     public async Task SetNotify(long chatId, int mode, Guid cycleId = default)
     {
-        var user = await GetUserByTelId(chatId);
+        var userId = (await GetUserByTelId(chatId))!.Id;
         if (cycleId == Guid.Empty)
-            cycleId = (await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id))!.Id;
-        var notify = await context.CycleNotifies.FirstOrDefaultAsync(n => n.CycleId == cycleId && n.ReceiverId == user!.Id);
+            cycleId = (await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == userId))!.Id;
+        var notify = await context.CycleNotifies.FirstOrDefaultAsync(n => n.CycleId == cycleId && n.ReceiverId == userId);
         if (notify == null)
         {
             notify = new CycleNotify
             {
                 Id = Guid.NewGuid(),
                 CycleId = cycleId,
-                ReceiverId = user!.Id,
+                ReceiverId = userId,
                 NotifyMode = mode
             };
             context.CycleNotifies.Add(notify);
@@ -132,4 +132,15 @@ public class DatabaseService(AppDbContext context)
     }
 
     #endregion
+
+    public async Task<CycleDetail?> LoadCycleByCycleId(Guid cycleId)
+    {
+        return await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId);
+    }
+
+    public async Task<string> GetUserNameByCycleId(Guid cycleId)
+    {
+        var userId =  (await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId))!.UserId;
+        return (await context.Users.FirstOrDefaultAsync(u => u.Id == userId))!.Name!;
+    }
 }
