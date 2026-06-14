@@ -1,4 +1,6 @@
-﻿namespace ScheduleBot.Models;
+﻿using System.Collections.Generic;
+
+namespace ScheduleBot.Models;
 
 public static class Messages
 {
@@ -47,11 +49,13 @@ public static class Messages
     #region CycleTracker
     
     public const string KeyboardSetup = "Setup Period";
+    public const string KeyboardEdit = "Edit Period";
     public const string AddToCycle = "Add To My Cycle Notification";
     public const string JoinToCycle = "Join To Someone Cycle Notification";
     
     public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
     public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
+
     public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):\nBoth Jalali and Gregorian dates would work\nBut remember to enter like 1405-03-07 or 2026-06-05";
     public const string AskForCycleLength = "What is your average cycle length (days between periods)?";
     public const string AskForPeriodLength = "How many days does your period typically last?";
@@ -64,7 +68,17 @@ public static class Messages
     public const string ShareCycleId = "Your cycle id is mentioned below\nYou can share it with anyone who you want them to get notified.\n\n`{0}`";
     public const string AskForCycleId = "Please enter the id you received from the person you want to join on their notification.";
     public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
+    public const string EditCheck = "What do you want to change\n\n";
+    public const string ChangesCommited = "Changes commited succesfully\n\n";
+    public const string CurrentData = "Your current setted data is as below:\nLast Start: {0} days\nCycle length: {1} days\nPeriod length: {2} days\nAverage cycle length: {3} days\nAverage period length: {4} days\n\n";
+    public const string Followers = "And those who follow you are:\n{0}";
     
+    public const string EditPeriodLength = "Edit Period Length";
+    public const string EditCycleLength = "Edit Cycle Length";
+    public const string EditFollowers = "Remove Followers";
+    public const string EditLastPeriod = "Remove Last Period";
+    public const string EditNotify = "Edit Notification method";
+
     //public const string Daily = "Every day";
     //public const string Weekly = "Weekly";
     //public const string StartAndEnd = "Start & End only";
@@ -94,6 +108,12 @@ public static class CallBacks
 
     public const string Cycle = "Cycle";
     public const string SetNotifyMode = "SetNotifyMode";
+    public const string EditSection = "EditSection";
+    public const string EditPeriodLength = "EditPeriodLength";
+    public const string EditCycleLength = "EditCycleLength";
+    public const string EditFollowers = "EditFollowers";
+    public const string EditLastPeriod = "EditLastPeriod";
+    public const string EditNotify = "EditNotify";
     
     
 

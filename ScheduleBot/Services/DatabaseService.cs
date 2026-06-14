@@ -1,4 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using ScheduleBot.Models;
 
 namespace ScheduleBot.Services;
@@ -8,6 +12,11 @@ public class DatabaseService(AppDbContext context)
     public async Task<User?> GetUserByTelId(long telId)
     {
         return await context.Users.FirstOrDefaultAsync(u => u.ChatId == telId);
+    }
+    
+    public async Task<User?> GetUserById(Guid id)
+    {
+        return await context.Users.FirstOrDefaultAsync(u => u.Id == id);
     }
 
     #region Register
@@ -62,10 +71,40 @@ public class DatabaseService(AppDbContext context)
 
     #region CycleTracker
 
-    public async Task<CycleDetail?> LoadCycleByTelId(long chatId)
+    public async Task<CycleDetail?> GetCycleByTelId(long chatId)
     {
         var user = await GetUserByTelId(chatId);
         return await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
+    }
+    
+    public async Task<CycleDetail?> GetCycleByCycleId(Guid cycleId)
+    {
+        return await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId);
+    }
+
+    public async Task<List<CycleHistory>> GetCycleHistoryByCycleId(Guid cycleId)
+    {
+        return await context.CycleHistories.Where(c => c.CycleId == cycleId).ToListAsync();
+    }
+
+    public async Task<string> GetFollowersByCycleId(Guid cycleId)
+    {
+        var userId =  (await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId))!.UserId;
+        return (await context.Users.FirstOrDefaultAsync(u => u.Id == userId))!.Name!;
+    }
+    
+    public async Task<List<CycleNotify>> GetCycleNotifiesByCycleId(Guid cycleId)
+    {
+        return await context.CycleNotifies.Where(c => c.CycleId == cycleId).ToListAsync();
+    }
+
+    public async Task<List<User?>> GetNotifyUsersByCycleId(Guid cycleDetailId)
+    {
+        var cycleNotifies = await GetCycleNotifiesByCycleId(cycleDetailId);
+        var users = await context.Users.ToListAsync();
+        return cycleNotifies
+            .Select(cycleNotify => users.FirstOrDefault(x => x.Id == cycleNotify.ReceiverId))
+            .ToList();
     }
     
     public async Task AddNewCycle(long chatId, DateTime lastStart)
@@ -75,10 +114,17 @@ public class DatabaseService(AppDbContext context)
         {
             Id = Guid.NewGuid(),
             UserId = user!.Id,
-            LastStart = lastStart,
         };
         
         context.CycleDetails.Add(cycleDetail);
+        await context.SaveChangesAsync();
+        await SetStartDate(chatId, lastStart);
+    }
+
+    public async Task SetStartDate(long telId, DateTime date)
+    {
+        var cycle = await GetCycleByTelId(telId);
+        cycle!.LastStart = date;
         await context.SaveChangesAsync();
     }
     
@@ -141,15 +187,4 @@ public class DatabaseService(AppDbContext context)
     }
 
     #endregion
-
-    public async Task<CycleDetail?> LoadCycleByCycleId(Guid cycleId)
-    {
-        return await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId);
-    }
-
-    public async Task<string> GetUserNameByCycleId(Guid cycleId)
-    {
-        var userId =  (await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId))!.UserId;
-        return (await context.Users.FirstOrDefaultAsync(u => u.Id == userId))!.Name!;
-    }
 }

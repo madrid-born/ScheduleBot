@@ -1,4 +1,6 @@
-﻿namespace ScheduleBot.Models;
+﻿using System.Collections.Generic;
+
+namespace ScheduleBot.Models;
 
 public class UpdateData
 {
