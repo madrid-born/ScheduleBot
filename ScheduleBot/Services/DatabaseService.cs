@@ -111,7 +111,7 @@ public class DatabaseService(AppDbContext context)
     {
         var user = await GetUserByTelId(chatId);
 
-        return await
+        var result = await
             (
                 from notify in context.CycleNotifies
                 join cycle in context.CycleDetails
@@ -119,9 +119,13 @@ public class DatabaseService(AppDbContext context)
                 join owner in context.Users
                     on cycle.UserId equals owner.Id
                 where notify.ReceiverId == user!.Id
-                select (owner.Name, cycle.Id)
+                select new { UserName = owner.Name, CycleId = cycle.Id }
             )
             .ToListAsync();
+
+        return result
+            .Select(x => (x.UserName, x.CycleId))
+            .ToList();
     }
     
     public async Task<List<CycleNotify>> GetCycleNotifiesByCycleId(Guid cycleId)
@@ -257,4 +261,20 @@ public class DatabaseService(AppDbContext context)
 
     #endregion
 
+    public async Task<List<(CycleDetail cycle, CycleNotify notify, User owner, User receiver)>> GetAllCycleNotifies()
+    {
+        var result = await
+            (
+                from notify in context.CycleNotifies
+                join cycle in context.CycleDetails on notify.CycleId equals cycle.Id
+                join owner in context.Users on cycle.UserId equals owner.Id
+                join receiver in context.Users on notify.ReceiverId equals receiver.Id
+                select new { cycle, notify, owner, receiver }
+            )
+            .ToListAsync();
+
+        return result
+            .Select(x => (x.cycle, x.notify, x.owner, x.receiver))
+            .ToList();
+    }
 }

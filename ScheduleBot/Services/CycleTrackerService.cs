@@ -18,7 +18,7 @@ public class CycleTrackerService(
     DatabaseService db,
     ILogger<CycleTrackerService> logger)
 {
-    private readonly TimeSpan _notificationHour = new TimeSpan(8, 0, 0);
+    private readonly TimeSpan _notificationHour = new(16, 15, 0);
 
     public async Task HandleSection(UpdateData data)
     {
@@ -585,6 +585,7 @@ public class CycleTrackerService(
     {
         await LoadCycleList(data.ChatId, CallBacks.CurrentStatus);
     }
+    
     private async Task SendCurrentStatus(UpdateData data)
     {
         var cycleId = Guid.Parse(data.DataSeparated[2]);
@@ -608,27 +609,23 @@ public class CycleTrackerService(
 
         await bot.SendMessage(chatId, Messages.SelectCycle, replyMarkup: keyboard);
     }
-
     
     public async Task CheckAndSendNotifications()
     {
-        // var now = DateTime.UtcNow;
-        // if (now.TimeOfDay.Hour != _notificationHour.Hours || now.TimeOfDay.Minute != _notificationHour.Minutes)
-        //     return;
-        //
-        // var allCycles = await db.CycleDetails.Include(c => c.NotifySetting).ToListAsync();
-        //
-        // foreach (var cycle in allCycles)
-        // {
-        //     if (cycle.NotifySetting == null) continue;
-        //     
-        //     var shouldNotify = ShouldNotifyToday(cycle, cycle.NotifySetting.NotifyMode);
-        //     if (shouldNotify)
-        //     {
-        //         var message = GenerateNotificationMessage(cycle);
-        //         await bot.SendMessage(cycle.UserId, message);
-        //     }
-        // }
+        var now = DateTime.UtcNow;
+        if (now.TimeOfDay.Hours != _notificationHour.Hours || now.TimeOfDay.Minutes != _notificationHour.Minutes) return;
+        var allCycleNotifies = await db.GetAllCycleNotifies();
+        
+        foreach (var cycleNotify in allCycleNotifies)
+        {
+            var shouldNotify = ShouldNotifyToday(cycleNotify.cycle, cycleNotify.notify.NotifyMode);
+            if (shouldNotify)
+            {
+                var date = $"{DateTime.Now:MM/dd/yyyy} - {ConvertGregorianToJalali(DateTime.Now)}";
+                var message = await CreateStatusMessage(cycleNotify.cycle.Id);
+                await bot.SendMessage(cycleNotify.receiver.ChatId, string.Format(Messages.StatusForReceiver, date, cycleNotify.owner.Name, message), replyMarkup: MessageHandler.GetMainKeyboard());
+            }
+        }
     }
 
     private bool ShouldNotifyToday(CycleDetail cycle, int mode)
@@ -646,23 +643,5 @@ public class CycleTrackerService(
             4 => daysBeforePeriod || isInPeriod,
             _ => false
         };
-    }
-
-    private string GenerateNotificationMessage(CycleDetail cycle)
-    {
-        return "result";
-        // var today = DateTime.UtcNow.Date;
-        // var daysSinceLastStart = (today - cycle.LastStart.Date).Days;
-        // var currentDay = (daysSinceLastStart % cycle.CycleLength) + 1;
-        // var daysUntilNext = cycle.CycleLength - daysSinceLastStart;
-        // var isOnPeriod = today >= cycle.LastStart.Date && today <= cycle.LastEnd.Date;
-        //
-        // if (isOnPeriod)
-        //     return $"🔴 You're on day {currentDay} of your period.\nRemaining: {cycle.PeriodLength - currentDay + 1} days";
-        //
-        // if (daysUntilNext <= 3)
-        //     return $"⚠️ Your period starts in {daysUntilNext} days! (Day {currentDay} of cycle)";
-        //
-        // return $"📊 Day {currentDay} of your cycle\n📈 {GetCyclePhase(currentDay, cycle.CycleLength)}\n⏳ {daysUntilNext} days until next period";
     }
 }
