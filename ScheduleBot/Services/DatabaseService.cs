@@ -93,6 +93,21 @@ public class DatabaseService(AppDbContext context)
         return (await context.Users.FirstOrDefaultAsync(u => u.Id == userId))!.Name!;
     }
     
+    public async Task<List<(string UserName, Guid CycleId)>> GetFollowingByChatId(long chatId)
+    {
+        var user = await GetUserByTelId(chatId);
+
+        return await
+            (from notify in context.CycleNotifies
+                join cycle in context.CycleDetails
+                    on notify.CycleId equals cycle.Id
+                join owner in context.Users
+                    on cycle.UserId equals owner.Id
+                where notify.ReceiverId == user!.Id
+                select (owner.Name, cycle.Id))
+            .ToListAsync();
+    }
+    
     public async Task<List<CycleNotify>> GetCycleNotifiesByCycleId(Guid cycleId)
     {
         return await context.CycleNotifies.Where(c => c.CycleId == cycleId).ToListAsync();

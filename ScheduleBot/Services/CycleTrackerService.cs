@@ -52,6 +52,9 @@ public class CycleTrackerService(
             case CallBacks.EditSection:
                 await EditCycle(data);
                 break;
+            case CallBacks.EditNotify:
+                await EditNotify(data);
+                break;
         }
     }
 
@@ -94,16 +97,10 @@ public class CycleTrackerService(
             return;
         }
 
-        if (edit)
-        {
-            await db.SetStartDate(data.ChatId, (DateTime)date);
-            await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
-        }
-        else
-        {
-            await db.AddNewCycle(data.ChatId, (DateTime)date);
-            await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
-        }
+        if (edit) await db.SetStartDate(data.ChatId, (DateTime)date);
+        else await db.AddNewCycle(data.ChatId, (DateTime)date);
+        
+        await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
     }
 
     private static DateTime? DateValidation(string? dataMessageText)
@@ -184,6 +181,28 @@ public class CycleTrackerService(
         {
             await ShowNotifyModeMenu(data.ChatId);
         }
+    }
+    
+    private async Task SelectCycleToChangeNotify(UpdateData data)
+    {
+        var keyboard = new InlineKeyboardMarkup((await db.GetFollowingByChatId(data.ChatId))
+            .Select(user => new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    user.UserName,
+                    $"{CallBacks.Cycle}\\{CallBacks.EditNotify}\\{user.CycleId}")
+            })
+        );
+
+        await bot.SendMessage(data.ChatId, Messages.SelectCycle, replyMarkup: keyboard);
+    }
+    
+    private async Task EditNotify(UpdateData data)
+    {
+        var chatId = data.ChatId;
+        var cycleId = Guid.Parse(data.DataSeparated[2]);
+        await bot.DeleteMessage(data.ChatId, data.MessageId);
+        await ShowNotifyModeMenu(chatId, cycleId);
     }
 
     private async Task ShowNotifyModeMenu(long chatId, Guid cycleId = default)
@@ -280,11 +299,10 @@ public class CycleTrackerService(
             case CallBacks.EditCycleLength:
                 await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
                 break;
-            case CallBacks.EditFollowers:
-                //TODO :check later
-                // await EditCycle(data);
-                break;
             case CallBacks.EditNotify:
+                await SelectCycleToChangeNotify(data);
+                break;
+            case CallBacks.EditFollowers:
                 //TODO :check later
                 // await EditCycle(data);
                 break;

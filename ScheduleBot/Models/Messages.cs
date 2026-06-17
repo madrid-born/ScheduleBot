@@ -48,8 +48,8 @@ public static class Messages
     
     #region CycleTracker
     
-    public const string KeyboardSetup = "Setup Period";
-    public const string KeyboardEdit = "Edit Period";
+    public const string KeyboardSetup = "Setup";
+    public const string KeyboardEdit = "Edit";
     public const string AddToCycle = "Add To My Cycle Notification";
     public const string JoinToCycle = "Join To Someone Cycle Notification";
     
@@ -72,6 +72,7 @@ public static class Messages
     public const string ChangesCommited = "Changes commited succesfully\n\n";
     public const string CurrentData = "Your current setted data is as below:\nLast Start: {0} days\nCycle length: {1} days\nPeriod length: {2} days\nAverage cycle length: {3} days\nAverage period length: {4} days\n\n";
     public const string Followers = "And those who follow you are:\n{0}";
+    public const string SelectCycle = "Select the sycle you want to edit";
     
     public const string EditPeriodLength = "Edit Period Length";
     public const string EditCycleLength = "Edit Cycle Length";
