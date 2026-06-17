@@ -154,8 +154,16 @@ public class DatabaseService(AppDbContext context)
 
     public async Task SetNewStartByTelId(long chatId, DateTime date)
     {
-        await SaveLastCycleHistory(chatId);
         await SetStartDate(chatId, date);
+    }
+    
+    public async Task SetNewEndByTelId(long chatId)
+    {
+        var cycle = await GetCycleByTelId(chatId);
+        cycle!.LastEnd = DateTime.Now;
+        await context.SaveChangesAsync();
+
+        await SaveLastCycleHistory(chatId);
     }
 
     public async Task SaveLastCycleHistory(long chatId)

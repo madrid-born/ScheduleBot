@@ -30,8 +30,11 @@ public class CycleTrackerService(
             case Messages.KeyboardSetup:
                 await AskForLastPeriodStart(data);
                 break;
-            case Messages.KeyboardReport:
+            case Messages.KeyboardReportStart:
                 await AskReportStart(data);
+                break;
+            case Messages.KeyboardReportEnd:
+                await AskReportEnd(data);
                 break;
             case Messages.KeyboardEdit:
                 await SendCurrentStatusList(data);
@@ -58,6 +61,16 @@ public class CycleTrackerService(
         
         await bot.SendMessage(data.ChatId, Messages.DidItStart, replyMarkup: keyboard);
     }
+    private async Task AskReportEnd(UpdateData data)
+    {
+        var keyboard = new InlineKeyboardMarkup
+        ([[
+            InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Cycle}\\{CallBacks.ReportEnd}\\{CallBacks.Yes}"),
+            InlineKeyboardButton.WithCallbackData(Messages.No, $"{CallBacks.Cycle}\\{CallBacks.ReportEnd}\\{CallBacks.No}"),
+        ]]);
+        
+        await bot.SendMessage(data.ChatId, Messages.DidItStart, replyMarkup: keyboard);
+    }
 
     private async Task ReportStart(UpdateData data)
     {        
@@ -75,6 +88,21 @@ public class CycleTrackerService(
                 break;
         }
     }
+    private async Task ReportEnd(UpdateData data)
+    {        
+        var result = data.DataSeparated[2];
+        switch (result)
+        {
+            case CallBacks.Yes:
+                await db.SetNewEndByTelId(data.ChatId);
+                await bot.SendMessage(data.ChatId, Messages.SavedData, replyMarkup: MessageHandler.GetMainKeyboard());
+                await EndNotify(data.ChatId);
+                break;
+            case CallBacks.No:
+                await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: MessageHandler.GetMainKeyboard());
+                break;
+        }
+    }
 
     private async Task StartNotify(long chatId)
     {
@@ -84,6 +112,15 @@ public class CycleTrackerService(
             await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyStart, $"{user.Name}({user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
         }
     }
+    
+    private async Task EndNotify(long chatId)
+    {
+        var users = await db.GetFollowersByChatId(chatId);
+        foreach (var user in users.Where(user => user.ChatId != chatId))
+        {
+            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyEnd, $"{user.Name}({user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
+        }
+    }
 
     public async Task HandleCallBack(UpdateData data)
     {
@@ -91,6 +128,9 @@ public class CycleTrackerService(
         {
             case CallBacks.ReportStart:
                 await ReportStart(data);
+                break;
+            case CallBacks.ReportEnd:
+                await ReportEnd(data);
                 break;
             case CallBacks.SetNotifyMode:
                 await SetNotifyMode(data);
@@ -122,7 +162,8 @@ public class CycleTrackerService(
     {
         return new ReplyKeyboardMarkup
             ([
-                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardReport)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardReportStart)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardReportEnd)],
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardSetup)],
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardCurrentStatus)],
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardEdit)],
@@ -592,22 +633,19 @@ public class CycleTrackerService(
 
     private bool ShouldNotifyToday(CycleDetail cycle, int mode)
     {
-        return true;
-        // var today = DateTime.UtcNow.Date;
-        // var daysSinceLastStart = (today - cycle.LastStart.Date).Days;
-        // var currentDay = (daysSinceLastStart % cycle.CycleLength) + 1;
-        // var daysUntilNext = cycle.CycleLength - daysSinceLastStart;
-        // var isInPeriod = today >= cycle.LastStart.Date && today <= cycle.LastEnd.Date;
-        // var daysBeforePeriod = daysUntilNext <= 3;
-        //
-        // return mode switch
-        // {
-        //     1 => true,
-        //     2 => today.DayOfWeek == DayOfWeek.Monday,
-        //     3 => currentDay == 1 || (daysSinceLastStart > 0 && currentDay == cycle.PeriodLength),
-        //     4 => daysBeforePeriod || isInPeriod,
-        //     _ => false
-        // };
+        var today = DateTime.Now;
+        var daysSinceLastStart = (today - cycle.LastStart!.Value).Days;
+        var daysUntilNext = cycle.CycleLength - daysSinceLastStart;
+        var isInPeriod = today >= cycle.LastStart.Value && today <= cycle.LastEnd!.Value;
+        var daysBeforePeriod = daysUntilNext <= 3;
+        
+        return mode switch
+        {
+            1 => true,
+            2 => today.DayOfWeek == DayOfWeek.Monday,
+            4 => daysBeforePeriod || isInPeriod,
+            _ => false
+        };
     }
 
     private string GenerateNotificationMessage(CycleDetail cycle)

@@ -48,7 +48,8 @@ public static class Messages
     
     #region CycleTracker
     
-    public const string KeyboardReport = "Report the start";
+    public const string KeyboardReportEnd = "Report end";
+    public const string KeyboardReportStart = "Report start";
     public const string KeyboardSetup = "Setup";
     public const string KeyboardEdit = "Edit";
     public const string KeyboardCurrentStatus = "Current Status";
@@ -57,6 +58,7 @@ public static class Messages
     
     public const string SavedData = "Your cycle got restarted successfully.";
     public const string NotifyStart = "{0}'s period just got started.";
+    public const string NotifyEnd = "{0}'s period just got ended.";
     public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
     public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
 
@@ -64,7 +66,7 @@ public static class Messages
     public const string AskForCycleLength = "What is your average cycle length (days between periods)?";
     public const string AskForPeriodLength = "How many days does your period typically last?";
     public const string AskForNotifyMode = "How often would you like to receive notifications?";
-    public static readonly List<string> NotifyModes = ["Every day", "Weekly", "Start & End only", "3 days before + during period"];
+    public static readonly List<string> NotifyModes = ["Never", "Every day", "Weekly", "Start & End only", "3 days before + during period"];
     public const string SetupComplete = "Period tracker setup complete!";
     public const string EditPeriodReminder = " You can use /EditPeriod to update your cycle.";
     public const string SetNotifyComplete = "You'll receive notifications\n{0}.";
@@ -79,6 +81,7 @@ public static class Messages
     public const string SelectCycle = "Select the sycle you want";
     public const string SelectUser = "Select the user you want";
     public const string DidItStart = "Did your period start today?";
+    public const string DidItEnd = "Did your period start today?";
     
     public const string RemoveFollowerForOwner = "Succesfuly Removed {0} from cycle";
     public const string RemoveFollowerForReceiver = "{0} removed you from her(their) cycle";
@@ -155,6 +158,7 @@ public static class CallBacks
     public const string SetNotifyMode = "SetNotifyMode";
     public const string CurrentStatus = "CurrentStatus";
     public const string ReportStart = "ReportStart";
+    public const string ReportEnd = "ReportEnd";
     public const string EditSection = "EditSection";
     public const string EditPeriodLength = "EditPeriodLength";
     public const string EditCycleLength = "EditCycleLength";
