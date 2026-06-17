@@ -31,12 +31,15 @@ public class CycleTrackerService(
                 await AskForLastPeriodStart(data);
                 break;
             case Messages.KeyboardEdit:
-                await EditCheck(data, false);
+                await SendCurrentStatusList(data);
                 break;
-            case Messages.AddToCycle:
+            case Messages.KeyboardCurrentStatus:
+                await JoinToCyclePressed(data);
+                break;
+            case Messages.KeyboardAddToCycle:
                 await AddToCycle(data);
                 break;
-            case Messages.JoinToCycle:
+            case Messages.KeyboardJoinToCycle:
                 await JoinToCyclePressed(data);
                 break;
         }
@@ -49,11 +52,20 @@ public class CycleTrackerService(
             case CallBacks.SetNotifyMode:
                 await SetNotifyMode(data);
                 break;
+            case CallBacks.CurrentStatus:
+                await SendCurrentStatus(data);
+                break;
             case CallBacks.EditSection:
                 await EditCycle(data);
                 break;
             case CallBacks.EditNotify:
                 await EditNotify(data);
+                break;
+            case CallBacks.RemoveFollowing:
+                await RemoveFollowing(data);
+                break;
+            case CallBacks.RemoveFollower:
+                await RemoveFollower(data);
                 break;
         }
     }
@@ -68,8 +80,10 @@ public class CycleTrackerService(
         return new ReplyKeyboardMarkup
             ([
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardSetup)],
-                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.AddToCycle)],
-                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.JoinToCycle)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardCurrentStatus)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardEdit)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardAddToCycle)],
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardJoinToCycle)],
             ])
             { ResizeKeyboard = true };
     }
@@ -185,23 +199,13 @@ public class CycleTrackerService(
     
     private async Task SelectCycleToChangeNotify(UpdateData data)
     {
-        var keyboard = new InlineKeyboardMarkup((await db.GetFollowingByChatId(data.ChatId))
-            .Select(user => new[]
-            {
-                InlineKeyboardButton.WithCallbackData(
-                    user.UserName,
-                    $"{CallBacks.Cycle}\\{CallBacks.EditNotify}\\{user.CycleId}")
-            })
-        );
-
-        await bot.SendMessage(data.ChatId, Messages.SelectCycle, replyMarkup: keyboard);
+        await LoadCycleList(data.ChatId, CallBacks.EditNotify);
     }
     
     private async Task EditNotify(UpdateData data)
     {
         var chatId = data.ChatId;
         var cycleId = Guid.Parse(data.DataSeparated[2]);
-        await bot.DeleteMessage(data.ChatId, data.MessageId);
         await ShowNotifyModeMenu(chatId, cycleId);
     }
 
@@ -225,11 +229,10 @@ public class CycleTrackerService(
         var mode = int.Parse(data.DataSeparated[2]);
         var isParsed = Guid.TryParse(data.DataSeparated[3], out var cycleId);
         await db.SetNotify(data.ChatId, mode, cycleId);
-        await bot.DeleteMessage(data.ChatId, data.MessageId);
         var message = string.Format(Messages.SetNotifyComplete, Messages.NotifyModes[mode]);
         if (isParsed)
         {
-            var ownerName = db.GetFollowersByCycleId(cycleId);
+            var ownerName = (await db.GetCycleOwnerByCycleId(cycleId))!.Name;
             message = string.Format(Messages.SetNotifyCompleteGuest, ownerName, Messages.NotifyModes[mode]);
         }
         else
@@ -303,8 +306,10 @@ public class CycleTrackerService(
                 await SelectCycleToChangeNotify(data);
                 break;
             case CallBacks.EditFollowers:
-                //TODO :check later
-                // await EditCycle(data);
+                await RemoveFollowersList(data);
+                break;
+            case CallBacks.EditFollowing:
+                await RemoveFollowingList(data);
                 break;
         }
 
@@ -334,75 +339,195 @@ public class CycleTrackerService(
             await bot.SendMessage(data.ChatId, Messages.CycleIdIsWrong, replyMarkup: MessageHandler.GetMainKeyboard());
         }
     }
-        
-        
-        
-        
-        
-        
-        
-    public async Task ShowEditMenu(long chatId)
+    
+    private async Task RemoveFollowingList(UpdateData data)
     {
-        // var cycleDetail = await db.CycleDetails.FirstOrDefaultAsync(c => c.UserId == chatId);
-        // if (cycleDetail == null)
-        // {
-        //     await bot.SendMessage(chatId, "You don't have a cycle tracker set up yet. Click the Period Tracker button to start.");
-        //     return;
-        // }
-        //
-        // var keyboard = new InlineKeyboardMarkup(new[]
-        // {
-        //     new[] { InlineKeyboardButton.WithCallbackData("📅 New period started", $"{CallBacks.Cycle}\\NewPeriod") },
-        //     new[] { InlineKeyboardButton.WithCallbackData("🔄 Change cycle length", $"{CallBacks.Cycle}\\SetCycleLength\\custom") },
-        //     new[] { InlineKeyboardButton.WithCallbackData("📊 Current status", $"{CallBacks.Cycle}\\ViewStatus") },
-        //     new[] { InlineKeyboardButton.WithCallbackData("🔔 Change notification mode", $"{CallBacks.Cycle}\\SetNotifyMode\\menu") }
-        // });
-        //
-        // await bot.SendMessage(chatId, "What would you like to edit?", replyMarkup: keyboard);
+        await LoadCycleList(data.ChatId, CallBacks.RemoveFollowing);
     }
 
-    public async Task RecordNewPeriodStart(UpdateData data)
+    private async Task RemoveFollowersList(UpdateData data)
     {
-        // await bot.SendMessage(data.ChatId, "When did your new period start? (YYYY-MM-DD):", replyMarkup: new ForceReplyMarkup());
-        // // You'll need to capture this via HandleMessageAsync with a state
+        
+        var keyboard = new InlineKeyboardMarkup((await db.GetFollowersByChatId(data.ChatId))
+            .Select(user => new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    user.Name!,
+                    $"{CallBacks.Cycle}\\{CallBacks.RemoveFollower}\\{user.Id}")
+            })
+        );
+
+        await bot.SendMessage(data.ChatId, Messages.SelectUser, replyMarkup: keyboard);
+    }
+    
+    private async Task RemoveFollower(UpdateData data)
+    {
+        var cycleId = (await db.GetCycleByTelId(data.ChatId))!.Id;
+        var owner = await db.GetUserByTelId(data.ChatId);
+        var receiver = await db.GetUserById(Guid.Parse(data.DataSeparated[2]));
+        await db.RemoveReceiverFromCycle(cycleId, receiver!.Id);
+        
+        await bot.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowerForReceiver, owner!.Name), replyMarkup: MessageHandler.GetMainKeyboard());
+        await bot.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowerForOwner, receiver.Name), replyMarkup: MessageHandler.GetMainKeyboard());
+    }
+    
+    private async Task RemoveFollowing(UpdateData data)
+    {
+        var cycleId = Guid.Parse(data.DataSeparated[2]);
+        var owner = await db.GetCycleOwnerByCycleId(cycleId);
+        var receiver = await db.GetUserByTelId(data.ChatId);
+        await db.RemoveReceiverFromCycle(cycleId, receiver!.Id);
+        
+        await bot.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowingForReceiver, owner!.Name), replyMarkup: MessageHandler.GetMainKeyboard());
+        await bot.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowingForOwner, receiver.Name), replyMarkup: MessageHandler.GetMainKeyboard());
+    }
+    
+    public async Task<string?> CreateStatusMessage(Guid cycleId)
+    {
+        var cycleDetail = await db.GetCycleByCycleId(cycleId);
+        if (cycleDetail == null) return null;
+        if (cycleDetail.LastStart == null) return Messages.NoCycleData;
+
+        var cycleLength = (int)cycleDetail.CycleLength!;
+        var periodLength = (int)cycleDetail.PeriodLength!;
+        var lastStart = cycleDetail.LastStart;
+        var lastEnd = cycleDetail.LastEnd;
+        var now = DateTime.UtcNow.Date;
+        var daysSinceStart = (now - lastStart.Value).Days + 1;
+        if (daysSinceStart < 0) return Messages.InvalidFutureCycle;
+
+        #region InPeriod
+
+        if (lastEnd == null)
+        {
+            var progress = (double)daysSinceStart / periodLength;
+            string phase, details;
+
+            switch (progress)
+            {
+                case <= 0.25:
+                    phase = Messages.EarlyPeriod;
+                    details = Messages.EarlyPeriodDescription;
+                    break;
+                case <= 0.6:
+                    phase = Messages.MidPeriod;
+                    details = Messages.MidPeriodDescription;
+                    break;
+                case <= 0.85:
+                    phase = Messages.LatePeriod;
+                    details = Messages.LatePeriodDescription;
+                    break;
+                case <= 1:
+                    phase = Messages.FinalPeriod;
+                    details = Messages.FinalPeriodDescription;
+                    break;
+                default:
+                    phase = Messages.ExtendedPeriod;
+                    details = Messages.ExtendedPeriodDescription;
+                    break;
+            }
+            
+            var remainingDays = periodLength - daysSinceStart;
+            return string.Format(Messages.InPeriodTemplate, phase, daysSinceStart, periodLength, details, remainingDays);
+        }
+        
+        #endregion
+
+        #region OutOfCycle
+
+        var daysSinceEnd = (now - lastEnd.Value).Days + 1;
+
+        if (daysSinceEnd >= cycleLength)
+        {
+            var daysLate = daysSinceStart - cycleLength;
+            var severity = daysLate / 14.0;
+
+            string tone, reason;
+
+            switch (severity)
+            {
+                case <= 0.15:
+                    tone = Messages.SlightlyLate;
+                    reason = Messages.SlightlyLateReason;
+                    break;
+                case <= 0.5:
+                    tone = Messages.ModeratelyLate;
+                    reason = Messages.ModeratelyLateReason;
+                    break;
+                case <= 1.0:
+                    tone = Messages.SignificantlyLate;
+                    reason = Messages.SignificantlyLateReason;
+                    break;
+                default:
+                    tone = Messages.HighlyIrregular;
+                    reason = Messages.HighlyIrregularReason;
+                    break;
+            }
+            
+            var confidence = Math.Max(0, 100 - (int)(severity * 60));
+            return string.Format(Messages.LateCycleTemplate, tone, daysLate, reason, confidence);
+        }
+        
+        #endregion
+
+        #region InCycle
+
+        var phaseJitter = 2;
+        var menstrualDay = 7;
+        var ovulationDay = cycleLength / 2;
+        var ovulationStart = ovulationDay - phaseJitter;
+        var ovulationEnd = ovulationDay + phaseJitter;
+        var lutealStart = ovulationEnd + 1;
+        var lutealEnd = cycleLength - 5;
+        var remaining = cycleLength - daysSinceEnd + 1;
+        
+        if (daysSinceEnd <= menstrualDay)
+            return string.Format(Messages.MenstrualPhaseTemplate, daysSinceEnd, cycleLength, menstrualDay, menstrualDay - daysSinceEnd);
+        
+        if (daysSinceEnd < ovulationStart)
+            return string.Format(Messages.FollicularPhaseTemplate, daysSinceEnd, cycleLength, ovulationStart, ovulationEnd, phaseJitter, ovulationStart - daysSinceEnd);
+        
+        if (daysSinceEnd >= ovulationStart && daysSinceEnd <= ovulationEnd)
+            return string.Format(Messages.OvulationPhaseTemplate, daysSinceEnd, cycleLength, ovulationDay, phaseJitter, Math.Abs(daysSinceEnd - ovulationDay));
+        
+        if (daysSinceEnd >= lutealStart && daysSinceEnd <= lutealEnd)
+            return string.Format(Messages.LutealPhaseTemplate, daysSinceEnd, cycleLength, cycleLength - daysSinceEnd);            
+        
+        return string.Format(Messages.PremenstrualPhaseTemplate, daysSinceEnd, cycleLength, remaining);
+        
+        #endregion
+
+    }
+    
+    private async Task SendCurrentStatusList(UpdateData data)
+    {
+        await LoadCycleList(data.ChatId, CallBacks.CurrentStatus);
+    }
+    private async Task SendCurrentStatus(UpdateData data)
+    {
+        var cycleId = Guid.Parse(data.DataSeparated[2]);
+        var owner = await db.GetCycleOwnerByCycleId(cycleId);
+        var receiver = await db.GetUserByTelId(data.ChatId);
+        var message = await CreateStatusMessage(cycleId);
+        var date = $"{DateTime.Now:MM/dd/yyyy} - {ConvertGregorianToJalali(DateTime.Now)}";
+        await bot.SendMessage(receiver!.ChatId, string.Format(Messages.StatusForReceiver, date, owner!.Name, message), replyMarkup: MessageHandler.GetMainKeyboard());
+    }
+    
+    private async Task LoadCycleList(long chatId, string callBack)
+    {
+        var keyboard = new InlineKeyboardMarkup((await db.GetFollowingByChatId(chatId))
+            .Select(user => new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    user.UserName,
+                    $"{CallBacks.Cycle}\\{callBack}\\{user.CycleId}")
+            })
+        );
+
+        await bot.SendMessage(chatId, Messages.SelectCycle, replyMarkup: keyboard);
     }
 
-    public async Task SendCycleStatus(long chatId)
-    {
-        // var cycleDetail = await db.CycleDetails.FirstOrDefaultAsync(c => c.UserId == chatId);
-        // if (cycleDetail == null) return;
-        //
-        // var today = DateTime.UtcNow.Date;
-        // var daysSinceLastStart = (today - cycleDetail.LastStart.Date).Days;
-        // var currentDay = (daysSinceLastStart % cycleDetail.CycleLength) + 1;
-        // var daysUntilNext = cycleDetail.CycleLength - daysSinceLastStart;
-        // var isOnPeriod = today >= cycleDetail.LastStart.Date && today <= cycleDetail.LastEnd.Date;
-        //
-        // string phase = GetCyclePhase(currentDay, cycleDetail.CycleLength);
-        // string status = isOnPeriod ? "🔴 You are on your period (Day {currentDay} of {cycleDetail.PeriodLength})" : 
-        //                              $"🟢 Day {currentDay} of your cycle\n📈 Phase: {phase}\n⏳ {daysUntilNext} days until next period";
-        //
-        // await bot.SendMessage(chatId, status);
-    }
-
-    private string GetCyclePhase(int day, int cycleLength)
-    {
-        if (day <= 7) return "Menstrual phase";
-        if (day <= 14) return "Follicular phase";
-        if (day <= 16) return "Ovulation window";
-        if (day <= cycleLength - 5) return "Luteal phase";
-        return "Premenstrual phase";
-    }
-
-    private string GetModeName(int mode) => mode switch
-    {
-        1 => "daily",
-        2 => "weekly",
-        3 => "start & end only",
-        4 => "pre-period + period",
-        _ => "daily"
-    };
-
+    
     public async Task CheckAndSendNotifications()
     {
         // var now = DateTime.UtcNow;

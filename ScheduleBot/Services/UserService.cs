@@ -61,7 +61,6 @@ public class UserService(ITelegramBotClient bot, DatabaseService db, IConfigurat
     public async Task AskForName(UpdateData data)
     {
         await db.InsertEmptyUser(data.ChatId, data.Username);
-        await bot.DeleteMessage(data.ChatId, data.MessageId);
         await bot.SendMessage(data.ChatId, Messages.EnterYourName, replyMarkup: new ForceReplyMarkup());
     }
 
@@ -90,7 +89,6 @@ public class UserService(ITelegramBotClient bot, DatabaseService db, IConfigurat
         var chatId = long.Parse(data.DataSeparated[2]);
         var status = accept ? Messages.Approved : Messages.Rejected ;
         await db.UpdateUserAcceptance(chatId, accept);
-        await bot.DeleteMessage(_adminChatId, data.MessageId);
         await bot.SendMessage(_adminChatId, string.Format(Messages.AdminAcceptanceTemplate, chatId ,status));
         await bot.SendMessage(chatId, string.Format(Messages.UserAcceptanceTemplate, status),
             replyMarkup: accept ? MessageHandler.GetMainKeyboard() : null);

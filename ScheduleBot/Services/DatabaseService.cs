@@ -87,10 +87,24 @@ public class DatabaseService(AppDbContext context)
         return await context.CycleHistories.Where(c => c.CycleId == cycleId).ToListAsync();
     }
 
-    public async Task<string> GetFollowersByCycleId(Guid cycleId)
+    public async Task<User?> GetCycleOwnerByCycleId(Guid cycleId)
     {
-        var userId =  (await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId))!.UserId;
-        return (await context.Users.FirstOrDefaultAsync(u => u.Id == userId))!.Name!;
+        var userId =  (await GetCycleByCycleId(cycleId))!.UserId;
+        return await context.Users.FirstOrDefaultAsync(u => u.Id == userId)!;
+    }
+
+    public async Task<List<User>> GetFollowersByChatId(long chatId)
+    {
+        var user = await GetUserByTelId(chatId);
+        var cycle = await GetCycleByTelId(user!.ChatId);
+        return await GetFollowersByCycleId(cycle!.Id);
+    }
+    
+    public async Task<List<User>> GetFollowersByCycleId(Guid cycleId)
+    {
+        var receiverIds = (await context.CycleNotifies.Where(x => x.CycleId == cycleId).ToListAsync())
+            .Select(x => x.ReceiverId);
+        return await context.Users.Where(x => receiverIds.Contains(x.Id)).ToListAsync();
     }
     
     public async Task<List<(string UserName, Guid CycleId)>> GetFollowingByChatId(long chatId)
@@ -98,13 +112,15 @@ public class DatabaseService(AppDbContext context)
         var user = await GetUserByTelId(chatId);
 
         return await
-            (from notify in context.CycleNotifies
+            (
+                from notify in context.CycleNotifies
                 join cycle in context.CycleDetails
                     on notify.CycleId equals cycle.Id
                 join owner in context.Users
                     on cycle.UserId equals owner.Id
                 where notify.ReceiverId == user!.Id
-                select (owner.Name, cycle.Id))
+                select (owner.Name, cycle.Id)
+            )
             .ToListAsync();
     }
     
@@ -201,5 +217,13 @@ public class DatabaseService(AppDbContext context)
         await context.SaveChangesAsync();
     }
 
+    public async Task RemoveReceiverFromCycle(Guid cycleId, Guid receiverId)
+    {
+        await context.CycleNotifies
+            .Where(x => x.CycleId == cycleId && x.ReceiverId == receiverId)
+            .ExecuteDeleteAsync();
+    }
+
     #endregion
+
 }

@@ -50,8 +50,9 @@ public static class Messages
     
     public const string KeyboardSetup = "Setup";
     public const string KeyboardEdit = "Edit";
-    public const string AddToCycle = "Add To My Cycle Notification";
-    public const string JoinToCycle = "Join To Someone Cycle Notification";
+    public const string KeyboardCurrentStatus = "Current Status";
+    public const string KeyboardAddToCycle = "Add To My Cycle Notification";
+    public const string KeyboardJoinToCycle = "Join To Someone Cycle Notification";
     
     public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
     public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
@@ -72,24 +73,56 @@ public static class Messages
     public const string ChangesCommited = "Changes commited succesfully\n\n";
     public const string CurrentData = "Your current setted data is as below:\nLast Start: {0} days\nCycle length: {1} days\nPeriod length: {2} days\nAverage cycle length: {3} days\nAverage period length: {4} days\n\n";
     public const string Followers = "And those who follow you are:\n{0}";
-    public const string SelectCycle = "Select the sycle you want to edit";
+    public const string SelectCycle = "Select the sycle you want";
+    public const string SelectUser = "Select the user you want";
+    
+    public const string RemoveFollowerForOwner = "Succesfuly Removed {0} from cycle";
+    public const string RemoveFollowerForReceiver = "{0} removed you from her(their) cycle";
+    public const string RemoveFollowingForOwner = "{0} exited from your cycle notification";
+    public const string RemoveFollowingForReceiver = "Succesfuly exited {0}'s cycle notification";
     
     public const string EditPeriodLength = "Edit Period Length";
     public const string EditCycleLength = "Edit Cycle Length";
     public const string EditFollowers = "Remove Followers";
     public const string EditLastPeriod = "Remove Last Period";
     public const string EditNotify = "Edit Notification method";
+    
+    #endregion
+    
+    #region CycleStatus
+    
+    public const string StatusForReceiver = "today is {0}\nAnd {1} is now in this situation\n\n{2}";
+    
+    public const string NoCycleData = "No cycle data available (missing last start date).";
+    public const string InvalidFutureCycle = "Cycle start date is in the future. Data is invalid.";
+    
+    public const string EarlyPeriod = "Early period";
+    public const string MidPeriod = "Mid period";
+    public const string LatePeriod = "Late period";
+    public const string FinalPeriod = "Final stage";
+    public const string ExtendedPeriod = "Extended bleeding window";
+    public const string EarlyPeriodDescription = "Flow typically heavy, cramps more likely. Hormone levels are dropping quickly.";
+    public const string MidPeriodDescription = "Flow usually stabilizes. Symptoms vary widely between individuals.";
+    public const string LatePeriodDescription = "Flow generally lighter. Body starts transitioning out of menstruation.";
+    public const string FinalPeriodDescription = "Light spotting possible. Uterus lining mostly shed.";
+    public const string ExtendedPeriodDescription = "This may be spotting or prolonged menstruation.";
+    
+    public const string SlightlyLate = "slightly late";
+    public const string ModeratelyLate = "moderately late";
+    public const string SignificantlyLate = "significantly late";
+    public const string HighlyIrregular = "highly irregular";
+    public const string SlightlyLateReason = "Normal biological variation, stress, sleep changes, or minor hormonal fluctuation.";
+    public const string ModeratelyLateReason = "Common causes include stress, illness, hormonal imbalance, or cycle irregularity.";
+    public const string SignificantlyLateReason = "This level of delay often indicates cycle irregularity or strong hormonal disruption.";
+    public const string HighlyIrregularReason = "Extended delay. Could be data inconsistency or major physiological change.";
 
-    //public const string Daily = "Every day";
-    //public const string Weekly = "Weekly";
-    //public const string StartAndEnd = "Start & End only";
-    //public const string DuringAndBefore = "3 days before + during period";
-    
-    
-    
-    public const string CycleTrackerWelcome = "🌸 Period Tracker\n\nTrack your menstrual cycle, get daily insights, and never miss a period!";
-    public const string CycleSetupComplete = "✅ Period tracker setup complete!";
-    public const string NoActiveTracker = "❌ You don't have an active period tracker. Click the Period Tracker button to set one up.";
+    public const string InPeriodTemplate = "{0} (Day {1}/{2}).\n{3}\nEstimated remaining: {4} day(s).";
+    public const string LateCycleTemplate = "Cycle is {0} by {1} day(s).\n{2}\nEstimated stability confidence: {3}%.";
+    public const string MenstrualPhaseTemplate = "Menstrual phase (Day {0}/{1}).\nExpected window: day 1–{2}.\nUncertainty: ±1 day variation in real cycles.\nRemaining in phase: ~{3} day(s).";
+    public const string FollicularPhaseTemplate = "Follicular phase (Day {0}/{1}).\nEstimated ovulation window: day {2}–{3}.\nUncertainty: ±{4} days.\nTime to fertile window: ~{5} day(s).";
+    public const string OvulationPhaseTemplate = "Ovulation window (Day {0}/{1}).\nPeak fertility likely around day {2} (±{3}).\nConfidence decreases as you move {4} day(s) away from peak.\nShort fertile window (~3–5 days total).";
+    public const string LutealPhaseTemplate = "Luteal phase (Day {0}/{1}).\nMore stable phase biologically (~12–14 days after ovulation).\nExpected variation: ±2–3 days depending on cycle length.\nNext cycle in ~{2} day(s).";
+    public const string PremenstrualPhaseTemplate = "Premenstrual phase (Day {0}/{1}).\nHormone drop phase leading into menstruation.\nHigh variability: symptoms may start 3–7 days before cycle.\nNext cycle in ~{2} day(s).";
 
     #endregion
 }
@@ -109,12 +142,16 @@ public static class CallBacks
 
     public const string Cycle = "Cycle";
     public const string SetNotifyMode = "SetNotifyMode";
+    public const string CurrentStatus = "CurrentStatus";
     public const string EditSection = "EditSection";
     public const string EditPeriodLength = "EditPeriodLength";
     public const string EditCycleLength = "EditCycleLength";
     public const string EditFollowers = "EditFollowers";
+    public const string EditFollowing = "EditFollowing";
     public const string EditLastPeriod = "EditLastPeriod";
     public const string EditNotify = "EditNotify";
+    public const string RemoveFollowing = "RemoveFollowing";
+    public const string RemoveFollower = "RemoveFollower";
     
     
 

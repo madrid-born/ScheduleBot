@@ -83,6 +83,8 @@ public class MessageHandler(
 
     private async Task HandleCallbackAsync(UpdateData data)
     {
+        await bot.DeleteMessage(data.ChatId, data.MessageId);
+
         switch (data.DataSeparated[0])
         {
             case CallBacks.Register:
