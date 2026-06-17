@@ -112,7 +112,7 @@ public class MessageHandler(
     {
         var flag = false;
         if (!data.IsReplied) return flag;
-        switch (data.ReplyMessageSeparated[0])
+        switch (data.RepliedMessage)
         {
             case Messages.EnterYourName:
                 await userService.AskForEmail(data);
@@ -167,7 +167,14 @@ public class MessageHandler(
     private async Task<bool> CheckKeyboard(UpdateData data)
     {
         var flag = false;
-        var keyboardSymbol = data.MessageText![..3];
+        var keyboardSymbol = "";
+
+        try
+        {
+            keyboardSymbol = data.MessageText![..3];
+        }
+        catch (Exception e) { /*ignored*/ }
+        
         switch (keyboardSymbol)
         {
             case Messages.PeriodTrackerSymbol:

@@ -109,7 +109,7 @@ public class CycleTrackerService(
         var users = await db.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyStart, $"{user.Name}({user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
+            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyStart, $"{user.Name}(@{user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
         }
     }
     
@@ -118,7 +118,7 @@ public class CycleTrackerService(
         var users = await db.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyEnd, $"{user.Name}({user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
+            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyEnd, $"{user.Name}(@{user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
         }
     }
 
@@ -139,6 +139,7 @@ public class CycleTrackerService(
                 await SendCurrentStatus(data);
                 break;
             case CallBacks.EditSection:
+                //todo
                 await EditCycle(data);
                 break;
             case CallBacks.EditNotify:
@@ -207,7 +208,7 @@ public class CycleTrackerService(
         DateTime? date = null;
         try
         {
-            var firstDigit = dataMessageText![1..];
+            var firstDigit = dataMessageText[..1];
             switch (firstDigit)
             {
                 case "1":
@@ -227,8 +228,8 @@ public class CycleTrackerService(
     {
         var pc = new PersianCalendar();
         var year = int.Parse(date.Substring(0, 4));
-        var month = int.Parse(date.Substring(4, 2));
-        var day = int.Parse(date.Substring(6, 2));
+        var month = int.Parse(date.Substring(5, 2));
+        var day = int.Parse(date.Substring(8, 2));
         return pc.ToDateTime(year, month, day, 0, 0, 0, 0);
     }
     
@@ -309,10 +310,10 @@ public class CycleTrackerService(
     {
         var chatId = data.ChatId;
         var mode = int.Parse(data.DataSeparated[2]);
-        var isParsed = Guid.TryParse(data.DataSeparated[3], out var cycleId);
+        var cycleId = Guid.Parse(data.DataSeparated[3]);
         await db.SetNotify(data.ChatId, mode, cycleId);
         var message = string.Format(Messages.SetNotifyComplete, Messages.NotifyModes[mode]);
-        if (isParsed)
+        if (cycleId != Guid.Empty)
         {
             var ownerName = (await db.GetCycleOwnerByCycleId(cycleId))!.Name;
             message = string.Format(Messages.SetNotifyCompleteGuest, ownerName, Messages.NotifyModes[mode]);
@@ -334,7 +335,7 @@ public class CycleTrackerService(
         var cycleLength = cycleDetail.PeriodLength;
         var periodLength = cycleDetail.PeriodLength;
         var (avgCycleLength, avgPeriodLength) = CalculateAverages(cycleHistories);
-        var followers = cycleUsers.Aggregate("", (current, user) => current + user!.Name + ", " + user.Username);
+        var followers = cycleUsers.Aggregate("", (current, user) => current + user!.Name + ", @" + user.Username);
         var message = Messages.EditCheck;
         message += string.Format(Messages.CurrentData, lastPeriodStart, cycleLength, periodLength, avgCycleLength, avgPeriodLength);
         message += string.Format(Messages.Followers, followers);

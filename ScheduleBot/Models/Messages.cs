@@ -64,6 +64,7 @@ public static class Messages
 
     public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):\nBoth Jalali and Gregorian dates would work\nBut remember to enter like 1405-03-07 or 2026-06-05";
     public const string AskForCycleLength = "What is your average cycle length (days between periods)?";
+    // public const string AskForCycleLength = "What is your average cycle length (days between end of period and starting the next)?";
     public const string AskForPeriodLength = "How many days does your period typically last?";
     public const string AskForNotifyMode = "How often would you like to receive notifications?";
     public static readonly List<string> NotifyModes = ["Never", "Every day", "Weekly", "Start & End only", "3 days before + during period"];
