@@ -30,6 +30,9 @@ public class CycleTrackerService(
             case Messages.KeyboardSetup:
                 await AskForLastPeriodStart(data);
                 break;
+            case Messages.KeyboardReport:
+                await AskReportStart(data);
+                break;
             case Messages.KeyboardEdit:
                 await SendCurrentStatusList(data);
                 break;
@@ -45,10 +48,50 @@ public class CycleTrackerService(
         }
     }
 
+    private async Task AskReportStart(UpdateData data)
+    {
+        var keyboard = new InlineKeyboardMarkup
+        ([[
+            InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Cycle}\\{CallBacks.ReportStart}\\{CallBacks.Yes}"),
+            InlineKeyboardButton.WithCallbackData(Messages.No, $"{CallBacks.Cycle}\\{CallBacks.ReportStart}\\{CallBacks.No}"),
+        ]]);
+        
+        await bot.SendMessage(data.ChatId, Messages.DidItStart, replyMarkup: keyboard);
+    }
+
+    private async Task ReportStart(UpdateData data)
+    {        
+        var result = data.DataSeparated[2];
+        switch (result)
+        {
+            case CallBacks.Yes:
+                await db.SetNewStartByTelId(data.ChatId, DateTime.Now);
+                await bot.SendMessage(data.ChatId, Messages.SavedData, replyMarkup: MessageHandler.GetMainKeyboard());
+                await StartNotify(data.ChatId);
+                break;
+            case CallBacks.No:
+                await db.SaveLastCycleHistory(data.ChatId);
+                await AskForLastPeriodStart(data);
+                break;
+        }
+    }
+
+    private async Task StartNotify(long chatId)
+    {
+        var users = await db.GetFollowersByChatId(chatId);
+        foreach (var user in users.Where(user => user.ChatId != chatId))
+        {
+            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyStart, $"{user.Name}({user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
+        }
+    }
+
     public async Task HandleCallBack(UpdateData data)
     {
         switch (data.DataSeparated[1])
         {
+            case CallBacks.ReportStart:
+                await ReportStart(data);
+                break;
             case CallBacks.SetNotifyMode:
                 await SetNotifyMode(data);
                 break;
@@ -79,6 +122,7 @@ public class CycleTrackerService(
     {
         return new ReplyKeyboardMarkup
             ([
+                [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardReport)],
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardSetup)],
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardCurrentStatus)],
                 [new KeyboardButton(Messages.PeriodTrackerSymbol + Messages.KeyboardEdit)],
@@ -129,10 +173,7 @@ public class CycleTrackerService(
                     date = ConvertJalaliToGregorian(dataMessageText);
                     break;
                 case "2":
-                    if (DateTime.TryParse(dataMessageText, out var gregorianDate))
-                    {
-                        date = gregorianDate;
-                    }
+                    if (DateTime.TryParse(dataMessageText, out var gregorianDate)) date = gregorianDate;
                     break;
             }
         }

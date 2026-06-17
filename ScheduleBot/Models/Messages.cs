@@ -48,12 +48,15 @@ public static class Messages
     
     #region CycleTracker
     
+    public const string KeyboardReport = "Report the start";
     public const string KeyboardSetup = "Setup";
     public const string KeyboardEdit = "Edit";
     public const string KeyboardCurrentStatus = "Current Status";
     public const string KeyboardAddToCycle = "Add To My Cycle Notification";
     public const string KeyboardJoinToCycle = "Join To Someone Cycle Notification";
     
+    public const string SavedData = "Your cycle got restarted successfully.";
+    public const string NotifyStart = "{0}'s period just got started.";
     public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
     public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
 
@@ -75,6 +78,7 @@ public static class Messages
     public const string Followers = "And those who follow you are:\n{0}";
     public const string SelectCycle = "Select the sycle you want";
     public const string SelectUser = "Select the user you want";
+    public const string DidItStart = "Did your period start today?";
     
     public const string RemoveFollowerForOwner = "Succesfuly Removed {0} from cycle";
     public const string RemoveFollowerForReceiver = "{0} removed you from her(their) cycle";
@@ -129,6 +133,13 @@ public static class Messages
 
 public static class CallBacks
 {
+    #region Universal
+
+    public const string Yes = "Yes";
+    public const string No = "No";
+
+    #endregion
+    
     #region Register
 
     public const string Register = "Register";
@@ -143,6 +154,7 @@ public static class CallBacks
     public const string Cycle = "Cycle";
     public const string SetNotifyMode = "SetNotifyMode";
     public const string CurrentStatus = "CurrentStatus";
+    public const string ReportStart = "ReportStart";
     public const string EditSection = "EditSection";
     public const string EditPeriodLength = "EditPeriodLength";
     public const string EditCycleLength = "EditCycleLength";

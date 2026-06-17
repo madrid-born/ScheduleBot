@@ -152,10 +152,33 @@ public class DatabaseService(AppDbContext context)
         await SetStartDate(chatId, lastStart);
     }
 
+    public async Task SetNewStartByTelId(long chatId, DateTime date)
+    {
+        await SaveLastCycleHistory(chatId);
+        await SetStartDate(chatId, date);
+    }
+
+    public async Task SaveLastCycleHistory(long chatId)
+    {
+        var cycle = await GetCycleByTelId(chatId);
+        var lastHistoryNumber = (await context.CycleHistories.Where(x => x.CycleId == cycle!.Id).ToListAsync()).Max(x => x.Count);
+        var cycleHistory = new CycleHistory
+        {
+            CycleId = cycle!.Id,
+            Count = lastHistoryNumber!++,
+            Start = cycle.LastStart!.Value,
+            End = cycle.LastEnd!.Value
+        };
+        
+        context.CycleHistories.Add(cycleHistory);
+        await context.SaveChangesAsync();
+    }
+
     public async Task SetStartDate(long telId, DateTime date)
     {
         var cycle = await GetCycleByTelId(telId);
         cycle!.LastStart = date;
+        cycle.LastEnd = null;
         await context.SaveChangesAsync();
     }
     
