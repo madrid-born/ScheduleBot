@@ -1,16 +1,10 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using ScheduleBot.Models;
+﻿using ScheduleBot.Models;
+using ScheduleBot.Services;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
-namespace ScheduleBot.Services;
+namespace ScheduleBot.BotHandlers;
 
 public class BotPollingService(
     ITelegramBotClient botClient,
@@ -42,7 +36,7 @@ public class BotPollingService(
             while (!stoppingToken.IsCancellationRequested)
             {
                 using var scope = serviceProvider.CreateScope();
-                var cycleTracker = scope.ServiceProvider.GetRequiredService<CycleTrackerService>();
+                var cycleTracker = scope.ServiceProvider.GetRequiredService<CycleTrackerHandler>();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await cycleTracker.CheckAndSendNotifications();
                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);

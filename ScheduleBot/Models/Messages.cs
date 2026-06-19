@@ -77,7 +77,7 @@ public static class Messages
     public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
     public const string EditCheck = "What do you want to change\n\n";
     public const string ChangesCommited = "Changes commited succesfully\n\n";
-    public const string CurrentData = "Your current setted data is as below:\nLast Start: {0} days\nCycle length: {1} days\nPeriod length: {2} days\nAverage cycle length: {3} days\nAverage period length: {4} days\n\n";
+    public const string CurrentData = "Your current setted data is as below:\nLast Start: {0} \nCycle length: {1} days\nPeriod length: {2} days\nAverage cycle length: {3} days\nAverage period length: {4} days\n\n";
     public const string Followers = "And those who follow you are:\n{0}";
     public const string SelectCycle = "Select the sycle you want";
     public const string SelectUser = "Select the user you want";

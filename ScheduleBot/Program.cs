@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ScheduleBot.BotHandlers;
 using ScheduleBot.Models;
 using ScheduleBot.Services;
 using Telegram.Bot;
@@ -50,9 +51,9 @@ var httpClient = new HttpClient(httpClientHandler);
 
 builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken, httpClient));
 builder.Services.AddScoped<DatabaseService>();
-builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<UserHandler>();
 builder.Services.AddScoped<MessageHandler>();
-builder.Services.AddScoped<CycleTrackerService>();
+builder.Services.AddScoped<CycleTrackerHandler>();
 builder.Services.AddHostedService<BotPollingService>();
 
 var app = builder.Build();

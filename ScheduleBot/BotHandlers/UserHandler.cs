@@ -1,14 +1,11 @@
-﻿using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using ScheduleBot.Models;
+﻿using ScheduleBot.Models;
+using ScheduleBot.Services;
 using Telegram.Bot;
-using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace ScheduleBot.Services;
+namespace ScheduleBot.BotHandlers;
 
-public class UserService(ITelegramBotClient bot, DatabaseService db, IConfiguration configuration)
+public class UserHandler(ITelegramBotClient bot, DatabaseService db, IConfiguration configuration)
 {
     private readonly long _adminChatId = configuration.GetValue<long>("Telegram:AdminChatId");
     

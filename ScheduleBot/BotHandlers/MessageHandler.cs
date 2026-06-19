@@ -1,30 +1,28 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using ScheduleBot.Models;
+﻿using ScheduleBot.Models;
+using ScheduleBot.Services;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace ScheduleBot.Services;
+namespace ScheduleBot.BotHandlers;
 
 public class MessageHandler(
     ITelegramBotClient bot,
     DatabaseService db,
-    UserService userService,
-    CycleTrackerService cycleTracker,
+    UserHandler userHandler,
+    CycleTrackerHandler cycleTracker,
     IConfiguration configuration)
 {
     private readonly long _adminChatId = configuration.GetValue<long>("Telegram:AdminChatId");
 
     public async Task HandleUpdateAsync(ITelegramBotClient bot1, Update update, CancellationToken ct)
     {
+        long chatId = 0;
         try
         {
             var updateData = ExtractUpdateDataAsync(update);
-            if(!await userService.CheckUserStatusAsync(updateData)) return;
+            chatId = updateData.ChatId;
+            if(!await userHandler.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
             {
                 await HandleCallbackAsync(updateData);
@@ -36,7 +34,7 @@ public class MessageHandler(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            await bot.SendMessage(chatId, Messages.NotFound, replyMarkup: GetMainKeyboard());
         }
     }
 
@@ -88,7 +86,7 @@ public class MessageHandler(
         switch (data.DataSeparated[0])
         {
             case CallBacks.Register:
-                await userService.HandleCallBack(data);
+                await userHandler.HandleCallBack(data);
                 break;
             case CallBacks.Cycle:
                 await cycleTracker.HandleCallBack(data);
@@ -115,11 +113,11 @@ public class MessageHandler(
         switch (data.RepliedMessage)
         {
             case Messages.EnterYourName:
-                await userService.AskForEmail(data);
+                await userHandler.AskForEmail(data);
                 flag = true;
                 break;
             case Messages.EnterYourEmail:
-                await userService.RegisterUser(data); 
+                await userHandler.RegisterUser(data); 
                 flag = true;
                 break;
             case Messages.SetupTracker:
