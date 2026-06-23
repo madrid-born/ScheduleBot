@@ -6,8 +6,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, DatabaseService db,
-    MessageHandler messageHandler, ILogger<CycleTrackerHandler> logger)
+public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider,
+    MessageHandler mh, CycleTrackerService cts, ILogger<CycleTrackerHandler> logger)
 {
     private readonly TimeSpan _notificationHour = new(12, 30, 0);
     
@@ -42,31 +42,62 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
         }
     }
     
+    
+    public async Task HandleCallBack(UpdateData data)
+    {
+        switch (data.DataSeparated[1])
+        {
+            case CallBacks.ReportStart:
+                await ReportStart(data);
+                break;
+            case CallBacks.ReportEnd:
+                await ReportEnd(data);
+                break;
+            case CallBacks.SetNotifyMode:
+                await SetNotifyMode(data);
+                break;
+            case CallBacks.CurrentStatus:
+                await SendCurrentStatus(data);
+                break;
+            case CallBacks.EditSection:
+                //todo
+                await EditCycle(data);
+                break;
+            case CallBacks.EditNotify:
+                await ShowNotifyModeMenu(data.ChatId, Guid.Parse(data.DataSeparated[2]));
+                break;
+            case CallBacks.RemoveFollowing:
+                await RemoveFollowing(data);
+                break;
+            case CallBacks.RemoveFollower:
+                await RemoveFollower(data);
+                break;
+        }
+    }
     private async Task StartSection(UpdateData data)
     {
-        var collection = new List<List<List<string>>>
+        var collection = new List<List<string>>
         {
-            new() { new(){Messages.KeyboardSetup},       new(){Messages.KeyboardEdit} },
-            new() { new(){Messages.KeyboardReportStart}, new(){Messages.KeyboardReportEnd} },
-            new() { new(){Messages.KeyboardAddToCycle},  new(){Messages.KeyboardJoinToCycle} },
-            new() { new(){Messages.KeyboardCurrentStatus} },
+            new() { Messages.KeyboardSetup, Messages.KeyboardEdit },
+            new() { Messages.KeyboardReportStart, Messages.KeyboardReportEnd },
+            new() { Messages.KeyboardAddToCycle, Messages.KeyboardJoinToCycle },
+            new() { Messages.KeyboardCurrentStatus },
         };
         
         var keyboard = MessageHandler.CreateKeyboard(collection, symbol: Messages.PeriodTrackerSymbol, resizeKeyboard: true);
 
-        await messageHandler.SendMessage(data.ChatId, Messages.LoadPeriodTracker, keyboard);
+        await mh.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
     }
     
     private async Task AskReportStart(UpdateData data)
     {
-        await messageHandler.ApproveKeyboardInline(data.ChatId, Messages.DidItStart, $"{CallBacks.Cycle}\\{CallBacks.ReportStart}\\");
+        await mh.ApproveKeyboardInline(data.ChatId, Messages.DidItStart, $"{CallBacks.Cycle}\\{CallBacks.ReportStart}\\");
     }
     
     private async Task AskReportEnd(UpdateData data)
     {
-        await messageHandler.ApproveKeyboardInline(data.ChatId, Messages.DidItEnd, $"{CallBacks.Cycle}\\{CallBacks.ReportEnd}\\");
+        await mh.ApproveKeyboardInline(data.ChatId, Messages.DidItEnd, $"{CallBacks.Cycle}\\{CallBacks.ReportEnd}\\");
     }
-
     
     private async Task ReportStart(UpdateData data)
     {        
@@ -74,12 +105,12 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
         switch (result)
         {
             case CallBacks.Yes:
-                await db.SetNewStartByTelId(data.ChatId, DateTime.Now);
-                await bot.SendMessage(data.ChatId, Messages.SavedData, replyMarkup: MessageHandler.GetMainKeyboard());
+                await mh.SendMessage(data.ChatId, Messages.SavedData, true);
+                await cts.SetNewStartByTelId(data.ChatId, DateTime.Now);
                 await StartNotify(data.ChatId);
                 break;
             case CallBacks.No:
-                await db.SaveLastCycleHistory(data.ChatId);
+                await cts.SaveLastCycleHistory(data.ChatId);
                 await AskForLastPeriodStart(data);
                 break;
         }
@@ -91,64 +122,64 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
         switch (result)
         {
             case CallBacks.Yes:
-                await db.SetNewEndByTelId(data.ChatId);
-                await bot.SendMessage(data.ChatId, Messages.SavedData, replyMarkup: MessageHandler.GetMainKeyboard());
+                await cts.SetNewEndByTelId(data.ChatId);
+                await mh.SendMessage(data.ChatId, Messages.SavedData, true);
                 await EndNotify(data.ChatId);
                 break;
             case CallBacks.No:
-                await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: MessageHandler.GetMainKeyboard());
+                await mh.SendMessage(data.ChatId, Messages.Welcome, true);
                 break;
         }
     }
 
     private async Task StartNotify(long chatId)
     {
-        var users = await db.GetFollowersByChatId(chatId);
+        var users = await cts.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyStart, $"{user.Name}(@{user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
+            await mh.SendMessage(user.ChatId, string.Format(Messages.NotifyStart, $"{user.Name}(@{user.Username})"), true);
         }
     }
     
     private async Task EndNotify(long chatId)
     {
-        var users = await db.GetFollowersByChatId(chatId);
+        var users = await cts.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await bot.SendMessage(user.ChatId, string.Format(Messages.NotifyEnd, $"{user.Name}(@{user.Username})"), replyMarkup: MessageHandler.GetMainKeyboard());
+            await mh.SendMessage(user.ChatId, string.Format(Messages.NotifyEnd, $"{user.Name}(@{user.Username})"), true);
         }
     }
 
     private async Task AskForLastPeriodStart(UpdateData data)
     {
-        var existing = await db.GetCycleByTelId(data.ChatId);
+        var existing = await cts.GetCycleByTelId(data.ChatId);
         if (existing != null)
         {
-            await messageHandler.SendMessage(data.ChatId, Messages.AvailableCycle, addMainKeyboard: true);
+            await mh.SendMessage(data.ChatId, Messages.AvailableCycle, true);
             return;
         }
         
-        await messageHandler.SendMessage(data.ChatId, Messages.SetupTracker, new ForceReplyMarkup());
+        await mh.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
     }
 
     public async Task SaveLastPeriodStart(UpdateData data)
     {
-        var edit = await db.GetCycleByTelId(data.ChatId) != null;
-        var date = DateValidation(data.MessageText);
+        var date = DateValidation(data.MessageText!);
         if (date == null)
         {
-            await bot.SendMessage(data.ChatId, Messages.InvalidDate);
-            await bot.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
+            await mh.SendMessage(data.ChatId, Messages.InvalidDate);
+            await mh.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
             return;
         }
 
-        if (edit) await db.SetStartDate(data.ChatId, (DateTime)date);
-        else await db.AddNewCycle(data.ChatId, (DateTime)date);
-        
-        await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+        if (await cts.Seva(data.ChatId, (DateTime)date))
+        {
+            // todo
+        }
+        else await mh.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
     }
 
-    private static DateTime? DateValidation(string? dataMessageText)
+    private static DateTime? DateValidation(string dataMessageText)
     {
         DateTime? date = null;
         try
@@ -178,7 +209,7 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
         return pc.ToDateTime(year, month, day, 0, 0, 0, 0);
     }
     
-    private static string ConvertGregorianToJalali(DateTime date)
+    public static string ConvertGregorianToJalali(DateTime date)
     {
         var pc = new PersianCalendar();
 
@@ -191,64 +222,44 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
 
     public async Task SaveCycleLength(UpdateData data)
     {
-        var edit = (await db.GetCycleByTelId(data.ChatId))!.CycleLength != null;
-
         if (!int.TryParse(data.MessageText, out var length))
         {
-            await bot.SendMessage(data.ChatId, Messages.InvalidInteger);
-            await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+            await mh.SendMessage(data.ChatId, Messages.InvalidInteger);
+            await mh.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
             return;
         }
         
-        await db.SaveCycleLength(data.ChatId, length);
-        if (!edit)
+        if (await cts.Seva2(data.ChatId, length))
         {
-            await bot.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
+            // todo
         }
+        else await mh.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
     }
 
     public async Task SavePeriodLength(UpdateData data)
     {
-        var edit = (await db.GetCycleByTelId(data.ChatId))!.PeriodLength != null;
-
         if (!int.TryParse(data.MessageText, out var length))
         {
-            await bot.SendMessage(data.ChatId, Messages.InvalidInteger);
-            await bot.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
+            await mh.SendMessage(data.ChatId, Messages.InvalidInteger);
+            await mh.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
             return;
         }
         
-        await db.SavePeriodLength(data.ChatId, length);
-        if (!edit)
+        if (await cts.Seva3(data.ChatId, length))
         {
-            await ShowNotifyModeMenu(data.ChatId);
+            // todo
         }
-    }
-    
-    private async Task SelectCycleToChangeNotify(UpdateData data)
-    {
-        await LoadCycleList(data.ChatId, CallBacks.EditNotify);
-    }
-    
-    private async Task EditNotify(UpdateData data)
-    {
-        var chatId = data.ChatId;
-        var cycleId = Guid.Parse(data.DataSeparated[2]);
-        await ShowNotifyModeMenu(chatId, cycleId);
+        else await ShowNotifyModeMenu(data.ChatId);
     }
 
     private async Task ShowNotifyModeMenu(long chatId, Guid cycleId = default)
     {
-        var keyboard = new InlineKeyboardMarkup(Enumerable.Range(0, Messages.NotifyModes.Count)
-            .Select(i => new[]
-            {
-                InlineKeyboardButton.WithCallbackData(
-                    Messages.NotifyModes[i],
-                    $"{CallBacks.Cycle}\\{CallBacks.SetNotifyMode}\\{i}\\{cycleId}")
-            })
-        );
+        var collection = new List<List<Tuple<string, string>>>();
+        collection.AddRange(Messages.NotifyModes.Select((notifyMode, index) =>
+            (List<Tuple<string, string>>)[new(notifyMode, $"{index}\\{cycleId}")]));
 
-        await bot.SendMessage(chatId, Messages.AskForNotifyMode, replyMarkup: keyboard);
+        var keyboard = MessageHandler.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.SetNotifyMode}\\");
+        await mh.SendMessage(chatId, Messages.AskForNotifyMode, replyMarkup: keyboard);
     }
 
     private async Task SetNotifyMode(UpdateData data)
@@ -256,47 +267,39 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
         var chatId = data.ChatId;
         var mode = int.Parse(data.DataSeparated[2]);
         var cycleId = Guid.Parse(data.DataSeparated[3]);
-        await db.SetNotify(data.ChatId, mode, cycleId);
+        var ownerName = await cts.SetNotify(chatId, mode, cycleId);
         var message = string.Format(Messages.SetNotifyComplete, Messages.NotifyModes[mode]);
-        if (cycleId != Guid.Empty)
-        {
-            var ownerName = (await db.GetCycleOwnerByCycleId(cycleId))!.Name;
-            message = string.Format(Messages.SetNotifyCompleteGuest, ownerName, Messages.NotifyModes[mode]);
-        }
+        if (ownerName != null) message = string.Format(Messages.SetNotifyCompleteGuest, ownerName) + message;
         else
         {
-            await bot.SendMessage(chatId, Messages.SetupComplete);
-            await bot.SendMessage(chatId, Messages.EditPeriodReminder);
+            await mh.SendMessage(chatId, Messages.SetupComplete);
+            await mh.SendMessage(chatId, Messages.EditPeriodReminder);
         }
-        await bot.SendMessage(chatId, message, replyMarkup: MessageHandler.GetMainKeyboard());
+        await mh.SendMessage(chatId, message, true);
     }
     
     private async Task EditCheck(UpdateData data, bool commited = false)
     {
-        var cycleDetail = (await db.GetCycleByTelId(data.ChatId))!;
-        var cycleHistories = (await db.GetCycleHistoryByCycleId(cycleDetail.Id))!;
-        var cycleUsers = await db.GetNotifyUsersByCycleId(cycleDetail.Id);
-        var gd = (DateTime)cycleDetail.LastStart!;
-        var lastPeriodStart = $"\n{gd.Year}/{gd.Month}/{gd.Day} {ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
-        var cycleLength = cycleDetail.CycleLength;
-        var periodLength = cycleDetail.PeriodLength;
-        var (avgCycleLength, avgPeriodLength) = CalculateAverages(cycleHistories);
-        var followers = cycleUsers.Aggregate("", (current, user) => current + user!.Name + "(@" + user.Username + ")\n");
-        var message = Messages.EditCheck;
-        message += string.Format(Messages.CurrentData, lastPeriodStart, cycleLength, periodLength, avgCycleLength, avgPeriodLength);
-        message += string.Format(Messages.Followers, followers);
+        var (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength, followers) =
+            await cts.LoadCycleDetail(data.ChatId);
+        var message = string.Format(Messages.CurrentData, lastPeriodStart, cycleLength, periodLength, avgCycleLength, avgPeriodLength) +
+                      string.Format(Messages.Followers, followers);
+        await mh.SendMessage(data.ChatId, message, addMainKeyboard: true);
         
-        var keyboard = new InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton.WithCallbackData(Messages.EditPeriodLength, $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\{CallBacks.EditPeriodLength}")],
-                [InlineKeyboardButton.WithCallbackData(Messages.EditCycleLength, $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\{CallBacks.EditCycleLength}")],
-                [InlineKeyboardButton.WithCallbackData(Messages.EditFollowers, $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\{CallBacks.EditFollowers}")],
-                [InlineKeyboardButton.WithCallbackData(Messages.EditLastPeriod, $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\{CallBacks.EditLastPeriod}")],
-                [InlineKeyboardButton.WithCallbackData(Messages.EditNotify, $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\{CallBacks.EditNotify}")],
-            ]
-        );
-        
-        await bot.SendMessage(data.ChatId, message, replyMarkup: commited ? MessageHandler.GetMainKeyboard() : keyboard);
+        if (!commited)
+        {
+            var collection = new List<List<Tuple<string, string>>>
+            {
+                new() {new(Messages.EditPeriodLength, CallBacks.EditPeriodLength)},
+                new() {new(Messages.EditCycleLength,  CallBacks.EditCycleLength)},
+                new() {new(Messages.EditFollowers,    CallBacks.EditFollowers)},
+                new() {new(Messages.EditLastPeriod,   CallBacks.EditLastPeriod)},
+                new() {new(Messages.EditNotify,       CallBacks.EditNotify)},
+            };
+            var keyboard = MessageHandler.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\");
+
+            await mh.SendMessage(data.ChatId, Messages.EditCheck, replyMarkup: keyboard);
+        }
     }
 
     private static (double AvgCycleLengthDays, double AvgPeriodLengthDays) CalculateAverages(IEnumerable<CycleHistory> cycleHistories)
@@ -326,13 +329,13 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
                 await AskForLastPeriodStart(data);
                 break;
             case CallBacks.EditPeriodLength:
-                await bot.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
+                await mh.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
                 break;
             case CallBacks.EditCycleLength:
-                await bot.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+                await mh.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
                 break;
             case CallBacks.EditNotify:
-                await SelectCycleToChangeNotify(data);
+                await LoadCycleList(data.ChatId, CallBacks.EditNotify);
                 break;
             case CallBacks.EditFollowers:
                 await RemoveFollowersList(data);
@@ -347,25 +350,25 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
 
     private async Task AddToCycle(UpdateData data)
     {
-        var result = (await db.GetCycleByTelId(data.ChatId))!.Id;
-        await bot.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), replyMarkup: MessageHandler.GetMainKeyboard());
+        var result = (await cts.GetCycleByTelId(data.ChatId))!.Id;
+        await mh.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), true);
     }
     
     private async Task JoinToCyclePressed(UpdateData data)
     {
-        await bot.SendMessage(data.ChatId, Messages.AskForCycleId, replyMarkup: new ForceReplyMarkup());
+        await mh.SendMessage(data.ChatId, Messages.AskForCycleId, replyMarkup: new ForceReplyMarkup());
     }
     
     public async Task JoinToCycleById(UpdateData data)
     {
         var flag = Guid.TryParse(data.MessageText, out var cycleId);
-        if (flag && await db.GetCycleByCycleId(cycleId) != null)
+        if (flag && await cts.GetCycleByCycleId(cycleId) != null)
         {
             await ShowNotifyModeMenu(data.ChatId, cycleId);
         }
         else
         {
-            await bot.SendMessage(data.ChatId, Messages.CycleIdIsWrong, replyMarkup: MessageHandler.GetMainKeyboard());
+            await mh.SendMessage(data.ChatId, Messages.CycleIdIsWrong, true);
         }
     }
     
@@ -377,7 +380,7 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
     private async Task RemoveFollowersList(UpdateData data)
     {
         
-        var keyboard = new InlineKeyboardMarkup((await db.GetFollowersByChatId(data.ChatId))
+        var keyboard = new InlineKeyboardMarkup((await cts.GetFollowersByChatId(data.ChatId))
             .Select(user => new[]
             {
                 InlineKeyboardButton.WithCallbackData(
@@ -386,34 +389,34 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
             })
         );
 
-        await bot.SendMessage(data.ChatId, Messages.SelectUser, replyMarkup: keyboard);
+        await mh.SendMessage(data.ChatId, Messages.SelectUser, replyMarkup: keyboard);
     }
     
     private async Task RemoveFollower(UpdateData data)
     {
-        var cycleId = (await db.GetCycleByTelId(data.ChatId))!.Id;
-        var owner = await db.GetUserByTelId(data.ChatId);
-        var receiver = await db.GetUserById(Guid.Parse(data.DataSeparated[2]));
-        await db.RemoveReceiverFromCycle(cycleId, receiver!.Id);
+        var cycleId = (await cts.GetCycleByTelId(data.ChatId))!.Id;
+        var owner = await cts.GetUserByTelId(data.ChatId);
+        var receiver = await cts.GetUserById(Guid.Parse(data.DataSeparated[2]));
+        await cts.RemoveReceiverFromCycle(cycleId, receiver!.Id);
         
-        await bot.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowerForReceiver, owner!.Name), replyMarkup: MessageHandler.GetMainKeyboard());
-        await bot.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowerForOwner, receiver.Name), replyMarkup: MessageHandler.GetMainKeyboard());
+        await mh.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowerForReceiver, owner!.Name), true);
+        await mh.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowerForOwner, receiver.Name), true);
     }
     
     private async Task RemoveFollowing(UpdateData data)
     {
         var cycleId = Guid.Parse(data.DataSeparated[2]);
-        var owner = await db.GetCycleOwnerByCycleId(cycleId);
-        var receiver = await db.GetUserByTelId(data.ChatId);
-        await db.RemoveReceiverFromCycle(cycleId, receiver!.Id);
+        var owner = await cts.GetCycleOwnerByCycleId(cycleId);
+        var receiver = await cts.GetUserByTelId(data.ChatId);
+        await cts.RemoveReceiverFromCycle(cycleId, receiver!.Id);
         
-        await bot.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowingForReceiver, owner!.Name), replyMarkup: MessageHandler.GetMainKeyboard());
-        await bot.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowingForOwner, receiver.Name), replyMarkup: MessageHandler.GetMainKeyboard());
+        await mh.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowingForReceiver, owner!.Name), true);
+        await mh.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowingForOwner, receiver.Name), true);
     }
     
     public async Task<string?> CreateStatusMessage(Guid cycleId)
     {
-        var cycleDetail = await db.GetCycleByCycleId(cycleId);
+        var cycleDetail = await cts.GetCycleByCycleId(cycleId);
         if (cycleDetail == null) return null;
         if (cycleDetail.LastStart == null) return Messages.NoCycleData;
 
@@ -536,16 +539,16 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
     private async Task SendCurrentStatus(UpdateData data)
     {
         var cycleId = Guid.Parse(data.DataSeparated[2]);
-        var owner = await db.GetCycleOwnerByCycleId(cycleId);
-        var receiver = await db.GetUserByTelId(data.ChatId);
+        var owner = await cts.GetCycleOwnerByCycleId(cycleId);
+        var receiver = await cts.GetUserByTelId(data.ChatId);
         var message = await CreateStatusMessage(cycleId);
         var date = $"{DateTime.Now:MM/dd/yyyy} - {ConvertGregorianToJalali(DateTime.Now)}";
-        await bot.SendMessage(receiver!.ChatId, string.Format(Messages.StatusForReceiver, date, owner!.Name, message), replyMarkup: MessageHandler.GetMainKeyboard());
+        await mh.SendMessage(receiver!.ChatId, string.Format(Messages.StatusForReceiver, date, owner!.Name, message), true);
     }
     
     private async Task LoadCycleList(long chatId, string callBack)
     {
-        var keyboard = new InlineKeyboardMarkup((await db.GetFollowingByChatId(chatId))
+        var keyboard = new InlineKeyboardMarkup((await cts.GetFollowingByChatId(chatId))
             .Select(user => new[]
             {
                 InlineKeyboardButton.WithCallbackData(
@@ -554,14 +557,14 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
             })
         );
 
-        await bot.SendMessage(chatId, Messages.SelectCycle, replyMarkup: keyboard);
+        await mh.SendMessage(chatId, Messages.SelectCycle, replyMarkup: keyboard);
     }
     
     public async Task CheckAndSendNotifications()
     {
         var now = DateTime.UtcNow;
         if (now.TimeOfDay.Hours != _notificationHour.Hours || now.TimeOfDay.Minutes != _notificationHour.Minutes) return;
-        var allCycleNotifies = await db.GetAllCycleNotifies();
+        var allCycleNotifies = await cts.GetAllCycleNotifies();
         
         foreach (var cycleNotify in allCycleNotifies)
         {
@@ -570,7 +573,7 @@ public class CTH(ITelegramBotClient bot, IServiceProvider serviceProvider, Datab
             {
                 var date = $"{DateTime.Now:MM/dd/yyyy} - {ConvertGregorianToJalali(DateTime.Now)}";
                 var message = await CreateStatusMessage(cycleNotify.cycle.Id);
-                await bot.SendMessage(cycleNotify.receiver.ChatId, string.Format(Messages.StatusForReceiver, date, cycleNotify.owner.Name, message), replyMarkup: MessageHandler.GetMainKeyboard());
+                await mh.SendMessage(cycleNotify.receiver.ChatId, string.Format(Messages.StatusForReceiver, date, cycleNotify.owner.Name, message), true);
             }
         }
     }

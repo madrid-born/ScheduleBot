@@ -227,11 +227,15 @@ public class DatabaseService(AppDbContext context)
         await context.SaveChangesAsync();
     }
 
-    public async Task SetNotify(long chatId, int mode, Guid cycleId = default)
+    public async Task<string?> SetNotify(long chatId, int mode, Guid cycleId = default)
     {
+        string? name = null;
         var userId = (await GetUserByTelId(chatId))!.Id;
         if (cycleId == Guid.Empty)
+        {
             cycleId = (await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == userId))!.Id;
+            name = (await GetCycleOwnerByCycleId(cycleId))!.Name;
+        }
         var notify = await context.CycleNotifies.FirstOrDefaultAsync(n => n.CycleId == cycleId && n.ReceiverId == userId);
         if (notify == null)
         {
@@ -250,6 +254,7 @@ public class DatabaseService(AppDbContext context)
         }
 
         await context.SaveChangesAsync();
+        return name;
     }
 
     public async Task RemoveReceiverFromCycle(Guid cycleId, Guid receiverId)

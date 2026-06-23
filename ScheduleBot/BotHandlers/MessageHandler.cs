@@ -192,23 +192,20 @@ public class MessageHandler(
             { ResizeKeyboard = true };
     }
 
-    public async Task SendMessage(long chatId, string message, ReplyMarkup? replyMarkup = null, bool addMainKeyboard = true)
+    public async Task SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null)
     {
         await bot.SendMessage(chatId, message, replyMarkup: addMainKeyboard ? GetMainKeyboard() : replyMarkup);
     }
     
-    public static ReplyMarkup CreateKeyboard(IEnumerable<IEnumerable<IEnumerable<string>>> collection, bool inline = false,
+    public static ReplyMarkup CreateKeyboard(IEnumerable<IEnumerable<string>>? normalCollection = null,IEnumerable<IEnumerable<Tuple<string, string>>>? inlineCollection = null,
         string symbol = "", string callBackStart = "", bool resizeKeyboard = true)
     {
-        if (inline)
+        if (inlineCollection != null)
         {
-            var keyboard = collection
+            var keyboard = inlineCollection
                 .Select(row => row
-                    .Select(text =>
-                    {
-                        var enumerable = text.ToList();
-                        return InlineKeyboardButton.WithCallbackData(symbol + enumerable[0], callBackStart + enumerable[1]);
-                    })
+                    .Select(tuple =>
+                        InlineKeyboardButton.WithCallbackData(symbol + tuple.Item1, callBackStart + tuple.Item2))
                     .ToArray())
                 .ToArray();
 
@@ -216,14 +213,9 @@ public class MessageHandler(
         }
         else
         {
-            var keyboard = collection
+            var keyboard = normalCollection!
                 .Select(row => row
-                    .Select(text =>
-                    {
-                        var enumerable = text.ToList();
-                        return new KeyboardButton(symbol + enumerable[0]);
-
-                    })
+                    .Select(text => new KeyboardButton(symbol + text))
                     .ToArray())
                 .ToArray();
 
@@ -233,15 +225,14 @@ public class MessageHandler(
     
     public async Task ApproveKeyboardInline(long chatId, string message, string callBackStart)
     {
-        var collection = new List<List<List<string>>>
+        var collection = new List<List<Tuple<string, string>>>
         {
-            new() { new(){Messages.Yes, CallBacks.Yes} },
-            new() { new(){Messages.No,  CallBacks.No}  },
+            new() {new(Messages.Yes, CallBacks.Yes)},
+            new() {new(Messages.No, CallBacks.No)},
         };
         
-        var keyboard = CreateKeyboard(collection, inline:true, callBackStart: callBackStart);
+        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: callBackStart);
 
-        await SendMessage(chatId, message, keyboard);
+        await SendMessage(chatId, message, replyMarkup: keyboard);
     }
-
 }

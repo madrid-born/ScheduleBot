@@ -71,7 +71,7 @@ public static class Messages
     public const string SetupComplete = "Period tracker setup complete!";
     public const string EditPeriodReminder = " You can use /EditPeriod to update your cycle.";
     public const string SetNotifyComplete = "You'll receive notifications\n{0}.";
-    public const string SetNotifyCompleteGuest = "You have been successfully added to {0}'s Cycle Notification\nAnd you'll receive notifications\n{1}.";
+    public const string SetNotifyCompleteGuest = "You have been successfully added to {0}'s Cycle Notification\n";
     public const string ShareCycleId = "Your cycle id is mentioned below\nYou can share it with anyone who you want them to get notified.\n\n`{0}`";
     public const string AskForCycleId = "Please enter the id you received from the person you want to join on their notification.";
     public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
