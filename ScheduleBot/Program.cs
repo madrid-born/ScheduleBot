@@ -52,9 +52,10 @@ var httpClient = new HttpClient(httpClientHandler);
 builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken, httpClient));
 builder.Services.AddScoped<DatabaseService>();
 builder.Services.AddScoped<MessageHandler>();
+builder.Services.AddScoped<MainService>();
 builder.Services.AddScoped<UserHandler>();
 builder.Services.AddScoped<CycleTrackerHandler>();
-builder.Services.AddScoped<CTH>();
+builder.Services.AddScoped<CycleTrackerService>();
 builder.Services.AddHostedService<BotPollingService>();
 
 var app = builder.Build();

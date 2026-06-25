@@ -7,16 +7,16 @@ using ScheduleBot.Models;
 
 namespace ScheduleBot.Services;
 
-public class DatabaseService(AppDbContext context)
+public class DatabaseService(AppDbContext dbContext)
 {
     public async Task<User?> GetUserByTelId(long telId)
     {
-        return await context.Users.FirstOrDefaultAsync(u => u.ChatId == telId);
+        return await dbContext.Users.FirstOrDefaultAsync(u => u.ChatId == telId);
     }
     
     public async Task<User?> GetUserById(Guid id)
     {
-        return await context.Users.FirstOrDefaultAsync(u => u.Id == id);
+        return await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
     }
 
     #region Register
@@ -27,8 +27,8 @@ public class DatabaseService(AppDbContext context)
         if (user != null)
         {
             if (isAccepted) user.IsAccepted = isAccepted;
-            else context.Users.Remove(user);
-            await context.SaveChangesAsync();
+            else dbContext.Users.Remove(user);
+            await dbContext.SaveChangesAsync();
         }
     }
 
@@ -42,244 +42,30 @@ public class DatabaseService(AppDbContext context)
             IsAccepted = false
         };
     
-        context.Users.Add(newUser);
-        await context.SaveChangesAsync();
+        dbContext.Users.Add(newUser);
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task InsertUserName(long chatId, string? name = "")
     {
-        var user = await context.Users.FirstOrDefaultAsync(u => u.ChatId == chatId);
+        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.ChatId == chatId);
         if (user != null)
         {
             user.Name = name;
-            await context.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
         }
     }
 
     public async Task<User> InsertUserEmail(long chatId, string? email = "")
     {
-        var user = await context.Users.FirstOrDefaultAsync(u => u.ChatId == chatId);
+        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.ChatId == chatId);
         if (user != null)
         {
             user.Email = email;
-            await context.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
         }
         return user!;
     }
 
     #endregion
-
-    #region CycleTracker
-
-    public async Task<CycleDetail?> GetCycleByTelId(long chatId)
-    {
-        var user = await GetUserByTelId(chatId);
-        return await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
-    }
-    
-    public async Task<CycleDetail?> GetCycleByCycleId(Guid cycleId)
-    {
-        return await context.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId);
-    }
-
-    public async Task<List<CycleHistory>> GetCycleHistoryByCycleId(Guid cycleId)
-    {
-        return await context.CycleHistories.Where(c => c.CycleId == cycleId).ToListAsync();
-    }
-
-    public async Task<User?> GetCycleOwnerByCycleId(Guid cycleId)
-    {
-        var userId =  (await GetCycleByCycleId(cycleId))!.UserId;
-        return await context.Users.FirstOrDefaultAsync(u => u.Id == userId)!;
-    }
-
-    public async Task<List<User>> GetFollowersByChatId(long chatId)
-    {
-        var user = await GetUserByTelId(chatId);
-        var cycle = await GetCycleByTelId(user!.ChatId);
-        return await GetFollowersByCycleId(cycle!.Id);
-    }
-    
-    public async Task<List<User>> GetFollowersByCycleId(Guid cycleId)
-    {
-        var receiverIds = (await context.CycleNotifies.Where(x => x.CycleId == cycleId).ToListAsync())
-            .Select(x => x.ReceiverId);
-        return await context.Users.Where(x => receiverIds.Contains(x.Id)).ToListAsync();
-    }
-    
-    public async Task<List<(string UserName, Guid CycleId)>> GetFollowingByChatId(long chatId)
-    {
-        var user = await GetUserByTelId(chatId);
-
-        var result = await
-            (
-                from notify in context.CycleNotifies
-                join cycle in context.CycleDetails
-                    on notify.CycleId equals cycle.Id
-                join owner in context.Users
-                    on cycle.UserId equals owner.Id
-                where notify.ReceiverId == user!.Id
-                select new { UserName = owner.Name, CycleId = cycle.Id }
-            )
-            .ToListAsync();
-
-        return result
-            .Select(x => (x.UserName, x.CycleId))
-            .ToList();
-    }
-    
-    public async Task<List<CycleNotify>> GetCycleNotifiesByCycleId(Guid cycleId)
-    {
-        return await context.CycleNotifies.Where(c => c.CycleId == cycleId).ToListAsync();
-    }
-
-    public async Task<List<User?>> GetNotifyUsersByCycleId(Guid cycleDetailId)
-    {
-        var cycleNotifies = await GetCycleNotifiesByCycleId(cycleDetailId);
-        var users = await context.Users.ToListAsync();
-        return cycleNotifies
-            .Select(cycleNotify => users.FirstOrDefault(x => x.Id == cycleNotify.ReceiverId))
-            .ToList();
-    }
-    
-    public async Task AddNewCycle(long chatId, DateTime lastStart)
-    {
-        var user = await GetUserByTelId(chatId);
-        var cycleDetail = new CycleDetail
-        {
-            Id = Guid.NewGuid(),
-            UserId = user!.Id,
-        };
-        
-        context.CycleDetails.Add(cycleDetail);
-        await context.SaveChangesAsync();
-        await SetStartDate(chatId, lastStart);
-    }
-
-    public async Task SetNewStartByTelId(long chatId, DateTime date)
-    {
-        await SetStartDate(chatId, date);
-    }
-    
-    public async Task SetNewEndByTelId(long chatId)
-    {
-        var cycle = await GetCycleByTelId(chatId);
-        cycle!.LastEnd = DateTime.Now;
-        await context.SaveChangesAsync();
-
-        await SaveLastCycleHistory(chatId);
-    }
-
-    public async Task SaveLastCycleHistory(long chatId)
-    {
-        var cycle = await GetCycleByTelId(chatId);
-        var lastHistoryNumber = (await context.CycleHistories.Where(x => x.CycleId == cycle!.Id).ToListAsync()).Max(x => x.Count);
-        var cycleHistory = new CycleHistory
-        {
-            CycleId = cycle!.Id,
-            Count = lastHistoryNumber!++,
-            Start = cycle.LastStart!.Value,
-            End = cycle.LastEnd!.Value
-        };
-        
-        context.CycleHistories.Add(cycleHistory);
-        await context.SaveChangesAsync();
-    }
-
-    public async Task SetStartDate(long telId, DateTime date)
-    {
-        var cycle = await GetCycleByTelId(telId);
-        cycle!.LastStart = date;
-        cycle.LastEnd = null;
-        await context.SaveChangesAsync();
-    }
-    
-    public async Task SaveCycleLength(long chatId, int length)
-    {
-        var user = await GetUserByTelId(chatId);
-        var cycleDetail = await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
-        if (cycleDetail == null) throw new Exception("No available cycle had been found");
-        cycleDetail.CycleLength = length;
-        await context.SaveChangesAsync();
-    }
-    
-    public async Task SavePeriodLength(long chatId, int length)
-    {
-        var user = await GetUserByTelId(chatId);
-        var cycleDetail = await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
-        if (cycleDetail == null) throw new Exception("No available cycle had been found");
-        cycleDetail.PeriodLength = length;
-        var end = cycleDetail.LastStart?.AddDays(length);
-        if (DateTime.Now > end)
-        {
-            cycleDetail.LastEnd = end;
-            
-            var cycleHistory = new CycleHistory
-            {
-                CycleId = cycleDetail.Id,
-                Count = 1,
-                Start = (DateTime)cycleDetail.LastStart!,
-                End = (DateTime)end
-            };
-        
-            context.CycleHistories.Add(cycleHistory);
-        }
-        await context.SaveChangesAsync();
-    }
-
-    public async Task<string?> SetNotify(long chatId, int mode, Guid cycleId = default)
-    {
-        string? name = null;
-        var userId = (await GetUserByTelId(chatId))!.Id;
-        if (cycleId == Guid.Empty)
-        {
-            cycleId = (await context.CycleDetails.FirstOrDefaultAsync(c => c.UserId == userId))!.Id;
-            name = (await GetCycleOwnerByCycleId(cycleId))!.Name;
-        }
-        var notify = await context.CycleNotifies.FirstOrDefaultAsync(n => n.CycleId == cycleId && n.ReceiverId == userId);
-        if (notify == null)
-        {
-            notify = new CycleNotify
-            {
-                Id = Guid.NewGuid(),
-                CycleId = cycleId,
-                ReceiverId = userId,
-                NotifyMode = mode
-            };
-            context.CycleNotifies.Add(notify);
-        }
-        else
-        {
-            notify.NotifyMode = mode;
-        }
-
-        await context.SaveChangesAsync();
-        return name;
-    }
-
-    public async Task RemoveReceiverFromCycle(Guid cycleId, Guid receiverId)
-    {
-        await context.CycleNotifies
-            .Where(x => x.CycleId == cycleId && x.ReceiverId == receiverId)
-            .ExecuteDeleteAsync();
-    }
-
-    #endregion
-
-    public async Task<List<(CycleDetail cycle, CycleNotify notify, User owner, User receiver)>> GetAllCycleNotifies()
-    {
-        var result = await
-            (
-                from notify in context.CycleNotifies
-                join cycle in context.CycleDetails on notify.CycleId equals cycle.Id
-                join owner in context.Users on cycle.UserId equals owner.Id
-                join receiver in context.Users on notify.ReceiverId equals receiver.Id
-                select new { cycle, notify, owner, receiver }
-            )
-            .ToListAsync();
-
-        return result
-            .Select(x => (x.cycle, x.notify, x.owner, x.receiver))
-            .ToList();
-    }
 }

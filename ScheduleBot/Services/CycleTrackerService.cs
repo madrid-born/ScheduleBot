@@ -1,123 +1,255 @@
-﻿using ScheduleBot.BotHandlers;
+﻿using Microsoft.EntityFrameworkCore;
+using ScheduleBot.BotHandlers;
 using ScheduleBot.Models;
-using ScheduleBot.Services;
 using Telegram.Bot;
 
-public class CycleTrackerService(
-    ITelegramBotClient bot,
-    IServiceProvider serviceProvider,
-    DatabaseService db,
-    MessageHandler messageHandler,
-    ILogger<CycleTrackerHandler> logger)
+namespace ScheduleBot.Services;
+
+public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbContext)
 {
+    private readonly AppDbContext _dbContext = dbContext;
+
+    #region CycleTracker
+    
     public async Task<CycleDetail?> GetCycleByTelId(long chatId)
-    {        
-        return await db.GetCycleByTelId(chatId);
+    {
+        var user = await GetUserByTelId(chatId);
+        return await _dbContext.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
+    }
+    
+    public async Task<CycleDetail?> GetCycleByCycleId(Guid cycleId)
+    {
+        return await _dbContext.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId);
     }
     
     public async Task<bool> Seva(long chatId, DateTime dateTime)
     {        
-        var edit = await db.GetCycleByTelId(chatId) != null;
+        var edit = await GetCycleByTelId(chatId) != null;
         
-        if (edit) await db.SetStartDate(chatId, dateTime);
-        else await db.AddNewCycle(chatId, dateTime);
+        if (edit) await SetStartDate(chatId, dateTime);
+        else await AddNewCycle(chatId, dateTime);
 
-        return  edit;
+        return edit;
     }
     
     public async Task<bool> Seva2(long chatId, int length)
     {        
-        var edit = (await db.GetCycleByTelId(chatId))!.CycleLength != null;
-        await db.SaveCycleLength(chatId, length);
+        var edit = (await GetCycleByTelId(chatId))!.CycleLength != null;
+        await SaveCycleLength(chatId, length);
 
-        return  edit;
+        return edit;
     }
     
     public async Task<bool> Seva3(long chatId, int length)
     {        
-        var edit = (await db.GetCycleByTelId(chatId))!.PeriodLength != null;
-        await db.SavePeriodLength(chatId, length);
+        var edit = (await GetCycleByTelId(chatId))!.PeriodLength != null;
+        await SavePeriodLength(chatId, length);
 
-        return  edit;
+        return edit;
     }
-    
-    public async Task SetNewStartByTelId(long chatId, DateTime dateTime)
-    {        
-        await db.SetNewStartByTelId(chatId, dateTime);
-    }
-    
-    public async Task SaveLastCycleHistory(long chatId)
-    {        
-        await db.SaveLastCycleHistory(chatId);
-    }
-    
-    public async Task SetNewEndByTelId(long chatId)
-    {        
-        await db.SetNewEndByTelId(chatId);
-    }
-    
-    public async Task<List<User>> GetFollowersByChatId(long chatId)
-    {        
-        return await db.GetFollowersByChatId(chatId);
-    }
-    
-    public async Task<string?> SetNotify(long chatId, int mode, Guid cycleId = default)
-    {        
-        return await db.SetNotify(chatId, mode, cycleId);
+
+    public async Task<List<CycleHistory>> GetCycleHistoryByCycleId(Guid cycleId)
+    {
+        return await _dbContext.CycleHistories.Where(c => c.CycleId == cycleId).ToListAsync();
     }
 
     public async Task<User?> GetCycleOwnerByCycleId(Guid cycleId)
     {
-        return await db.GetCycleOwnerByCycleId(cycleId);
-    }
-    
-    public async Task<List<CycleHistory>> GetCycleHistoryByCycleId(Guid cycleId)
-    {
-        return await db.GetCycleHistoryByCycleId(cycleId);
+        var userId = (await GetCycleByCycleId(cycleId))!.UserId;
+        return await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId)!;
     }
 
+    public async Task<List<User>> GetFollowersByChatId(long chatId)
+    {
+        var user = await GetUserByTelId(chatId);
+        var cycle = await GetCycleByTelId(user!.ChatId);
+        return await GetFollowersByCycleId(cycle!.Id);
+    }
+    
+    public async Task<List<User>> GetFollowersByCycleId(Guid cycleId)
+    {
+        var receiverIds = (await _dbContext.CycleNotifies.Where(x => x.CycleId == cycleId).ToListAsync())
+            .Select(x => x.ReceiverId);
+        return await _dbContext.Users.Where(x => receiverIds.Contains(x.Id)).ToListAsync();
+    }
+    
+    public async Task<List<CycleNotify>> GetCycleNotifiesByCycleId(Guid cycleId)
+    {
+        return await _dbContext.CycleNotifies.Where(c => c.CycleId == cycleId).ToListAsync();
+    }
+    
     public async Task<List<User?>> GetNotifyUsersByCycleId(Guid cycleDetailId)
     {
-        return await db.GetNotifyUsersByCycleId(cycleDetailId);
+        var cycleNotifies = await GetCycleNotifiesByCycleId(cycleDetailId);
+        var users = await _dbContext.Users.ToListAsync();
+        return cycleNotifies
+            .Select(cycleNotify => users.FirstOrDefault(x => x.Id == cycleNotify.ReceiverId))
+            .ToList();
+    }
+    
+    public async Task AddNewCycle(long chatId, DateTime lastStart)
+    {
+        var user = await GetUserByTelId(chatId);
+        var cycleDetail = new CycleDetail
+        {
+            Id = Guid.NewGuid(),
+            UserId = user!.Id,
+        };
+        
+        _dbContext.CycleDetails.Add(cycleDetail);
+        await _dbContext.SaveChangesAsync();
+        await SetStartDate(chatId, lastStart);
     }
 
-    public async Task<CycleDetail?> GetCycleByCycleId(Guid cycleId)
+    public async Task SetNewStartByTelId(long chatId, DateTime date)
     {
-        return await db.GetCycleByCycleId(cycleId);
+        await SetStartDate(chatId, date);
     }
     
-    public async Task<User?> GetUserByTelId(long telId)
+    public async Task SetNewEndByTelId(long chatId)
     {
-        return await db.GetUserByTelId(telId);
+        var cycle = await GetCycleByTelId(chatId);
+        cycle!.LastEnd = DateTime.Now;
+        await _dbContext.SaveChangesAsync();
+
+        await SaveLastCycleHistory(chatId);
+    }
+
+    public async Task SaveLastCycleHistory(long chatId)
+    {
+        var cycle = await GetCycleByTelId(chatId);
+        var lastHistoryNumber = (await _dbContext.CycleHistories.Where(x => x.CycleId == cycle!.Id).ToListAsync()).Max(x => x.Count);
+        var cycleHistory = new CycleHistory
+        {
+            CycleId = cycle!.Id,
+            Count = lastHistoryNumber!++,
+            Start = cycle.LastStart!.Value,
+            End = cycle.LastEnd!.Value
+        };
+        
+        _dbContext.CycleHistories.Add(cycleHistory);
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task SetStartDate(long telId, DateTime date)
+    {
+        var cycle = await GetCycleByTelId(telId);
+        cycle!.LastStart = date;
+        cycle.LastEnd = null;
+        await _dbContext.SaveChangesAsync();
     }
     
-    public async Task<User?> GetUserById(Guid id)
+    public async Task SaveCycleLength(long chatId, int length)
     {
-        return await db.GetUserById(id);
+        var user = await GetUserByTelId(chatId);
+        var cycleDetail = await _dbContext.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
+        if (cycleDetail == null) throw new Exception("No available cycle had been found");
+        cycleDetail.CycleLength = length;
+        await _dbContext.SaveChangesAsync();
+    }
+    
+    public async Task SavePeriodLength(long chatId, int length)
+    {
+        var user = await GetUserByTelId(chatId);
+        var cycleDetail = await _dbContext.CycleDetails.FirstOrDefaultAsync(c => c.UserId == user!.Id);
+        if (cycleDetail == null) throw new Exception("No available cycle had been found");
+        cycleDetail.PeriodLength = length;
+        var end = cycleDetail.LastStart?.AddDays(length);
+        if (DateTime.Now > end)
+        {
+            cycleDetail.LastEnd = end;
+            
+            var cycleHistory = new CycleHistory
+            {
+                CycleId = cycleDetail.Id,
+                Count = 1,
+                Start = (DateTime)cycleDetail.LastStart!,
+                End = (DateTime)end
+            };
+        
+            _dbContext.CycleHistories.Add(cycleHistory);
+        }
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<string?> SetNotify(long chatId, int mode, Guid cycleId = default)
+    {
+        string? name = null;
+        var userId = (await GetUserByTelId(chatId))!.Id;
+        if (cycleId == Guid.Empty)
+        {
+            cycleId = (await _dbContext.CycleDetails.FirstOrDefaultAsync(c => c.UserId == userId))!.Id;
+            name = (await GetCycleOwnerByCycleId(cycleId))!.Name;
+        }
+        var notify = await _dbContext.CycleNotifies.FirstOrDefaultAsync(n => n.CycleId == cycleId && n.ReceiverId == userId);
+        if (notify == null)
+        {
+            notify = new CycleNotify
+            {
+                Id = Guid.NewGuid(),
+                CycleId = cycleId,
+                ReceiverId = userId,
+                NotifyMode = mode
+            };
+            _dbContext.CycleNotifies.Add(notify);
+        }
+        else
+        {
+            notify.NotifyMode = mode;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return name;
     }
     
     public async Task RemoveReceiverFromCycle(Guid cycleId, Guid receiverId)
     {
-        await db.RemoveReceiverFromCycle(cycleId, receiverId);
+        await _dbContext.CycleNotifies
+            .Where(x => x.CycleId == cycleId && x.ReceiverId == receiverId)
+            .ExecuteDeleteAsync();
     }
-
+    
     public async Task<List<(string UserName, Guid CycleId)>> GetFollowingByChatId(long chatId)
     {
-        return await db.GetFollowingByChatId(chatId);
-    }
+        var user = await GetUserByTelId(chatId);
 
+        return (await
+                (
+                    from notify in _dbContext.CycleNotifies
+                    join cycle in _dbContext.CycleDetails
+                        on notify.CycleId equals cycle.Id
+                    join owner in _dbContext.Users
+                        on cycle.UserId equals owner.Id
+                    where notify.ReceiverId == user!.Id
+                    select new { UserName = owner.Name, CycleId = cycle.Id }
+                )
+                .ToListAsync()).Select(x => (x.UserName, x.CycleId))
+            .ToList();
+    }
+    
     public async Task<List<(CycleDetail cycle, CycleNotify notify, User owner, User receiver)>> GetAllCycleNotifies()
     {
-        return await db.GetAllCycleNotifies();
+        return (await
+                (
+                    from notify in _dbContext.CycleNotifies
+                    join cycle in _dbContext.CycleDetails on notify.CycleId equals cycle.Id
+                    join owner in _dbContext.Users on cycle.UserId equals owner.Id
+                    join receiver in _dbContext.Users on notify.ReceiverId equals receiver.Id
+                    select new { cycle, notify, owner, receiver }
+                )
+                .ToListAsync())
+            .Select(x => (x.cycle, x.notify, x.owner, x.receiver))
+            .ToList();
     }
-
+    
+    #endregion
     public async Task<(int? cycleLength, int?periodLength, string lastPeriodStart, double avgCycleLength, double avgPeriodLength, string followers)> LoadCycleDetail(long chatId)
     {
         var cycleDetail = (await GetCycleByTelId(chatId))!;
         var lastStart = (DateTime)cycleDetail.LastStart!;
         var cycleLength = cycleDetail.CycleLength;
         var periodLength = cycleDetail.PeriodLength;
-        var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} {CTH.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
+        var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} {CycleTrackerHandler.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
         var (avgCycleLength, avgPeriodLength) = CalculateAverages(await GetCycleHistoryByCycleId(cycleDetail.Id));
         var followers = (await GetNotifyUsersByCycleId(cycleDetail.Id)).Aggregate("", (current, user) => current + user!.Name + "(@" + user.Username + ")\n");
 
@@ -143,4 +275,120 @@ public class CycleTrackerService(
         return (avgCycleLengthDays, avgPeriodLengthDays);
     }
 
+    public async Task<string?> CreateStatusMessage(Guid cycleId)
+    {
+        var cycleDetail = await GetCycleByCycleId(cycleId);
+        if (cycleDetail == null) return null;
+        if (cycleDetail.LastStart == null) return Messages.NoCycleData;
+
+        var cycleLength = (int)cycleDetail.CycleLength!;
+        var periodLength = (int)cycleDetail.PeriodLength!;
+        var lastStart = cycleDetail.LastStart;
+        var lastEnd = cycleDetail.LastEnd;
+        var now = DateTime.UtcNow.Date;
+        var daysSinceStart = (now - lastStart.Value).Days + 1;
+        if (daysSinceStart < 0) return Messages.InvalidFutureCycle;
+
+        #region InPeriod
+
+        if (lastEnd == null)
+        {
+            var progress = (double)daysSinceStart / periodLength;
+            string phase, details;
+
+            switch (progress)
+            {
+                case <= 0.25:
+                    phase = Messages.EarlyPeriod;
+                    details = Messages.EarlyPeriodDescription;
+                    break;
+                case <= 0.6:
+                    phase = Messages.MidPeriod;
+                    details = Messages.MidPeriodDescription;
+                    break;
+                case <= 0.85:
+                    phase = Messages.LatePeriod;
+                    details = Messages.LatePeriodDescription;
+                    break;
+                case <= 1:
+                    phase = Messages.FinalPeriod;
+                    details = Messages.FinalPeriodDescription;
+                    break;
+                default:
+                    phase = Messages.ExtendedPeriod;
+                    details = Messages.ExtendedPeriodDescription;
+                    break;
+            }
+            
+            var remainingDays = periodLength - daysSinceStart;
+            return string.Format(Messages.InPeriodTemplate, phase, daysSinceStart, periodLength, details, remainingDays);
+        }
+        
+        #endregion
+
+        #region OutOfCycle
+
+        var daysSinceEnd = (now - lastEnd.Value).Days + 1;
+
+        if (daysSinceEnd >= cycleLength)
+        {
+            var daysLate = daysSinceStart - cycleLength;
+            var severity = daysLate / 14.0;
+
+            string tone, reason;
+
+            switch (severity)
+            {
+                case <= 0.15:
+                    tone = Messages.SlightlyLate;
+                    reason = Messages.SlightlyLateReason;
+                    break;
+                case <= 0.5:
+                    tone = Messages.ModeratelyLate;
+                    reason = Messages.ModeratelyLateReason;
+                    break;
+                case <= 1.0:
+                    tone = Messages.SignificantlyLate;
+                    reason = Messages.SignificantlyLateReason;
+                    break;
+                default:
+                    tone = Messages.HighlyIrregular;
+                    reason = Messages.HighlyIrregularReason;
+                    break;
+            }
+            
+            var confidence = Math.Max(0, 100 - (int)(severity * 60));
+            return string.Format(Messages.LateCycleTemplate, tone, daysLate, reason, confidence);
+        }
+        
+        #endregion
+
+        #region InCycle
+
+        var phaseJitter = 2;
+        var menstrualDay = 7;
+        var ovulationDay = cycleLength / 2;
+        var ovulationStart = ovulationDay - phaseJitter;
+        var ovulationEnd = ovulationDay + phaseJitter;
+        var lutealStart = ovulationEnd + 1;
+        var lutealEnd = cycleLength - 5;
+        var remaining = cycleLength - daysSinceEnd + 1;
+        
+        if (daysSinceEnd <= menstrualDay)
+            return string.Format(Messages.MenstrualPhaseTemplate, daysSinceEnd, cycleLength, menstrualDay, menstrualDay - daysSinceEnd);
+        
+        if (daysSinceEnd < ovulationStart)
+            return string.Format(Messages.FollicularPhaseTemplate, daysSinceEnd, cycleLength, ovulationStart, ovulationEnd, phaseJitter, ovulationStart - daysSinceEnd);
+        
+        if (daysSinceEnd >= ovulationStart && daysSinceEnd <= ovulationEnd)
+            return string.Format(Messages.OvulationPhaseTemplate, daysSinceEnd, cycleLength, ovulationDay, phaseJitter, Math.Abs(daysSinceEnd - ovulationDay));
+        
+        if (daysSinceEnd >= lutealStart && daysSinceEnd <= lutealEnd)
+            return string.Format(Messages.LutealPhaseTemplate, daysSinceEnd, cycleLength, cycleLength - daysSinceEnd);            
+        
+        return string.Format(Messages.PremenstrualPhaseTemplate, daysSinceEnd, cycleLength, remaining);
+        
+        #endregion
+
+    }
 }

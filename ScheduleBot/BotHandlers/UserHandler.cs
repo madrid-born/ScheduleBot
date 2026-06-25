@@ -5,7 +5,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class UserHandler(ITelegramBotClient bot, DatabaseService db, IConfiguration configuration)
+public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService services, IConfiguration configuration)
 {
     private readonly long _adminChatId = configuration.GetValue<long>("Telegram:AdminChatId");
     
@@ -88,6 +88,6 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, IConfigurat
         await db.UpdateUserAcceptance(chatId, accept);
         await bot.SendMessage(_adminChatId, string.Format(Messages.AdminAcceptanceTemplate, chatId ,status));
         await bot.SendMessage(chatId, string.Format(Messages.UserAcceptanceTemplate, status),
-            replyMarkup: accept ? MessageHandler.GetMainKeyboard() : null);
+            replyMarkup: accept ? services.GetMainKeyboard() : null);
     }
 }
