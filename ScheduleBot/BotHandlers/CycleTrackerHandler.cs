@@ -9,35 +9,15 @@ namespace ScheduleBot.BotHandlers;
 public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider serviceProvider,
     MainService services, CycleTrackerService ctServices, ILogger<CycleTrackerHandler> logger)
 {
-    private readonly TimeSpan _notificationHour = new(12, 30, 0);
     
+    #region Handel
+
     public async Task HandleSection(UpdateData data)
     {
         switch (data.MessageText![3..])
         {
             case Messages.PeriodTracker:
                 await StartSection(data);
-                break;
-            case Messages.KeyboardSetup:
-                await AskForLastPeriodStart(data);
-                break;
-            case Messages.KeyboardReportStart:
-                await AskReportStart(data);
-                break;
-            case Messages.KeyboardReportEnd:
-                await AskReportEnd(data);
-                break;
-            case Messages.KeyboardEdit:
-                await EditCheck(data);
-                break;
-            case Messages.KeyboardCurrentStatus:
-                await SendCurrentStatusList(data);
-                break;
-            case Messages.KeyboardAddToCycle:
-                await AddToCycle(data);
-                break;
-            case Messages.KeyboardJoinToCycle:
-                await JoinToCyclePressed(data);
                 break;
         }
     }
@@ -46,21 +26,23 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     {
         switch (data.DataSeparated[1])
         {
-            case CallBacks.ReportStart:
-                await ReportStart(data);
-                break;
-            case CallBacks.ReportEnd:
-                await ReportEnd(data);
+            case CallBacks.StartSection:
+                await Start(data);
                 break;
             case CallBacks.SetNotifyMode:
                 await SetNotifyMode(data);
                 break;
+            case CallBacks.EditSection:
+                await EditCycle(data);
+                break;
             case CallBacks.CurrentStatus:
                 await SendCurrentStatus(data);
                 break;
-            case CallBacks.EditSection:
-                //todo
-                await EditCycle(data);
+            case CallBacks.ReportStart:
+                await Report(data, true);
+                break;
+            case CallBacks.ReportEnd:
+                await Report(data, false);
                 break;
             case CallBacks.EditNotify:
                 await ShowNotifyModeMenu(data.ChatId, Guid.Parse(data.DataSeparated[2]));
@@ -76,79 +58,59 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     
     private async Task StartSection(UpdateData data)
     {
-        var collection = new List<List<string>>
-        {
-            new() { Messages.KeyboardSetup, Messages.KeyboardEdit },
-            new() { Messages.KeyboardReportStart, Messages.KeyboardReportEnd },
-            new() { Messages.KeyboardAddToCycle, Messages.KeyboardJoinToCycle },
-            new() { Messages.KeyboardCurrentStatus },
-        };
+        List<List<Tuple<string, string>>> collection = 
+        [
+            [new(Messages.Edit,        CallBacks.Edit),        new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
+            [new(Messages.ReportStart, CallBacks.ReportStart), new(Messages.ReportEnd, CallBacks.ReportEnd)],
+            [new(Messages.AddToCycle,  CallBacks.AddToCycle)],
+            [new(Messages.JoinToCycle, CallBacks.JoinToCycle)]
+        ];
         
-        var keyboard = services.CreateKeyboard(collection, symbol: Messages.PeriodTrackerSymbol, resizeKeyboard: true);
-
+        if (await ctServices.GetCycleByTelId(data.ChatId) == null)
+        {
+            collection = 
+            [
+                [new(Messages.Setup,         CallBacks.Setup)],
+                [new(Messages.JoinToCycle,   CallBacks.JoinToCycle)],
+                [new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
+            ];
+        }
+        
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.StartSection}\\");
         await services.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
     }
     
-    private async Task AskReportStart(UpdateData data)
+    private async Task Start(UpdateData data)
     {
-        await services.ApproveKeyboardInline(data.ChatId, Messages.DidItStart, $"{CallBacks.Cycle}\\{CallBacks.ReportStart}\\");
-    }
-    
-    private async Task AskReportEnd(UpdateData data)
-    {
-        await services.ApproveKeyboardInline(data.ChatId, Messages.DidItEnd, $"{CallBacks.Cycle}\\{CallBacks.ReportEnd}\\");
-    }
-    
-    private async Task ReportStart(UpdateData data)
-    {        
-        var result = data.DataSeparated[2];
-        switch (result)
+        switch (data.DataSeparated[2])
         {
-            case CallBacks.Yes:
-                await services.SendMessage(data.ChatId, Messages.SavedData, true);
-                await ctServices.SetNewStartByTelId(data.ChatId, DateTime.Now);
-                await StartNotify(data.ChatId);
-                break;
-            case CallBacks.No:
-                await ctServices.SaveLastCycleHistory(data.ChatId);
+            case CallBacks.Setup:
                 await AskForLastPeriodStart(data);
                 break;
+            case CallBacks.Edit:
+                await EditCheck(data);
+                break;
+            case CallBacks.CurrentStatus:
+                await SendCurrentStatusList(data);
+                break;
+            case CallBacks.ReportStart:
+                await AskReport(data, true);
+                break;
+            case CallBacks.ReportEnd:
+                await AskReport(data, false);
+                break;
+            case CallBacks.AddToCycle:
+                await AddToCycle(data);
+                break;
+            case CallBacks.JoinToCycle:
+                await JoinToCyclePressed(data);
+                break;
         }
     }
     
-    private async Task ReportEnd(UpdateData data)
-    {        
-        var result = data.DataSeparated[2];
-        switch (result)
-        {
-            case CallBacks.Yes:
-                await ctServices.SetNewEndByTelId(data.ChatId);
-                await services.SendMessage(data.ChatId, Messages.SavedData, true);
-                await EndNotify(data.ChatId);
-                break;
-            case CallBacks.No:
-                await services.SendMessage(data.ChatId, Messages.Welcome, true);
-                break;
-        }
-    }
+    #endregion
 
-    private async Task StartNotify(long chatId)
-    {
-        var users = await ctServices.GetFollowersByChatId(chatId);
-        foreach (var user in users.Where(user => user.ChatId != chatId))
-        {
-            await services.SendMessage(user.ChatId, string.Format(Messages.NotifyStart, $"{user.Name}(@{user.Username})"), true);
-        }
-    }
-    
-    private async Task EndNotify(long chatId)
-    {
-        var users = await ctServices.GetFollowersByChatId(chatId);
-        foreach (var user in users.Where(user => user.ChatId != chatId))
-        {
-            await services.SendMessage(user.ChatId, string.Format(Messages.NotifyEnd, $"{user.Name}(@{user.Username})"), true);
-        }
-    }
+    #region setup
 
     private async Task AskForLastPeriodStart(UpdateData data)
     {
@@ -161,10 +123,10 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         
         await services.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
     }
-
+    
     public async Task SaveLastPeriodStart(UpdateData data)
     {
-        var date = DateValidation(data.MessageText!);
+        var date = MainService.DateValidation(data.MessageText!);
         if (date == null)
         {
             await services.SendMessage(data.ChatId, Messages.InvalidDate);
@@ -172,54 +134,11 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             return;
         }
 
-        if (await ctServices.Seva(data.ChatId, (DateTime)date))
-        {
-            // todo
-        }
+        var exists = await ctServices.SetLastStartDate(data.ChatId, (DateTime)date);
+        if (exists) await services.SendMessage(data.ChatId, Messages.LastStartChanged);
         else await services.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
     }
-
-    private static DateTime? DateValidation(string dataMessageText)
-    {
-        DateTime? date = null;
-        try
-        {
-            var firstDigit = dataMessageText[..1];
-            switch (firstDigit)
-            {
-                case "1":
-                    date = ConvertJalaliToGregorian(dataMessageText);
-                    break;
-                case "2":
-                    if (DateTime.TryParse(dataMessageText, out var gregorianDate)) date = gregorianDate;
-                    break;
-            }
-        }
-        catch (Exception e) { /*ignored*/ }
-
-        return date;
-    }
-
-    private static DateTime ConvertJalaliToGregorian(string date)
-    {
-        var pc = new PersianCalendar();
-        var year = int.Parse(date.Substring(0, 4));
-        var month = int.Parse(date.Substring(5, 2));
-        var day = int.Parse(date.Substring(8, 2));
-        return pc.ToDateTime(year, month, day, 0, 0, 0, 0);
-    }
     
-    public static string ConvertGregorianToJalali(DateTime date)
-    {
-        var pc = new PersianCalendar();
-
-        var year = pc.GetYear(date);
-        var month = pc.GetMonth(date);
-        var day = pc.GetDayOfMonth(date);
-
-        return $"{year:D4}/{month:D2}/{day:D2}";
-    }
-
     public async Task SaveCycleLength(UpdateData data)
     {
         if (!int.TryParse(data.MessageText, out var length))
@@ -229,13 +148,11 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             return;
         }
         
-        if (await ctServices.Seva2(data.ChatId, length))
-        {
-            // todo
-        }
+        var exists = await ctServices.SetCycleLength(data.ChatId, length);
+        if (exists) await services.SendMessage(data.ChatId, Messages.CycleLengthChanged);
         else await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
     }
-
+    
     public async Task SavePeriodLength(UpdateData data)
     {
         if (!int.TryParse(data.MessageText, out var length))
@@ -245,13 +162,11 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             return;
         }
         
-        if (await ctServices.Seva3(data.ChatId, length))
-        {
-            // todo
-        }
+        var exists = await ctServices.SetPeriodLength(data.ChatId, length);
+        if (exists) await services.SendMessage(data.ChatId, Messages.PeriodLengthChanged);
         else await ShowNotifyModeMenu(data.ChatId);
     }
-
+    
     private async Task ShowNotifyModeMenu(long chatId, Guid cycleId = default)
     {
         var collection = new List<List<Tuple<string, string>>>();
@@ -261,7 +176,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.SetNotifyMode}\\");
         await services.SendMessage(chatId, Messages.AskForNotifyMode, replyMarkup: keyboard);
     }
-
+    
     private async Task SetNotifyMode(UpdateData data)
     {
         var chatId = data.ChatId;
@@ -269,14 +184,18 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var cycleId = Guid.Parse(data.DataSeparated[3]);
         var ownerName = await ctServices.SetNotify(chatId, mode, cycleId);
         var message = string.Format(Messages.SetNotifyComplete, Messages.NotifyModes[mode]);
-        if (ownerName != null) message = string.Format(Messages.SetNotifyCompleteGuest, ownerName) + message;
+        
+        if (ownerName != null) 
+            message = string.Format(Messages.SetNotifyCompleteGuest, ownerName) + message;
         else
-        {
             await services.SendMessage(chatId, Messages.SetupComplete);
-            await services.SendMessage(chatId, Messages.EditPeriodReminder);
-        }
+        
         await services.SendMessage(chatId, message, true);
     }
+    
+    #endregion
+
+    #region edit
     
     private async Task EditCheck(UpdateData data, bool commited = false)
     {
@@ -285,38 +204,35 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var message = string.Format(Messages.CurrentData, lastPeriodStart, cycleLength, periodLength, avgCycleLength, avgPeriodLength) +
                       string.Format(Messages.Followers, followers);
         await services.SendMessage(data.ChatId, message, addMainKeyboard: true);
-        
-        if (!commited)
-        {
-            var collection = new List<List<Tuple<string, string>>>
-            {
-                new() {new(Messages.EditPeriodLength, CallBacks.EditPeriodLength)},
-                new() {new(Messages.EditCycleLength,  CallBacks.EditCycleLength)},
-                new() {new(Messages.EditFollowers,    CallBacks.EditFollowers)},
-                new() {new(Messages.EditLastPeriod,   CallBacks.EditLastPeriod)},
-                new() {new(Messages.EditNotify,       CallBacks.EditNotify)},
-            };
-            var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\");
 
-            await services.SendMessage(data.ChatId, Messages.EditCheck, replyMarkup: keyboard);
+        if (commited)
+        {
+            await services.SendMessage(data.ChatId, Messages.ChangesCommited, addMainKeyboard: true);
+            return;
         }
+
+        var collection = new List<List<Tuple<string, string>>>
+        {
+            new() { new(Messages.EditPeriodLength, CallBacks.EditPeriodLength), new(Messages.EditCycleLength, CallBacks.EditCycleLength) },
+            new() { new(Messages.EditFollowers, CallBacks.EditFollowers), new(Messages.EditFollowing, CallBacks.EditFollowing) },
+            new() { new(Messages.EditLastPeriod, CallBacks.EditLastPeriod) },
+            new() { new(Messages.EditNotify, CallBacks.EditNotify) },
+        };
+        var keyboard = services.CreateKeyboard(inlineCollection: collection,
+            callBackStart: $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\");
+
+        await services.SendMessage(data.ChatId, Messages.EditCheck, replyMarkup: keyboard);
     }
     
     private async Task EditCycle(UpdateData data)
     {
         switch (data.DataSeparated[2])
         {
-            case CallBacks.EditLastPeriod:
-                await AskForLastPeriodStart(data);
-                break;
             case CallBacks.EditPeriodLength:
                 await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
                 break;
             case CallBacks.EditCycleLength:
                 await services.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
-                break;
-            case CallBacks.EditNotify:
-                await LoadCycleList(data.ChatId, CallBacks.EditNotify);
                 break;
             case CallBacks.EditFollowers:
                 await RemoveFollowersList(data);
@@ -324,33 +240,15 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             case CallBacks.EditFollowing:
                 await RemoveFollowingList(data);
                 break;
+            case CallBacks.EditLastPeriod:
+                await AskForLastPeriodStart(data);
+                break;
+            case CallBacks.EditNotify:
+                await LoadCycleList(data.ChatId, CallBacks.EditNotify);
+                break;
         }
 
         await EditCheck(data, true);
-    }
-
-    private async Task AddToCycle(UpdateData data)
-    {
-        var result = (await ctServices.GetCycleByTelId(data.ChatId))!.Id;
-        await services.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), true);
-    }
-    
-    private async Task JoinToCyclePressed(UpdateData data)
-    {
-        await services.SendMessage(data.ChatId, Messages.AskForCycleId, replyMarkup: new ForceReplyMarkup());
-    }
-    
-    public async Task JoinToCycleById(UpdateData data)
-    {
-        var idAvailable = Guid.TryParse(data.MessageText, out var cycleId);
-        if (idAvailable && await ctServices.GetCycleByCycleId(cycleId) != null)
-        {
-            await ShowNotifyModeMenu(data.ChatId, cycleId);
-        }
-        else
-        {
-            await services.SendMessage(data.ChatId, Messages.CycleIdIsWrong, true);
-        }
     }
     
     private async Task RemoveFollowingList(UpdateData data)
@@ -390,6 +288,10 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         await services.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowingForOwner, receiver.Name), true);
     }
     
+    #endregion
+
+    #region Status
+
     private async Task SendCurrentStatusList(UpdateData data)
     {
         await LoadCycleList(data.ChatId, CallBacks.CurrentStatus);
@@ -401,9 +303,85 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var owner = await ctServices.GetCycleOwnerByCycleId(cycleId);
         var receiver = await ctServices.GetUserByTelId(data.ChatId);
         var message = await ctServices.CreateStatusMessage(cycleId);
-        var date = $"{DateTime.Now:MM/dd/yyyy} - {ConvertGregorianToJalali(DateTime.Now)}";
+        var date = $"{DateTime.Now:MM/dd/yyyy} - {MainService.ConvertGregorianToJalali(DateTime.Now)}";
         await services.SendMessage(receiver!.ChatId, string.Format(Messages.StatusForReceiver, date, owner!.Name, message), true);
     }
+
+    #endregion
+
+    #region Report
+
+    private async Task AskReport(UpdateData data, bool isStart)
+    {
+        await services.ApproveKeyboardInline(data.ChatId,
+            isStart ? Messages.DidItStart : Messages.DidItEnd,
+            $"{CallBacks.Cycle}\\{(isStart ? CallBacks.ReportStart : CallBacks.ReportEnd)}\\");
+    }
+    
+    private async Task Report(UpdateData data, bool isStart)
+    {        
+        var result = data.DataSeparated[2];
+        switch (result)
+        {
+            case CallBacks.Yes:
+                if (isStart) await ctServices.SetNewStartByTelId(data.ChatId, DateTime.Now);
+                else await ctServices.SetNewEndByTelId(data.ChatId);
+                await services.SendMessage(data.ChatId, Messages.SavedData, true);
+                await Notify(data.ChatId, isStart);
+                break;
+            case CallBacks.No:
+                if (isStart)
+                {
+                    await ctServices.SaveLastCycleHistory(data.ChatId);
+                    await services.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
+                }
+                else await services.SendMessage(data.ChatId, Messages.Welcome, true);
+                break;
+        }
+    }
+    
+    private async Task Notify(long chatId, bool isStart)
+    {
+        var users = await ctServices.GetFollowersByChatId(chatId);
+        foreach (var user in users.Where(user => user.ChatId != chatId))
+        {
+            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, $"{user.Name}(@{user.Username})"), true);
+        }
+    }
+    
+    #endregion
+
+    #region Join
+    
+    private async Task AddToCycle(UpdateData data)
+    {
+        var result = (await ctServices.GetCycleByTelId(data.ChatId))!.Id;
+        await services.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), true);
+    }
+    
+    private async Task JoinToCyclePressed(UpdateData data)
+    {
+        await services.SendMessage(data.ChatId, Messages.AskForCycleId, replyMarkup: new ForceReplyMarkup());
+    }
+    
+    public async Task JoinToCycleById(UpdateData data)
+    {
+        var idAvailable = Guid.TryParse(data.MessageText, out var cycleId);
+        if (idAvailable && await ctServices.GetCycleByCycleId(cycleId) != null)
+        {
+            await ShowNotifyModeMenu(data.ChatId, cycleId);
+        }
+        else
+        {
+            await services.SendMessage(data.ChatId, Messages.CycleIdIsWrong, true);
+        }
+    }
+    
+    #endregion
+    
+    #region General
+    
+    private readonly TimeSpan _notificationHour = new(12, 30, 0);
     
     private async Task LoadCycleList(long chatId, string callBack)
     {
@@ -425,7 +403,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         {
             var shouldNotify = ShouldNotifyToday(cycleNotify.cycle, cycleNotify.notify.NotifyMode);
             if (!shouldNotify) continue;
-            var date = $"{DateTime.Now:MM/dd/yyyy} - {ConvertGregorianToJalali(DateTime.Now)}";
+            var date = $"{DateTime.Now:MM/dd/yyyy} - {MainService.ConvertGregorianToJalali(DateTime.Now)}";
             var message = await ctServices.CreateStatusMessage(cycleNotify.cycle.Id);
             await services.SendMessage(cycleNotify.receiver.ChatId, string.Format(Messages.StatusForReceiver, date, cycleNotify.owner.Name, message), true);
         }
@@ -447,4 +425,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             _ => false
         };
     }
+
+    #endregion
+    
 }

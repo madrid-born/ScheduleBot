@@ -22,7 +22,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         return await _dbContext.CycleDetails.FirstOrDefaultAsync(c => c.Id == cycleId);
     }
     
-    public async Task<bool> Seva(long chatId, DateTime dateTime)
+    public async Task<bool> SetLastStartDate(long chatId, DateTime dateTime)
     {        
         var edit = await GetCycleByTelId(chatId) != null;
         
@@ -32,7 +32,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         return edit;
     }
     
-    public async Task<bool> Seva2(long chatId, int length)
+    public async Task<bool> SetCycleLength(long chatId, int length)
     {        
         var edit = (await GetCycleByTelId(chatId))!.CycleLength != null;
         await SaveCycleLength(chatId, length);
@@ -40,7 +40,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         return edit;
     }
     
-    public async Task<bool> Seva3(long chatId, int length)
+    public async Task<bool> SetPeriodLength(long chatId, int length)
     {        
         var edit = (await GetCycleByTelId(chatId))!.PeriodLength != null;
         await SavePeriodLength(chatId, length);
@@ -249,7 +249,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         var lastStart = (DateTime)cycleDetail.LastStart!;
         var cycleLength = cycleDetail.CycleLength;
         var periodLength = cycleDetail.PeriodLength;
-        var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} {CycleTrackerHandler.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
+        var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} {MainService.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
         var (avgCycleLength, avgPeriodLength) = CalculateAverages(await GetCycleHistoryByCycleId(cycleDetail.Id));
         var followers = (await GetNotifyUsersByCycleId(cycleDetail.Id)).Aggregate("", (current, user) => current + user!.Name + "(@" + user.Username + ")\n");
 

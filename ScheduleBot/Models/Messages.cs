@@ -7,8 +7,6 @@ public static class Messages
     #region Command
     
     public const string Start = "/start";
-    public const string SetupPeriod = "/SetupPeriod";
-    public const string EditPeriod = "/EditPeriod";
     
     #endregion
     
@@ -48,58 +46,62 @@ public static class Messages
     
     #region CycleTracker
     
-    public const string KeyboardReportEnd = "Report end";
-    public const string KeyboardReportStart = "Report start";
-    public const string KeyboardSetup = "Setup";
-    public const string KeyboardEdit = "Edit";
-    public const string KeyboardCurrentStatus = "Current Status";
-    public const string KeyboardAddToCycle = "Add To My Cycle Notification";
-    public const string KeyboardJoinToCycle = "Join To Someone Cycle Notification";
-    
-    public const string SavedData = "Your cycle got restarted successfully.";
-    public const string NotifyStart = "{0}'s period just got started.";
-    public const string NotifyEnd = "{0}'s period just got ended.";
-    public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
-    public const string AvailableCycle = "You already have a cycle tracker set up. Use /EditPeriod to make changes.";
-
-    public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):\nBoth Jalali and Gregorian dates would work\nBut remember to enter like 1405-03-07 or 2026-06-05";
-    public const string AskForCycleLength = "What is your average cycle length (days between periods)?";
-    // public const string AskForCycleLength = "What is your average cycle length (days between end of period and starting the next)?";
-    public const string AskForPeriodLength = "How many days does your period typically last?";
-    public const string AskForNotifyMode = "How often would you like to receive notifications?";
-    public static readonly List<string> NotifyModes = ["Never", "Every day", "Weekly", "Start & End only", "3 days before + during period"];
-    public const string SetupComplete = "Period tracker setup complete!";
-    public const string EditPeriodReminder = " You can use /EditPeriod to update your cycle.";
-    public const string SetNotifyComplete = "You'll receive notifications\n{0}.";
-    public const string SetNotifyCompleteGuest = "You have been successfully added to {0}'s Cycle Notification\n";
-    public const string ShareCycleId = "Your cycle id is mentioned below\nYou can share it with anyone who you want them to get notified.\n\n`{0}`";
-    public const string AskForCycleId = "Please enter the id you received from the person you want to join on their notification.";
-    public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
-    public const string EditCheck = "What do you want to change\n\n";
-    public const string ChangesCommited = "Changes commited succesfully\n\n";
-    public const string CurrentData = "Your current setted data is as below:\nLast Start: {0} \nCycle length: {1} days\nPeriod length: {2} days\nAverage cycle length: {3} days\nAverage period length: {4} days\n\n";
-    public const string Followers = "And those who follow you are:\n{0}";
-    public const string SelectCycle = "Select the sycle you want";
-    public const string SelectUser = "Select the user you want";
-    public const string DidItStart = "Did your period start today?";
-    public const string DidItEnd = "Did your period start today?";
-    
-    public const string RemoveFollowerForOwner = "Succesfuly Removed {0} from cycle";
-    public const string RemoveFollowerForReceiver = "{0} removed you from her(their) cycle";
-    public const string RemoveFollowingForOwner = "{0} exited from your cycle notification";
-    public const string RemoveFollowingForReceiver = "Succesfuly exited {0}'s cycle notification";
+    public const string Setup = "Setup period";
+    public const string Edit = "Edit period details";
+    public const string CurrentStatus = "Current Statuses";
+    public const string ReportStart = "Report start";
+    public const string ReportEnd = "Report end";
+    public const string AddToCycle = "Add Someone To My Cycle Notification";
+    public const string JoinToCycle = "Join To Someone Cycle Notification";
     
     public const string EditPeriodLength = "Edit Period Length";
     public const string EditCycleLength = "Edit Cycle Length";
     public const string EditFollowers = "Remove Followers";
+    public const string EditFollowing = "Remove Followings";
     public const string EditLastPeriod = "Remove Last Period";
     public const string EditNotify = "Edit Notification method";
+
+    public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
+    public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):\nBoth Jalali and Gregorian dates would work\nBut remember to enter like 1405-03-07 or 2026-06-05";
+    public const string AvailableCycle = "You already have a cycle tracker set up. Use Edit Period to make changes.";
+    public const string LastStartChanged = "Last start date was changed successfuly.";
+    public const string AskForCycleLength = "What is your average cycle length (days between end of one period till start of the new one)?";
+    public const string CycleLengthChanged = "Cycle Length was changed successfuly.";
+    public const string AskForPeriodLength = "How many days does your period typically last?";
+    public const string PeriodLengthChanged = "Period Length was changed successfuly.";
+    public const string AskForNotifyMode = "How often would you like to receive notifications?";
+    public static readonly List<string> NotifyModes = ["Never", "Every day", "Weekly", "Start & End only", "3 days before + during period"];
+    public const string SetNotifyComplete = "You'll receive notifications\n{0}.";
+    public const string SetNotifyCompleteGuest = "You have been successfully added to {0}'s Cycle Notification\n";
+    public const string SetupComplete = "Period tracker setup complete!";
+    
+    public const string CurrentData = "Your current setted data is as below:\nLast Start: {0} \nCycle length: {1} days\nPeriod length: {2} days\nAverage cycle length: {3} days\nAverage period length: {4} days\n\n";
+    public const string Followers = "And those who follow you are:\n{0}";
+    public const string EditCheck = "What do you want to change\n\n";
+    public const string SelectUser = "Select the user you want";
+    public const string SelectCycle = "Select the sycle you want";
+    public const string RemoveFollowerForOwner = "Succesfuly Removed {0} from cycle";
+    public const string RemoveFollowerForReceiver = "{0} removed you from her(their) cycle";
+    public const string RemoveFollowingForOwner = "{0} exited from your cycle notification";
+    public const string RemoveFollowingForReceiver = "Succesfuly exited {0}'s cycle notification";
+
+    public const string StatusForReceiver = "today is {0}\nAnd {1} is now in this situation\n\n{2}";
+    
+    public const string DidItStart = "Did your period start today?";
+    public const string DidItEnd = "Did your period start today?";
+    public const string SavedData = "Your cycle got restarted successfully.";
+    public const string NotifyStart = "{0}'s period just got started.";
+    public const string NotifyEnd = "{0}'s period just got ended.";
+
+    public const string ShareCycleId = "Your cycle id is mentioned below\nYou can share it with anyone who you want them to get notified.\n\n`{0}`";
+    public const string AskForCycleId = "Please enter the id you received from the person you want to join on their notification.";
+    public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
+
+    public const string ChangesCommited = "Changes commited succesfully\n\n";
     
     #endregion
     
     #region CycleStatus
-    
-    public const string StatusForReceiver = "today is {0}\nAnd {1} is now in this situation\n\n{2}";
     
     public const string NoCycleData = "No cycle data available (missing last start date).";
     public const string InvalidFutureCycle = "Cycle start date is in the future. Data is invalid.";
@@ -157,9 +159,6 @@ public static class CallBacks
 
     public const string Cycle = "Cycle";
     public const string SetNotifyMode = "SetNotifyMode";
-    public const string CurrentStatus = "CurrentStatus";
-    public const string ReportStart = "ReportStart";
-    public const string ReportEnd = "ReportEnd";
     public const string EditSection = "EditSection";
     public const string EditPeriodLength = "EditPeriodLength";
     public const string EditCycleLength = "EditCycleLength";
@@ -169,14 +168,15 @@ public static class CallBacks
     public const string EditNotify = "EditNotify";
     public const string RemoveFollowing = "RemoveFollowing";
     public const string RemoveFollower = "RemoveFollower";
-    
-    
-
+    public const string StartSection = "StartSection";
     
     public const string Setup = "Setup";
-    public const string EditPeriod = "EditPeriod";
-    public const string NewPeriod = "NewPeriod";
-    public const string ViewStatus = "ViewStatus";
+    public const string Edit = "Edit";
+    public const string CurrentStatus = "CurrentStatus";
+    public const string ReportStart = "ReportStart";
+    public const string ReportEnd = "ReportEnd";
+    public const string AddToCycle = "AddToCycle";
+    public const string JoinToCycle = "JoinToCycle";
 
     #endregion
 }
