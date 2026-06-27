@@ -227,7 +227,8 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
             .ToList();
     }
     
-    public async Task<List<(CycleDetail cycle, CycleNotify notify, User owner, User receiver)>> GetAllCycleNotifies()
+    
+    public async Task<List<(CycleDetail cycle, User owner, List<(CycleNotify notify, User receiver)> notifies)>> GetAllCycleNotifies()
     {
         return (await
                 (
@@ -239,6 +240,12 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
                 )
                 .ToListAsync())
             .Select(x => (x.cycle, x.notify, x.owner, x.receiver))
+            .GroupBy(x => new { x.cycle, x.owner })
+            .Select(g => (
+                g.Key.cycle,
+                g.Key.owner,
+                notifies: g.Select(x => (x.notify, x.receiver)).ToList()
+            ))
             .ToList();
     }
     
@@ -249,9 +256,9 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         var lastStart = (DateTime)cycleDetail.LastStart!;
         var cycleLength = cycleDetail.CycleLength;
         var periodLength = cycleDetail.PeriodLength;
-        var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} {MainService.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
+        var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} - {MainService.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
         var (avgCycleLength, avgPeriodLength) = CalculateAverages(await GetCycleHistoryByCycleId(cycleDetail.Id));
-        var followers = (await GetNotifyUsersByCycleId(cycleDetail.Id)).Aggregate("", (current, user) => current + user!.Name + "(@" + user.Username + ")\n");
+        var followers = (await GetNotifyUsersByCycleId(cycleDetail.Id)).Where(x => x!.ChatId != chatId).Aggregate("", (current, user) => current + user!.Name + " (@" + user.Username + ")\n");
 
         return (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength, followers);
     }
@@ -373,21 +380,25 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         var lutealStart = ovulationEnd + 1;
         var lutealEnd = cycleLength - 5;
         var remaining = cycleLength - daysSinceEnd + 1;
+        string inCycleMessage;
         
         if (daysSinceEnd <= menstrualDay)
-            return string.Format(Messages.MenstrualPhaseTemplate, daysSinceEnd, cycleLength, menstrualDay, menstrualDay - daysSinceEnd);
+            inCycleMessage = string.Format(Messages.MenstrualPhaseTemplate, daysSinceEnd, cycleLength, menstrualDay, menstrualDay - daysSinceEnd);
         
-        if (daysSinceEnd < ovulationStart)
-            return string.Format(Messages.FollicularPhaseTemplate, daysSinceEnd, cycleLength, ovulationStart, ovulationEnd, phaseJitter, ovulationStart - daysSinceEnd);
+        else if (daysSinceEnd < ovulationStart)
+            inCycleMessage = string.Format(Messages.FollicularPhaseTemplate, daysSinceEnd, cycleLength, ovulationStart, ovulationEnd, phaseJitter, ovulationStart - daysSinceEnd);
         
-        if (daysSinceEnd >= ovulationStart && daysSinceEnd <= ovulationEnd)
-            return string.Format(Messages.OvulationPhaseTemplate, daysSinceEnd, cycleLength, ovulationDay, phaseJitter, Math.Abs(daysSinceEnd - ovulationDay));
+        else if (daysSinceEnd >= ovulationStart && daysSinceEnd <= ovulationEnd)
+            inCycleMessage = string.Format(Messages.OvulationPhaseTemplate, daysSinceEnd, cycleLength, ovulationDay, phaseJitter, Math.Abs(daysSinceEnd - ovulationDay));
         
-        if (daysSinceEnd >= lutealStart && daysSinceEnd <= lutealEnd)
-            return string.Format(Messages.LutealPhaseTemplate, daysSinceEnd, cycleLength, cycleLength - daysSinceEnd);            
+        else if (daysSinceEnd >= lutealStart && daysSinceEnd <= lutealEnd)
+            inCycleMessage = string.Format(Messages.LutealPhaseTemplate, daysSinceEnd, cycleLength, cycleLength - daysSinceEnd);            
         
-        return string.Format(Messages.PremenstrualPhaseTemplate, daysSinceEnd, cycleLength, remaining);
-        
+        else 
+            inCycleMessage = string.Format(Messages.PremenstrualPhaseTemplate, daysSinceEnd, cycleLength, remaining);
+
+        return inCycleMessage;
+
         #endregion
 
     }

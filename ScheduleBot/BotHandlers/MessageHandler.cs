@@ -180,6 +180,10 @@ public class MessageHandler(
                 await cycleTracker.HandleSection(data);
                 flag = true;
                 break;
+            case Messages.AboutSymbol:
+                await cycleTracker.CheckAndSendNotifications(true);
+                flag = true;
+                break;
         }
         return flag;
     }

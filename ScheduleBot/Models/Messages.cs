@@ -14,7 +14,8 @@ public static class Messages
     
     public const string PeriodTrackerSymbol = "🌸 ";
     public const string PeriodTracker = "Period Tracker";
-    public const string About = "ℹ️ About";
+    public const string AboutSymbol = "ℹ️ ";
+    public const string About = "About";
     
     #endregion
 
@@ -49,8 +50,6 @@ public static class Messages
     public const string Setup = "Setup period";
     public const string Edit = "Edit period details";
     public const string CurrentStatus = "Current Statuses";
-    public const string ReportStart = "Report start";
-    public const string ReportEnd = "Report end";
     public const string AddToCycle = "Add Someone To My Cycle Notification";
     public const string JoinToCycle = "Join To Someone Cycle Notification";
     
@@ -79,16 +78,17 @@ public static class Messages
     public const string Followers = "And those who follow you are:\n{0}";
     public const string EditCheck = "What do you want to change\n\n";
     public const string SelectUser = "Select the user you want";
-    public const string SelectCycle = "Select the sycle you want";
+    public const string SelectCycle = "Select the cycle you want";
     public const string RemoveFollowerForOwner = "Succesfuly Removed {0} from cycle";
     public const string RemoveFollowerForReceiver = "{0} removed you from her(their) cycle";
     public const string RemoveFollowingForOwner = "{0} exited from your cycle notification";
     public const string RemoveFollowingForReceiver = "Succesfuly exited {0}'s cycle notification";
 
     public const string StatusForReceiver = "today is {0}\nAnd {1} is now in this situation\n\n{2}";
-    
-    public const string DidItStart = "Did your period start today?";
-    public const string DidItEnd = "Did your period start today?";
+    public const string StatusForOwner = "toddway is {0}\nAnd you are now in this situation\n\n{1}";
+    public const string DidItStart = "Did your period start?";
+    public const string DidItEnd = "Did your period end?";
+    public const string HopeTomorrow = "Got it. We'll keep tracking your cycle based on this.";
     public const string SavedData = "Your cycle got restarted successfully.";
     public const string NotifyStart = "{0}'s period just got started.";
     public const string NotifyEnd = "{0}'s period just got ended.";
@@ -96,9 +96,6 @@ public static class Messages
     public const string ShareCycleId = "Your cycle id is mentioned below\nYou can share it with anyone who you want them to get notified.\n\n`{0}`";
     public const string AskForCycleId = "Please enter the id you received from the person you want to join on their notification.";
     public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
-
-    public const string ChangesCommited = "Changes commited succesfully\n\n";
-    
     #endregion
     
     #region CycleStatus
