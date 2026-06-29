@@ -14,19 +14,32 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
 
     public async Task HandleSection(UpdateData data)
     {
-        switch (data.MessageText![3..])
+        List<List<Tuple<string, string>>> collection = 
+        [
+            [new(Messages.Edit,        CallBacks.Edit), new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
+            [new(Messages.AddToCycle,  CallBacks.AddToCycle)],
+            [new(Messages.JoinToCycle, CallBacks.JoinToCycle)]
+        ];
+        
+        if (await ctServices.GetCycleByTelId(data.ChatId) == null)
         {
-            case Messages.PeriodTracker:
-                await StartSection(data);
-                break;
+            collection = 
+            [
+                [new(Messages.Setup,         CallBacks.Setup)],
+                [new(Messages.JoinToCycle,   CallBacks.JoinToCycle)],
+                [new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
+            ];
         }
+        
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.MainSection}\\");
+        await services.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
     }
     
     public async Task HandleCallBack(UpdateData data)
     {
         switch (data.DataSeparated[1])
         {
-            case CallBacks.StartSection:
+            case CallBacks.MainSection:
                 switch (data.DataSeparated[2])
                 {
                     case CallBacks.Setup:
@@ -91,29 +104,6 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
                 await RemoveFollower(data);
                 break;
         }
-    }
-    
-    private async Task StartSection(UpdateData data)
-    {
-        List<List<Tuple<string, string>>> collection = 
-        [
-            [new(Messages.Edit,        CallBacks.Edit),        new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
-            [new(Messages.AddToCycle,  CallBacks.AddToCycle)],
-            [new(Messages.JoinToCycle, CallBacks.JoinToCycle)]
-        ];
-        
-        if (await ctServices.GetCycleByTelId(data.ChatId) == null)
-        {
-            collection = 
-            [
-                [new(Messages.Setup,         CallBacks.Setup)],
-                [new(Messages.JoinToCycle,   CallBacks.JoinToCycle)],
-                [new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
-            ];
-        }
-        
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.StartSection}\\");
-        await services.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
     }
     
     #endregion

@@ -10,7 +10,8 @@ public class MessageHandler(
     ITelegramBotClient bot,
     DatabaseService db,
     UserHandler userHandler,
-    CycleTrackerHandler cycleTracker,
+    CycleTrackerHandler cycleTrackerHandler,
+    CartHandler cartHandler,
     MainService mainService,
     IConfiguration configuration)
 {
@@ -90,7 +91,10 @@ public class MessageHandler(
                 await userHandler.HandleCallBack(data);
                 break;
             case CallBacks.Cycle:
-                await cycleTracker.HandleCallBack(data);
+                await cycleTrackerHandler.HandleCallBack(data);
+                break;
+            case CallBacks.Cart:
+                await cartHandler.HandleCallBack(data);
                 break;
         }
     }
@@ -113,6 +117,7 @@ public class MessageHandler(
         if (!data.IsReplied) return flag;
         switch (data.RepliedMessage)
         {
+            // Register
             case Messages.EnterYourName:
                 await userHandler.AskForEmail(data);
                 flag = true;
@@ -121,20 +126,21 @@ public class MessageHandler(
                 await userHandler.RegisterUser(data); 
                 flag = true;
                 break;
+            // Cycle Tracker
             case Messages.SetupTracker:
-                await cycleTracker.SaveLastPeriodStart(data);
+                await cycleTrackerHandler.SaveLastPeriodStart(data);
                 flag = true;
                 break;
             case Messages.AskForCycleLength:
-                await cycleTracker.SaveCycleLength(data); 
+                await cycleTrackerHandler.SaveCycleLength(data); 
                 flag = true;
                 break;
             case Messages.AskForPeriodLength:
-                await cycleTracker.SavePeriodLength(data);
+                await cycleTrackerHandler.SavePeriodLength(data);
                 flag = true;
                 break;
             case Messages.AskForCycleId:
-                await cycleTracker.JoinToCycleById(data);
+                await cycleTrackerHandler.JoinToCycleById(data);
                 flag = true;
                 break;
         }
@@ -151,14 +157,6 @@ public class MessageHandler(
                 await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: mainService.GetMainKeyboard());
                 flag = true;
                 break;
-            // case Messages.SetupPeriod:
-            //     await cycleTracker.AskForLastPeriodStart(data);
-            //     flag = true;
-            //     break;
-            // case Messages.EditPeriod:
-            //     await cycleTracker.ShowEditMenu(data.ChatId);
-            //     flag = true;
-            //     break;
         }
         return flag;
     }
@@ -177,11 +175,14 @@ public class MessageHandler(
         switch (keyboardSymbol)
         {
             case Messages.PeriodTrackerSymbol:
-                await cycleTracker.HandleSection(data);
+                await cycleTrackerHandler.HandleSection(data);
+                flag = true;
+                break;
+            case Messages.CartSymbol:
+                await cartHandler.HandleSection(data);
                 flag = true;
                 break;
             case Messages.AboutSymbol:
-                await cycleTracker.CheckAndSendNotifications(true);
                 flag = true;
                 break;
         }

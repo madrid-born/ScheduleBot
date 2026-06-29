@@ -12,10 +12,14 @@ public static class Messages
     
     #region MainKeyboard
     
-    public const string PeriodTrackerSymbol = "🌸 ";
-    public const string PeriodTracker = "Period Tracker";
     public const string AboutSymbol = "ℹ️ ";
     public const string About = "About";
+    public const string PeriodTrackerSymbol = "🌸 ";
+    public const string PeriodTracker = "Period Tracker";
+    public const string CartSymbol = "🛒 ";
+    public const string Cart = "Cart";
+    public const string SpotifySymbol = "🎵 ";
+    public const string Spotify = "Spotify";
     
     #endregion
 
@@ -132,6 +136,21 @@ public static class Messages
     public const string PremenstrualPhaseTemplate = "Premenstrual phase (Day {0}/{1}).\nHormone drop phase leading into menstruation.\nHigh variability: symptoms may start 3–7 days before cycle.\nNext cycle in ~{2} day(s).";
 
     #endregion
+
+    #region Cart
+
+    public const string LoadCart = "Welcome to the period tracker section.\nWhat do you want to do?";
+    public const string KeyboardProduct = "Product service";
+    public const string KeyboardCart = "Cart service";
+    public const string KeyboardShow = "Show cart";
+    public const string KeyboardAddProduct = "Add Product";
+    public const string KeyboardRemoveProduct = "Remove Product";
+    public const string KeyboardCreateCart = "Create Cart";
+    public const string KeyboardInviteToCart = "Invite To Cart";
+    public const string KeyboardResetCart = "Reset Cart";
+    public const string KeyboardDeleteCart = "Delete Cart";
+
+    #endregion
 }
 
 public static class CallBacks
@@ -140,6 +159,8 @@ public static class CallBacks
 
     public const string Yes = "Yes";
     public const string No = "No";
+    public const string MainSection = "MainSection";
+
 
     #endregion
     
@@ -165,7 +186,6 @@ public static class CallBacks
     public const string EditNotify = "EditNotify";
     public const string RemoveFollowing = "RemoveFollowing";
     public const string RemoveFollower = "RemoveFollower";
-    public const string StartSection = "StartSection";
     
     public const string Setup = "Setup";
     public const string Edit = "Edit";
@@ -175,5 +195,19 @@ public static class CallBacks
     public const string AddToCycle = "AddToCycle";
     public const string JoinToCycle = "JoinToCycle";
 
+    #endregion
+
+    #region Cart
+
+    public const string Cart = "Cart";
+    public const string ProductService = "ProductService";
+    public const string CartService = "CartService";
+    public const string Show = "Show";
+    public const string AddProduct = "AddProduct";
+    public const string RemoveProduct = "RemoveProduct";
+    public const string CreateCart = "CreateCart";
+    public const string InviteToCart = "InviteToCart";
+    public const string DeleteCart = "DeleteCart";
+    public const string ResetCart = "ResetCart";
     #endregion
 }

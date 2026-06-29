@@ -8,8 +8,6 @@ namespace ScheduleBot.Services;
 public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbContext)
 {
     private readonly AppDbContext _dbContext = dbContext;
-
-    #region CycleTracker
     
     public async Task<CycleDetail?> GetCycleByTelId(long chatId)
     {
@@ -249,7 +247,6 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
             .ToList();
     }
     
-    #endregion
     public async Task<(int? cycleLength, int?periodLength, string lastPeriodStart, double avgCycleLength, double avgPeriodLength, string followers)> LoadCycleDetail(long chatId)
     {
         var cycleDetail = (await GetCycleByTelId(chatId))!;

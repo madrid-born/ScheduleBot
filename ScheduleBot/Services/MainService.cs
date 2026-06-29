@@ -18,7 +18,7 @@ public class MainService(ITelegramBotClient bot)
     {
         var collection = new List<List<string>>
         {
-            new() { Messages.PeriodTrackerSymbol + Messages.PeriodTracker, Messages.AboutSymbol + Messages.About },
+            new() { Messages.PeriodTrackerSymbol + Messages.PeriodTracker, Messages.CartSymbol + Messages.Cart },
         };
         
         return (ReplyKeyboardMarkup)CreateKeyboard(collection, resizeKeyboard: true);

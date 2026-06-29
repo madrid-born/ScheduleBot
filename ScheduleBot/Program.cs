@@ -56,6 +56,8 @@ builder.Services.AddScoped<MainService>();
 builder.Services.AddScoped<UserHandler>();
 builder.Services.AddScoped<CycleTrackerHandler>();
 builder.Services.AddScoped<CycleTrackerService>();
+builder.Services.AddScoped<CartHandler>();
+builder.Services.AddScoped<CartService>();
 builder.Services.AddHostedService<BotPollingService>();
 
 var app = builder.Build();
