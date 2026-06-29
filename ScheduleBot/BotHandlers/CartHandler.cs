@@ -58,53 +58,66 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                     case CallBacks.CartService:
                         await HandleSection(data, false);
                         break;
-                    case CallBacks.Show:
-                        await ShowCart(data);
-                        break;
-                    case CallBacks.AddProduct:
-                        //await 
-                        break;
-                    case CallBacks.RemoveProduct:
-                        //await 
-                        break;
                     case CallBacks.CreateCart:
-                        //await 
+                        //todo
                         break;
+                    case CallBacks.Show:
+                    case CallBacks.AddProduct:
+                    case CallBacks.RemoveProduct:
                     case CallBacks.InviteToCart:
-                        //await 
-                        break;
                     case CallBacks.DeleteCart:
-                        //await 
-                        break;
                     case CallBacks.ResetCart:
-                        //await 
+                        await LoadCarts(data.ChatId, data.DataSeparated[2]);
                         break;
                 }
+                break;
+            case CallBacks.Show:
+                break;
+            case CallBacks.AddProduct:
+                break;
+            case CallBacks.RemoveProduct:
+                break;
+            case CallBacks.InviteToCart:
+                break;
+            case CallBacks.DeleteCart:
+                break;
+            case CallBacks.ResetCart:
                 break;
         }
     }
 
-    private async Task ShowCart(UpdateData data)
+    private async Task LoadCarts(long chatId, string callBack, int pageNumber = 0)
     {
-        throw new NotImplementedException();
-    }
+        List<Cart> carts = cServices.GetCartsByTelId(chatId);
+        List<List<Tuple<string, string>>> collection = [];
+        for (var index = pageNumber * 4; index < pageNumber * 4 + 4; index += 2)
+        {
+            List<Tuple<string, string>> row = [];
+            for (var i = 0; i < 2; i++)
+            {
+                var cart = new Cart { Id = Guid.Empty, Name = "-" };
+                try { cart = carts[index + i]; }
+                catch (Exception e) { /*ignored*/ }
+                
+                row.Add(new Tuple<string, string>(cart.Name!, $"{callBack}\\{cart.Id.ToString()}"));
+            }
+            collection.Add(row);
+        }
+        collection.Add(
+        [
+            new (Messages.PreviousPage, $"{CallBacks.PreviousPage}\\{callBack}\\{pageNumber}"),
+            new (pageNumber.ToString(), ""),
+            new (Messages.NextPage,     $"{CallBacks.NextPage}\\{callBack}\\{pageNumber}")
 
-    private async Task LoadCart()
-    {
-        List<Cart> carts;
-
+        ]);
+        if (new List<string>{CallBacks.Show}.Contains(callBack))
+        {
+            collection.Add([new (Messages.All,CallBacks.All)]);
+        }
+        
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cart}\\");
+        await services.SendMessage(chatId, Messages.SelectCart, replyMarkup: keyboard);
     }
-    
-    // private async Task ShowNotifyModeMenu(long chatId)
-    // {
-    //     
-    //     var collection = new List<List<Tuple<string, string>>>();
-    //     collection.AddRange(Messages.NotifyModes.Select((notifyMode, index) =>
-    //         (List<Tuple<string, string>>)[new(notifyMode, $"{index}\\{cycleId}")]));
-    //
-    //     var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.SetNotifyMode}\\");
-    //     await services.SendMessage(chatId, Messages.AskForNotifyMode, replyMarkup: keyboard);
-    // }
 
     #endregion
 }

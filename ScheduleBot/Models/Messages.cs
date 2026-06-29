@@ -27,6 +27,9 @@ public static class Messages
     
     public const string Yes = "Yes";
     public const string No = "No";
+    public const string PreviousPage = "<<";
+    public const string NextPage = ">>";
+    public const string All = "All";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
@@ -149,6 +152,8 @@ public static class Messages
     public const string KeyboardInviteToCart = "Invite To Cart";
     public const string KeyboardResetCart = "Reset Cart";
     public const string KeyboardDeleteCart = "Delete Cart";
+    
+    public const string SelectCart = "Select the cart you want.";
 
     #endregion
 }
@@ -159,6 +164,9 @@ public static class CallBacks
 
     public const string Yes = "Yes";
     public const string No = "No";
+    public const string PreviousPage = "<<";
+    public const string NextPage = ">>";
+    public const string All = "All";
     public const string MainSection = "MainSection";
 
 
@@ -209,5 +217,6 @@ public static class CallBacks
     public const string InviteToCart = "InviteToCart";
     public const string DeleteCart = "DeleteCart";
     public const string ResetCart = "ResetCart";
+    
     #endregion
 }
