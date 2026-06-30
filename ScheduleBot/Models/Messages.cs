@@ -149,11 +149,29 @@ public static class Messages
     public const string KeyboardAddProduct = "Add Product";
     public const string KeyboardRemoveProduct = "Remove Product";
     public const string KeyboardCreateCart = "Create Cart";
-    public const string KeyboardInviteToCart = "Invite To Cart";
-    public const string KeyboardResetCart = "Reset Cart";
     public const string KeyboardDeleteCart = "Delete Cart";
+    public const string KeyboardInviteToCart = "Invite To Cart";
+    public const string KeyboardJoinToCart = "Join To Cart";
     
     public const string SelectCart = "Select the cart you want.";
+    public const string CartNotFound = "Cart not found.";
+    public const string ShowCart = "Cart \"{0}\" has below items:\n\n{1}";
+    
+    public const string AskCartName = "Enter the Cart name.";
+    public const string CartCreated = "Cart \"{0}\" has been created.\nYou can invite others to this cart using this code\n\n{1}";
+    public const string CartDeleteFail = "Unable to delete cart.";
+    public const string CartDeleted = "Cart \"{0}\" has been successfully deleted.\nlast instance of it, is as follows.";
+    
+    public const string AskCartId = "Enter the Cart code that had been shared with you.";
+    public const string InviteToCart = "The Invitation code for cart \"{0}\" is as follows.\n\n`{1}`\n\nyou can share it with anyone you want to invite to this cart.";
+    public const string InviteAccepted = "You have been successfuly added to cart \"{0}\"";
+    public const string CartIdFormatFail = "Cart code format is not valid.";
+    public const string CartLoadFail = "No cart is available with that code.";
+
+    
+    
+    
+    public const string AskProductName = "Enter the Cart name.";
 
     #endregion
 }
@@ -214,9 +232,9 @@ public static class CallBacks
     public const string AddProduct = "AddProduct";
     public const string RemoveProduct = "RemoveProduct";
     public const string CreateCart = "CreateCart";
-    public const string InviteToCart = "InviteToCart";
     public const string DeleteCart = "DeleteCart";
-    public const string ResetCart = "ResetCart";
+    public const string InviteToCart = "InviteToCart";
+    public const string JoinToCart = "JoinToCart";
     
     #endregion
 }
