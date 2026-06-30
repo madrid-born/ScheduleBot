@@ -11,6 +11,7 @@ public class MessageHandler(
     DatabaseService db,
     UserHandler userHandler,
     CycleTrackerHandler cycleTrackerHandler,
+    UserSessionService sessionService,
     CartHandler cartHandler,
     MainService mainService,
     IConfiguration configuration)
@@ -104,8 +105,9 @@ public class MessageHandler(
         var checkReplied = await CheckReplied(data);
         var checkCommand = await CheckCommand(data);
         var checkKeyboard = await CheckKeyboard(data);
+        var checkSession = await CheckSession(data);
 
-        if (!checkReplied && !checkCommand && !checkKeyboard)
+        if (!checkReplied && !checkCommand && !checkKeyboard && !checkSession)
         {
             await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: mainService.GetMainKeyboard());
         }
@@ -190,6 +192,22 @@ public class MessageHandler(
                 flag = true;
                 break;
             case Messages.AboutSymbol:
+                flag = true;
+                break;
+        }
+        return flag;
+    }
+
+    private async Task<bool> CheckSession(UpdateData data)
+    {
+        var flag = false;
+        var session = sessionService.GetPendingAction(data.ChatId);
+        if (session == null) return flag;
+        
+        switch (session.CallbackData)
+        {
+            case Actions.AwaitingProductActions:
+                await cartHandler.AddProductToCart(data, session.CallbackData);
                 flag = true;
                 break;
         }

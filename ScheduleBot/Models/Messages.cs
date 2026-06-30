@@ -166,12 +166,13 @@ public static class Messages
     public const string InviteToCart = "The Invitation code for cart \"{0}\" is as follows.\n\n`{1}`\n\nyou can share it with anyone you want to invite to this cart.";
     public const string InviteAccepted = "You have been successfuly added to cart \"{0}\"";
     public const string CartIdFormatFail = "Cart code format is not valid.";
-    public const string CartLoadFail = "No cart is available with that code.";
-
+    public const string CartNotExist = "No cart is available with that code.";
+    
+    public const string CartLoadFail = "Loading cart failed.";
     
     
-    
-    public const string AskProductName = "Enter the Cart name.";
+    public const string CartNo = "Enter the Product name.";
+    public const string AskProductName = "Enter the Product name.";
 
     #endregion
 }
@@ -229,6 +230,7 @@ public static class CallBacks
     public const string ProductService = "ProductService";
     public const string CartService = "CartService";
     public const string Show = "Show";
+    public const string ProductAction = "ProductAction";
     public const string AddProduct = "AddProduct";
     public const string RemoveProduct = "RemoveProduct";
     public const string CreateCart = "CreateCart";
@@ -237,4 +239,9 @@ public static class CallBacks
     public const string JoinToCart = "JoinToCart";
     
     #endregion
+}
+
+public static class Actions
+{
+    public const string AwaitingProductActions = "AwaitingProductActions";
 }

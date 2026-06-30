@@ -5,7 +5,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvider,
+public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, UserSessionService sessionService,
     MainService services, CartService cServices, ILogger<CycleTrackerHandler> logger)
 {
     
@@ -72,12 +72,20 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                     case CallBacks.RemoveProduct:
                         await LoadCarts(data.ChatId, data.DataSeparated[2]);
                         break;
+                    case CallBacks.ProductAction:
+                        await LoadCarts(data.ChatId, data.DataSeparated[2]);
+                        break;
                 }
                 break;
             case CallBacks.Show:
             {
                 var tryParse = Guid.TryParse(data.DataSeparated[2], out var cartId2);
                 await ShowCarts(data, tryParse ? cartId2 : Guid.Empty);
+                break;
+            }
+            case CallBacks.ProductAction:
+            {
+                await LoadProducts(data, data.DataSeparated[2]);
                 break;
             }
             case CallBacks.AddProduct:
@@ -209,7 +217,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             var cart = await cServices.GetCartByCartId(cartId);
             if (cart == null)
             {
-                await services.SendMessage(data.ChatId, Messages.CartLoadFail);
+                await services.SendMessage(data.ChatId, Messages.CartNotExist);
                 await services.SendMessage(data.ChatId, Messages.AskCartId, replyMarkup: new ForceReplyMarkup());
             }
 
@@ -221,12 +229,53 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
     #endregion
 
     #region ProductMethods
-
+    
+    private async Task LoadProducts(UpdateData data, string cartIdAsString)
+    {
+        var isLoaded = Guid.TryParse(cartIdAsString, out var cartId);
+        if (!isLoaded) await services.SendMessage(data.ChatId, Messages.CartLoadFail);
+        sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingProductActions, callbackData: cartIdAsString);
+        List<CartItem> products = cServices.getProductsByCartId(cartId);
+        //TODO here
+    }
+    
+    
+    
+    
+    
+    
     
     private async Task AskProductName(UpdateData data, Guid cartId)
     {
+        var cart = await cServices.GetCartByCartId(cartId);
+        if (cart != null) await services.SendMessage(data.ChatId, string.Format(Messages.InviteToCart, cart.Name, cart.Id));
+        sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingProductActions, callbackData: cartId.ToString());
+
         throw new NotImplementedException();
     }
+
+    public async Task AddProductToCart(UpdateData data, string? cartIdAsString)
+    {
+        var productName = data.MessageText!;
+        // var cartIdAsString = sessionService.GetData(data.ChatId, Actions.AwaitingProductName);
+        if (cartIdAsString == null) await services.SendMessage(data.ChatId, Messages.CartNotFound);
+        var isCartId = Guid.TryParse(cartIdAsString, out var cartId);
+        if (isCartId) await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
+        var appended = await cServices.AddProductToCart(data.ChatId, cartId, productName);
+        // await services.SendMessage(data.ChatId, string.Format(Messages.CartCreated, cartName, cartId));
+    }
+    
+    private async Task AddProductToCart(UpdateData data)
+    {
+        var productName = data.MessageText!;
+        var cartIdAsString = sessionService.GetData(data.ChatId, Actions.AwaitingProductActions);
+        if (cartIdAsString == null) await services.SendMessage(data.ChatId, Messages.CartNotFound);
+        var isCartId = Guid.TryParse(cartIdAsString, out var cartId);
+        if (isCartId) await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
+        var appended = await cServices.AddProductToCart(data.ChatId, cartId, productName);
+        // await services.SendMessage(data.ChatId, string.Format(Messages.CartCreated, cartName, cartId));
+    }
+
 
     private async Task LoadRemoveProduct(UpdateData data, Guid cartId)
     {

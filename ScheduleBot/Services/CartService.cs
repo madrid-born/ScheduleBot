@@ -34,4 +34,18 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
     {
         throw new NotImplementedException();
     }
+
+    public async Task<bool> AddProductToCart(long dataChatId, Guid cartId, string productName)
+    {
+        throw new NotImplementedException();
+    }
+    public async Task<bool> RemoveProductFromCart(long dataChatId, Guid cartId, string productName)
+    {
+        throw new NotImplementedException();
+    }
+
+    public List<CartItem> getProductsByCartId(Guid cartId)
+    {
+        throw new NotImplementedException();
+    }
 }
