@@ -30,6 +30,7 @@ public static class Messages
     public const string PreviousPage = "<<";
     public const string NextPage = ">>";
     public const string All = "All";
+    public const string Done = "Done";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
@@ -172,6 +173,9 @@ public static class Messages
 
     public const string CartLoadFail = "Loading cart failed.";
     
+    public const string ProductAction = "You can type new items to add\nAnd click on item to remove from cart.";
+
+    
     
     public const string CartNo = "Enter the Product name.";
     public const string AskProductName = "Enter the Product name.";
@@ -189,6 +193,7 @@ public static class CallBacks
     public const string PreviousPage = "<<";
     public const string NextPage = ">>";
     public const string All = "All";
+    public const string Done = "Done";
     public const string MainSection = "MainSection";
 
 

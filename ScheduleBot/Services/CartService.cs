@@ -100,11 +100,11 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
         return await _dbContext.SaveChangesAsync() > 0;
     }
     
-    public async Task<bool> RemoveProductFromCart(Guid cartId, string productName)
+    public async Task<bool> RemoveProductFromCart(Guid cartId, Guid cartItemId)
     {
         var cart = await GetCartByCartId(cartId);
         var result = await _dbContext.CartItem
-            .Where(c => c.CartId == cart!.Id && c.Name == productName)
+            .Where(c => c.CartId == cart!.Id && c.Id == cartItemId)
             .ExecuteDeleteAsync();
         return result > 0;
     }

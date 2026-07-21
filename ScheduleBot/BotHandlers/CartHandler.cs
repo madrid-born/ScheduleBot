@@ -53,9 +53,9 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             case CallBacks.MainSection:
                 switch (data.DataSeparated[2])
                 {
-                    case CallBacks.ProductService:
-                        await HandleSection(data, true);
-                        break;
+                    // case CallBacks.ProductService:
+                        // await HandleSection(data, true);
+                        // break;
                     case CallBacks.CartService:
                         await HandleSection(data, false);
                         break;
@@ -65,14 +65,12 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                     case CallBacks.JoinToCart:
                         await services.SendMessage(data.ChatId, Messages.AskCartId, replyMarkup: new ForceReplyMarkup());
                         break;
+                    case CallBacks.ProductService:
                     case CallBacks.Show:
                     case CallBacks.InviteToCart:
                     case CallBacks.DeleteCart:
-                    case CallBacks.AddProduct:
-                    case CallBacks.RemoveProduct:
-                        await LoadCarts(data.ChatId, data.DataSeparated[2]);
-                        break;
-                    case CallBacks.ProductAction:
+                    // case CallBacks.AddProduct:
+                    // case CallBacks.RemoveProduct:
                         await LoadCarts(data.ChatId, data.DataSeparated[2]);
                         break;
                 }
@@ -83,21 +81,21 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                 await ShowCarts(data, tryParse ? cartId2 : Guid.Empty);
                 break;
             }
-            case CallBacks.ProductAction:
+            case CallBacks.ProductService:
             {
                 await LoadProducts(data, data.DataSeparated[2]);
                 break;
             }
-            case CallBacks.AddProduct:
-            {
-                await AskProductName(data, Guid.Parse(data.DataSeparated[2]));
-                break;
-            }
-            case CallBacks.RemoveProduct:
-            {
-                await LoadRemoveProduct(data, Guid.Parse(data.DataSeparated[2]));
-                break;
-            }
+            // case CallBacks.AddProduct:
+            // {
+            //     await AskProductName(data, Guid.Parse(data.DataSeparated[2]));
+            //     break;
+            // }
+            // case CallBacks.RemoveProduct:
+            // {
+            //     await LoadRemoveProduct(data, Guid.Parse(data.DataSeparated[2]));
+            //     break;
+            // }
             case CallBacks.DeleteCart:
             {
                 await DeleteCart(data, Guid.Parse(data.DataSeparated[2]));
@@ -120,6 +118,11 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                 var callBack = data.DataSeparated[2];
                 var pageNumber = int.Parse(data.DataSeparated[3]) + 1;
                 await  LoadCarts(data.ChatId, callBack, pageNumber);
+                break;
+            }
+            case CallBacks.ProductAction:
+            {
+                await ProductAction(data);
                 break;
             }
         }
@@ -238,52 +241,67 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         var isLoaded = Guid.TryParse(cartIdAsString, out var cartId);
         if (!isLoaded) await services.SendMessage(data.ChatId, Messages.CartLoadFail);
         sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingProductActions, callbackData: cartIdAsString);
-        List<CartItem> products = await cServices.GetProductsByCartId(cartId);
-        //TODO here
+        var session = sessionService.GetPendingAction(data.ChatId);
+
+        var products = await cServices.GetProductsByCartId(cartId);
+        
+        List<List<Tuple<string, string>>> collection = [];
+        for (var index = 0; index < products.Count/3 ; index += 1)
+        {
+            List<Tuple<string, string>> row = [];
+            for (var i = 0; i < 3; i++)
+            {
+                var product = new CartItem { Id = Guid.Empty, Name = "-" };
+                try { product = products[index*3 + i]; }
+                catch (Exception e) { /*ignored*/ }
+                
+                row.Add(new Tuple<string, string>(product.Name!, $"{product.Id.ToString()}"));
+            }
+            collection.Add(row);
+        }
+        collection.Add(
+        [
+            new (Messages.Done, $"{CallBacks.Done}"),
+            // new (pageNumber.ToString(), ""),
+        ]);
+        
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cart}\\{CallBacks.ProductAction}\\");
+        await services.SendMessage(data.ChatId, Messages.ProductAction, replyMarkup: keyboard);
     }
     
-    
-    
-    
-    
-    
-    
-    private async Task AskProductName(UpdateData data, Guid cartId)
-    {
-        var cart = await cServices.GetCartByCartId(cartId);
-        if (cart != null) await services.SendMessage(data.ChatId, string.Format(Messages.InviteToCart, cart.Name, cart.Id));
-        sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingProductActions, callbackData: cartId.ToString());
-
-        throw new NotImplementedException();
-    }
-
     public async Task AddProductToCart(UpdateData data, string? cartIdAsString)
     {
         var productName = data.MessageText!;
-        // var cartIdAsString = sessionService.GetData(data.ChatId, Actions.AwaitingProductName);
         if (cartIdAsString == null) await services.SendMessage(data.ChatId, Messages.CartNotFound);
         var isCartId = Guid.TryParse(cartIdAsString, out var cartId);
         if (isCartId) await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
         var appended = await cServices.AddProductToCart(cartId, productName);
+        
         // await services.SendMessage(data.ChatId, string.Format(Messages.CartCreated, cartName, cartId));
     }
+
     
-    private async Task AddProductToCart(UpdateData data)
+    private async Task ProductAction(UpdateData data)
     {
-        var productName = data.MessageText!;
-        var cartIdAsString = sessionService.GetData(data.ChatId, Actions.AwaitingProductActions);
-        if (cartIdAsString == null) await services.SendMessage(data.ChatId, Messages.CartNotFound);
-        var isCartId = Guid.TryParse(cartIdAsString, out var cartId);
-        if (isCartId) await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
-        var appended = await cServices.AddProductToCart(cartId, productName);
-        // await services.SendMessage(data.ChatId, string.Format(Messages.CartCreated, cartName, cartId));
-    }
-
-
-    private async Task LoadRemoveProduct(UpdateData data, Guid cartId)
-    {
+        var ss2 = Guid.Parse(data.DataSeparated[2]);
+        var ss3 = Guid.Parse(data.DataSeparated[3]);
         throw new NotImplementedException();
     }
+    
+    // private async Task AskProductName(UpdateData data, Guid cartId)
+    // {
+    //     var cart = await cServices.GetCartByCartId(cartId);
+    //     if (cart != null) await services.SendMessage(data.ChatId, string.Format(Messages.InviteToCart, cart.Name, cart.Id));
+    //     sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingProductActions, callbackData: cartId.ToString());
+    //
+    //     throw new NotImplementedException();
+    // }
+    //
+    //
+    // private async Task LoadRemoveProduct(UpdateData data, Guid cartId)
+    // {
+    //     throw new NotImplementedException();
+    // }
 
     #endregion
     
