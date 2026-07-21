@@ -164,7 +164,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
     
     private async Task ShowCarts(UpdateData data, Guid cartId = default)
     {
-        var carts = await cServices.GetCartsDetailByTelId(data.ChatId, cartId);
+        var carts = await cServices.GetCartAndItemsByCartId(cartId);
         foreach (var cart in carts)
         {
             await ShowCart(data, cart);
@@ -187,11 +187,12 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
 
     private async Task DeleteCart(UpdateData data, Guid cartId)
     {
-        var cart = (await cServices.GetCartsDetailByTelId(cartId: cartId)).First();
+        var cart = (await cServices.GetCartAndItemsByCartId(cartId)).First();
         var isDeleted = await cServices.DeleteCart(data.ChatId, cartId);
         if (isDeleted)
         {
             await services.SendMessage(data.ChatId, string.Format(Messages.CartDeleted, cart.Item1));
+            //todo : send to all
             await ShowCart(data, cart);
         }
         else await services.SendMessage(data.ChatId, Messages.CartDeleteFail);
@@ -209,20 +210,22 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         var isCartId = Guid.TryParse(data.MessageText!, out var cartId);
         if (isCartId)
         {
-            await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
-            await services.SendMessage(data.ChatId, Messages.AskCartId, replyMarkup: new ForceReplyMarkup());
-        }
-        else
-        {
             var cart = await cServices.GetCartByCartId(cartId);
-            if (cart == null)
+            if (cart != null)
+            {
+                await cServices.InviteAccept(data.ChatId, cartId);
+                await services.SendMessage(data.ChatId, string.Format(Messages.InviteAccepted, cart!.Name));
+            }
+            else
             {
                 await services.SendMessage(data.ChatId, Messages.CartNotExist);
                 await services.SendMessage(data.ChatId, Messages.AskCartId, replyMarkup: new ForceReplyMarkup());
             }
-
-            await cServices.InviteAccept(data.ChatId, cartId);
-            await services.SendMessage(data.ChatId, string.Format(Messages.InviteAccepted, cart!.Name));
+        }
+        else
+        {
+            await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
+            await services.SendMessage(data.ChatId, Messages.AskCartId, replyMarkup: new ForceReplyMarkup());
         }
     }
     
@@ -235,7 +238,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         var isLoaded = Guid.TryParse(cartIdAsString, out var cartId);
         if (!isLoaded) await services.SendMessage(data.ChatId, Messages.CartLoadFail);
         sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingProductActions, callbackData: cartIdAsString);
-        List<CartItem> products = cServices.getProductsByCartId(cartId);
+        List<CartItem> products = await cServices.GetProductsByCartId(cartId);
         //TODO here
     }
     
@@ -261,7 +264,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         if (cartIdAsString == null) await services.SendMessage(data.ChatId, Messages.CartNotFound);
         var isCartId = Guid.TryParse(cartIdAsString, out var cartId);
         if (isCartId) await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
-        var appended = await cServices.AddProductToCart(data.ChatId, cartId, productName);
+        var appended = await cServices.AddProductToCart(cartId, productName);
         // await services.SendMessage(data.ChatId, string.Format(Messages.CartCreated, cartName, cartId));
     }
     
@@ -272,7 +275,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         if (cartIdAsString == null) await services.SendMessage(data.ChatId, Messages.CartNotFound);
         var isCartId = Guid.TryParse(cartIdAsString, out var cartId);
         if (isCartId) await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
-        var appended = await cServices.AddProductToCart(data.ChatId, cartId, productName);
+        var appended = await cServices.AddProductToCart(cartId, productName);
         // await services.SendMessage(data.ChatId, string.Format(Messages.CartCreated, cartName, cartId));
     }
 

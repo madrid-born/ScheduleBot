@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using ScheduleBot.Models;
 using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.Services;
@@ -11,7 +12,7 @@ public class MainService(ITelegramBotClient bot)
     
     public async Task SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null)
     {
-        await bot.SendMessage(chatId, message, replyMarkup: addMainKeyboard ? GetMainKeyboard() : replyMarkup);
+        await bot.SendMessage(chatId, message, replyMarkup: addMainKeyboard ? GetMainKeyboard() : replyMarkup, parseMode: ParseMode.Markdown);
     }
     
     public ReplyKeyboardMarkup GetMainKeyboard()

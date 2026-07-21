@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
@@ -35,19 +36,23 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var botToken = builder.Configuration["Telegram:BotToken"] 
-    ?? throw new InvalidOperationException("Bot token not found");
 
-var proxyUrl = builder.Configuration["Proxy:Url"];
-HttpClientHandler httpClientHandler = new();
+var botTokenString = "Telegram:BotToken";
+HttpClient httpClient;
 
-if (!string.IsNullOrEmpty(proxyUrl))
+if (builder.Environment.IsDevelopment())
 {
-    var proxy = new System.Net.WebProxy(proxyUrl);
-    httpClientHandler = new HttpClientHandler { Proxy = proxy, UseProxy = true };
+    botTokenString = "Telegram:ProductionBotToken";
+    var proxyUrl = builder.Configuration["Proxy:Url"];
+    httpClient = !string.IsNullOrWhiteSpace(proxyUrl)
+        ? new HttpClient(new HttpClientHandler { Proxy = new WebProxy(proxyUrl), UseProxy = true })
+        : new HttpClient();
 }
+else httpClient = new HttpClient();
 
-var httpClient = new HttpClient(httpClientHandler);
+var botToken = builder.Configuration[botTokenString] 
+               ?? throw new InvalidOperationException("Bot token not found");
+
 
 builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken, httpClient));
 builder.Services.AddScoped<DatabaseService>();

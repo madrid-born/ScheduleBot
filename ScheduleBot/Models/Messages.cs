@@ -33,7 +33,8 @@ public static class Messages
     public const string Approved = "approved";
     public const string Rejected = "rejected";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
-    public const string NotFound = "Command not found or something went wrong.";
+    public const string NotFound = "Command not found.";
+    public const string SomethingWentWrong = "something went wrong.";
     public const string InvalidDate = "Invalid date format. Please use YYYY-MM-DD";
     public const string InvalidInteger = "Invalid Integer format. Please use a Natural Number";
     
@@ -158,7 +159,7 @@ public static class Messages
     public const string ShowCart = "Cart \"{0}\" has below items:\n\n{1}";
     
     public const string AskCartName = "Enter the Cart name.";
-    public const string CartCreated = "Cart \"{0}\" has been created.\nYou can invite others to this cart using this code\n\n{1}";
+    public const string CartCreated = "Cart \"{0}\" has been created.\nYou can invite others to this cart using this code\n\n`{1}`";
     public const string CartDeleteFail = "Unable to delete cart.";
     public const string CartDeleted = "Cart \"{0}\" has been successfully deleted.\nlast instance of it, is as follows.";
     
@@ -167,7 +168,8 @@ public static class Messages
     public const string InviteAccepted = "You have been successfuly added to cart \"{0}\"";
     public const string CartIdFormatFail = "Cart code format is not valid.";
     public const string CartNotExist = "No cart is available with that code.";
-    
+    public const string RedundantAccess = "You are already in the mentioned cart.";
+
     public const string CartLoadFail = "Loading cart failed.";
     
     
@@ -175,6 +177,7 @@ public static class Messages
     public const string AskProductName = "Enter the Product name.";
 
     #endregion
+
 }
 
 public static class CallBacks

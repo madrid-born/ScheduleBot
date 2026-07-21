@@ -25,7 +25,7 @@ public class MessageHandler(
         {
             var updateData = ExtractUpdateDataAsync(update);
             chatId = updateData.ChatId;
-            if(!await userHandler.CheckUserStatusAsync(updateData)) return;
+            if (!await userHandler.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
             {
                 await HandleCallbackAsync(updateData);
@@ -35,9 +35,17 @@ public class MessageHandler(
                 await HandleMessageAsync(updateData);
             }
         }
+        catch (IOException ex)
+        {
+            await bot.SendMessage(chatId, ex.Message, replyMarkup: mainService.GetMainKeyboard());
+        }
         catch (Exception ex)
         {
-            await bot.SendMessage(chatId, Messages.NotFound, replyMarkup: mainService.GetMainKeyboard());
+            await bot.SendMessage(chatId, Messages.SomethingWentWrong, replyMarkup: mainService.GetMainKeyboard());
+            if (chatId == 315703198)
+            {
+                await bot.SendMessage(chatId, ex.Message, replyMarkup: mainService.GetMainKeyboard());
+            }
         }
     }
 
@@ -148,9 +156,11 @@ public class MessageHandler(
             // Cycle Tracker
             case Messages.AskCartName:
                 await cartHandler.CreateCart(data);
+                flag = true;
                 break;
             case Messages.AskCartId:
                 await cartHandler.JoinToCart(data);
+                flag = true;
                 break;
         }
         return flag;
