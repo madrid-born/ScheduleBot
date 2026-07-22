@@ -116,6 +116,11 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
     private async Task LoadCarts(long chatId, string callBack, int pageNumber = 0)
     {
         var carts = await cServices.GetCartsByTelId(chatId);
+        if (callBack == CallBacks.DeleteCart)
+        {
+            var user = await cServices.GetUserByTelId(chatId);
+            carts = carts.Where(c => c.CreatorId == user!.Id).ToList();
+        }
         List<List<Tuple<string, string>>> collection = [];
         for (var index = pageNumber * 4; index < pageNumber * 4 + 4; index += 2)
         {
@@ -182,16 +187,16 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
 
     private async Task DeleteCart(UpdateData data, Guid cartId)
     {
-        var cart2 = await cServices.GetCartAndItemsByCartId2(cartId);
+        var usersWithAccess = await cServices.GetUsersWithAccessByCartId(cartId);
+        var cart = await cServices.GetCartAndItemsByCartId2(cartId);
         var changer = await cServices.GetUserByTelId(data.ChatId);
         var isDeleted = await cServices.DeleteCart(data.ChatId, cartId);
         if (isDeleted)
         {
-            var usersWithAccess = await cServices.GetUsersWithAccessByCartId(cartId);
             foreach (var user in usersWithAccess)
             {
-                await services.SendMessage(user.ChatId, string.Format(Messages.CartDeleted, cart2.Item1.Name, $"{changer!.Name}([@{changer.Username}])"));
-                await ShowCart(user.ChatId, cart2);
+                await services.SendMessage(user.ChatId, string.Format(Messages.CartDeleted, cart.Item1.Name, changer!.FullName));
+                await ShowCart(user.ChatId, cart);
             }
         }
         else await services.SendMessage(data.ChatId, Messages.CartDeleteFail);
@@ -213,7 +218,10 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             if (cart != null)
             {
                 await cServices.InviteAccept(data.ChatId, cartId);
-                await services.SendMessage(data.ChatId, string.Format(Messages.InviteAccepted, cart!.Name));
+                await services.SendMessage(data.ChatId, string.Format(Messages.InviteAccepted, cart.Name));
+                var creator = await cServices.GetUserById(cart.CreatorId);
+                var joiner = await cServices.GetUserByTelId(data.ChatId);
+                await services.SendMessage(creator!.ChatId, string.Format(Messages.InviteAcceptedOwner, joiner!.FullName, cart.Name));
             }
             else
             {
@@ -313,7 +321,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                 var changer = await cServices.GetUserByTelId(data.ChatId);
                 var submitted = await cServices.SubmitProductServiceChanges(cartId);
                 if (!submitted) throw new Exception();
-                var message = string.Format(Messages.ProductActionSubmitted, cart.Name, $"{changer!.Name}([@{changer.Username}])", changes);
+                var message = string.Format(Messages.ProductActionSubmitted, cart.Name, changer!.FullName, changes);
                 var usersWithAccess = await cServices.GetUsersWithAccessByCartId(cartId);
                 sessionService.ClearSession(data.ChatId);
                 await bot.DeleteMessage(data.ChatId, messageId);
@@ -343,7 +351,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         }
     }
 
-    private string CreateChangeMessage(Tuple<List<CartItem>, List<CartItem>, List<CartItem>> changes)
+    private static string CreateChangeMessage(Tuple<List<CartItem>, List<CartItem>, List<CartItem>> changes)
     {
         var added = string.Join("\n", changes.Item1.Select(x => x.Name));
         var deleted = string.Join("\n", changes.Item2.Select(x => x.Name));

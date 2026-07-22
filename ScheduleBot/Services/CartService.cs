@@ -41,13 +41,6 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
         return new(cart!, cartItems!);
     }
     
-    public async Task<List<Tuple<string, List<string?>>>> GetCartAndItemsByCartId(Guid cartId)
-    {
-        var cart = await GetCartByCartId(cartId);
-        var cartItems = (await GetProductsByCartId(cartId)).Select(x => x.Name).ToList();
-        return [new(cart!.Name!, cartItems)];
-    }
-    
     public async Task<List<User>> GetUsersWithAccessByCartId(Guid cartId)
     {
         var cartAccesses = await GetCartAccessByCartId(cartId);

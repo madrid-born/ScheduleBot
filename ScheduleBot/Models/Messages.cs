@@ -169,6 +169,7 @@ public static class Messages
     public const string AskCartId = "Enter the Cart code that had been shared with you.";
     public const string InviteToCart = "The Invitation code for cart \"{0}\" is as follows.\n\n`{1}`\n\nyou can share it with anyone you want to invite to this cart.";
     public const string InviteAccepted = "You have been successfuly added to cart \"{0}\"";
+    public const string InviteAcceptedOwner = "User {0} had been joined to cart \"{1}\"";
     public const string CartIdFormatFail = "Cart code format is not valid.";
     public const string CartNotExist = "No cart is available with that code.";
     public const string RedundantAccess = "You are already in the mentioned cart.";

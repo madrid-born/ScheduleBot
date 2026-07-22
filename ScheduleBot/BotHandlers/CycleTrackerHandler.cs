@@ -316,7 +316,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var users = await ctServices.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, $"{user.Name}([@{user.Username}])"), true);
+            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, user.FullName), true);
         }
     }
     
