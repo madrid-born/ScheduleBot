@@ -6,7 +6,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider serviceProvider,
+public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, IConfiguration configuration,
     MainService services, CycleTrackerService ctServices, ILogger<CycleTrackerHandler> logger)
 {
     
@@ -327,7 +327,9 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     private async Task AddToCycle(UpdateData data)
     {
         var result = (await ctServices.GetCycleByTelId(data.ChatId))!.Id;
-        await services.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), true);
+        var link = $"{configuration["Telegram:ProductionUrl"]}?start={CallBacks.Cycle}_{CallBacks.JoinToCycle}_{result}";
+        var keyboard =  InlineKeyboardButton.WithUrl("Direct join to the cycle notification", link);
+        await services.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), true, replyMarkup: keyboard);
     }
     
     private async Task JoinToCyclePressed(UpdateData data)

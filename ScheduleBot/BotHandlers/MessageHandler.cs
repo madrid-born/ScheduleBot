@@ -172,13 +172,49 @@ public class MessageHandler(
     private async Task<bool> CheckCommand(UpdateData data)
     {
         var flag = false;
-        if (data.MessageText![..1] != "/") return flag;
-        switch (data.MessageText)
+        var text = data.MessageText!;
+        if (text[..1] != "/") return flag;
+        if (text.StartsWith(Messages.Start))
         {
-            case Messages.Start:
-                await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: mainService.GetMainKeyboard());
-                flag = true;
-                break;
+            var parts = data.MessageText!.Split(" ").ToList();
+            if (parts.Count > 1)
+            {
+                var splitter = parts[1].Split("_").ToList();
+                switch (splitter[0])
+                {
+                    case CallBacks.Cart:
+                    {
+                        switch (splitter[1])
+                        {
+                            case CallBacks.JoinToCart:
+                            {
+                                data.MessageText = splitter[2];
+                                await cartHandler.JoinToCart(data);
+                                flag = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case CallBacks.Cycle:
+                    {
+                        switch (splitter[1])
+                        {
+                            case CallBacks.JoinToCycle:
+                            {
+                                data.MessageText = splitter[2];
+                                await cycleTrackerHandler.JoinToCycleById(data);
+                                flag = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                return flag;
+            }
+            flag = true;
+            await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: mainService.GetMainKeyboard());
         }
         return flag;
     }

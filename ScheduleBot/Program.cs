@@ -55,6 +55,7 @@ var botToken = builder.Configuration[botTokenString]
 
 
 builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken, httpClient));
+builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 builder.Services.AddSingleton<UserSessionService>();
 builder.Services.AddScoped<DatabaseService>();
 builder.Services.AddScoped<MessageHandler>();

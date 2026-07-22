@@ -103,7 +103,7 @@ public static class Messages
     public const string NotifyStart = "{0}'s period just got started.";
     public const string NotifyEnd = "{0}'s period just got ended.";
 
-    public const string ShareCycleId = "Your cycle id is mentioned below\nYou can share it with anyone who you want them to get notified.\n\n`{0}`";
+    public const string ShareCycleId = "Your cycle id is mentioned below\n\n`{0}`\n\nYou can share it with anyone who you want them to get notified.\n\nOr they can simply click on this direct link down here.";
     public const string AskForCycleId = "Please enter the id you received from the person you want to join on their notification.";
     public const string CycleIdIsWrong = "Looks like there is something wrong with your input cycle Id.";
     #endregion
@@ -167,7 +167,7 @@ public static class Messages
     public const string CartDeleted = "Cart \"{0}\" deleted by {1}.\nlast instance of it, is as follows.";
     
     public const string AskCartId = "Enter the Cart code that had been shared with you.";
-    public const string InviteToCart = "The Invitation code for cart \"{0}\" is as follows.\n\n`{1}`\n\nyou can share it with anyone you want to invite to this cart.";
+    public const string InviteToCart = "The Invitation code for cart \"{0}\" is as follows.\n\n`{1}`\n\nyou can share it with anyone you want to invite to this cart.\n\nOr they can simply click on this direct link down here.";
     public const string InviteAccepted = "You have been successfuly added to cart \"{0}\"";
     public const string InviteAcceptedOwner = "User {0} had been joined to cart \"{1}\"";
     public const string CartIdFormatFail = "Cart code format is not valid.";

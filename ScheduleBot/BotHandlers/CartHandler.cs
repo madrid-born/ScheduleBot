@@ -1,12 +1,13 @@
 ﻿using ScheduleBot.Models;
 using ScheduleBot.Services;
 using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, UserSessionService sessionService,
-    MainService services, CartService cServices, ILogger<CycleTrackerHandler> logger)
+public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, IConfiguration configuration,
+    UserSessionService sessionService, MainService services, CartService cServices, ILogger<CycleTrackerHandler> logger)
 {
     
     #region Handel
@@ -205,8 +206,14 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
     private async Task InviteToCart(UpdateData data, Guid cartId)
     {
         var cart = await cServices.GetCartByCartId(cartId);
-        if (cart != null) await services.SendMessage(data.ChatId, string.Format(Messages.InviteToCart, cart.Name, cart.Id));
-        else await services.SendMessage(data.ChatId, Messages.CartNotFound);
+        if (cart == null)
+        {
+            await services.SendMessage(data.ChatId, Messages.CartNotFound);
+            return;
+        }
+        var link = $"{configuration["Telegram:ProductionUrl"]}?start={CallBacks.Cart}_{CallBacks.JoinToCart}_{cart.Id}";
+        var keyboard =  InlineKeyboardButton.WithUrl("Direct join to the cart", link);
+        await services.SendMessage(data.ChatId, string.Format(Messages.InviteToCart, cart.Name, cart.Id), replyMarkup: keyboard);
     }
 
     public async Task JoinToCart(UpdateData data)
