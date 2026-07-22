@@ -56,11 +56,18 @@ public class MessageHandler(
         if (update.CallbackQuery != null)
         {
             data.IsCallback = true;
+            data.DeleteCallback = true;
             data.ChatId = update.CallbackQuery.Message!.Chat.Id;
             data.Username = update.CallbackQuery.Message!.Chat.Username;
             data.MessageId = update.CallbackQuery.Message.MessageId;
             data.CallbackData = update.CallbackQuery.Data;
-            data.DataSeparated = (update.CallbackQuery.Data ?? "").Split("\\").ToList();
+            var textData = update.CallbackQuery.Data ?? "";
+            if (textData.StartsWith('*'))
+            {
+                textData = textData[1..];
+                data.DeleteCallback = false;
+            }
+            data.DataSeparated = textData.Split("\\").ToList();
             if (update.CallbackQuery.Message.Text == null) return data;
             data.MessageText = update.CallbackQuery.Message.Text;
             data.MessageSeparated = (update.CallbackQuery.Message.Text ?? "").Split('"').ToList();
@@ -92,7 +99,7 @@ public class MessageHandler(
 
     private async Task HandleCallbackAsync(UpdateData data)
     {
-        await bot.DeleteMessage(data.ChatId, data.MessageId);
+        if (data.DeleteCallback) await bot.DeleteMessage(data.ChatId, data.MessageId);
 
         switch (data.DataSeparated[0])
         {
@@ -110,15 +117,11 @@ public class MessageHandler(
 
     private async Task HandleMessageAsync(UpdateData data)
     {
-        var checkReplied = await CheckReplied(data);
-        var checkCommand = await CheckCommand(data);
-        var checkKeyboard = await CheckKeyboard(data);
-        var checkSession = await CheckSession(data);
-
-        if (!checkReplied && !checkCommand && !checkKeyboard && !checkSession)
-        {
-            await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: mainService.GetMainKeyboard());
-        }
+        if (await CheckReplied(data)) return;
+        if (await CheckCommand(data)) return;
+        if (await CheckKeyboard(data)) return;
+        if (await CheckSession(data)) return;
+        await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: mainService.GetMainKeyboard());
     }
 
     private async Task<bool> CheckReplied(UpdateData data)
@@ -211,10 +214,14 @@ public class MessageHandler(
     private async Task<bool> CheckSession(UpdateData data)
     {
         var flag = false;
-        var session = sessionService.GetPendingAction(data.ChatId);
+        var session = sessionService.GetData(data.ChatId);
         if (session == null) return flag;
-        
-        switch (session.CallbackData)
+        if (session.Timestamp.AddMinutes(10) < DateTime.Now)
+        {
+            sessionService.ClearSession(data.ChatId);
+            return flag;
+        }
+        switch (session.Action)
         {
             case Actions.AwaitingProductActions:
                 await cartHandler.AddProductToCart(data, session.CallbackData);

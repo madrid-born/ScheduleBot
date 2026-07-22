@@ -10,21 +10,14 @@ public class UserSessionService
         {
             Action = action,
             CallbackData = callbackData,
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.Now
         };
     }
     
-    public UserSession? GetPendingAction(long chatId)
+    public UserSession? GetData(long chatId)
     {
         _sessions.TryGetValue(chatId, out var session);
         return session;
-    }
-
-    public string? GetData(long chatId, string action)
-    {
-        _sessions.TryGetValue(chatId, out var session);
-        if (session == null || session.Action != action) return null;
-        return session.CallbackData;
     }
     
     public void ClearSession(long chatId)

@@ -30,7 +30,8 @@ public static class Messages
     public const string PreviousPage = "<<";
     public const string NextPage = ">>";
     public const string All = "All";
-    public const string Done = "Done";
+    public const string Done = "✅ Done";
+    public const string Cancel = "❌ Cancel";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
@@ -157,12 +158,13 @@ public static class Messages
     
     public const string SelectCart = "Select the cart you want.";
     public const string CartNotFound = "Cart not found.";
-    public const string ShowCart = "Cart \"{0}\" has below items:\n\n{1}";
+    public const string ShowCart = "Items inside Cart \"{0}\":\n\n{1}";
+    public const string CartEmpty = "Cart \"{0}\" is empty";
     
     public const string AskCartName = "Enter the Cart name.";
     public const string CartCreated = "Cart \"{0}\" has been created.\nYou can invite others to this cart using this code\n\n`{1}`";
     public const string CartDeleteFail = "Unable to delete cart.";
-    public const string CartDeleted = "Cart \"{0}\" has been successfully deleted.\nlast instance of it, is as follows.";
+    public const string CartDeleted = "Cart \"{0}\" deleted by {1}.\nlast instance of it, is as follows.";
     
     public const string AskCartId = "Enter the Cart code that had been shared with you.";
     public const string InviteToCart = "The Invitation code for cart \"{0}\" is as follows.\n\n`{1}`\n\nyou can share it with anyone you want to invite to this cart.";
@@ -172,8 +174,10 @@ public static class Messages
     public const string RedundantAccess = "You are already in the mentioned cart.";
 
     public const string CartLoadFail = "Loading cart failed.";
-    
-    public const string ProductAction = "You can type new items to add\nAnd click on item to remove from cart.";
+    public const string ProductAction = "You can type new items to add 🆕\nAnd click on item to remove from cart 🗑\nAnd make sure to press done to submit or cancel to decline your changes ✅ ❌";
+    public const string ProductActionChanges = "\nAdded:\n\n{0}\n\n\nDeleted:\n{1}\n\n\nAdded then deleted:\n{2}\n\n";
+    public const string ProductActionSubmitted = "The following changes had been submitted to '{0}' cart by {1}\n{2}\n";
+    public const string ProductActionAborted = "The following changes had been declined for '{0}' cart \n{1}\n";
 
     
     
@@ -194,8 +198,8 @@ public static class CallBacks
     public const string NextPage = ">>";
     public const string All = "All";
     public const string Done = "Done";
+    public const string Cancel = "Cancel";
     public const string MainSection = "MainSection";
-
 
     #endregion
     

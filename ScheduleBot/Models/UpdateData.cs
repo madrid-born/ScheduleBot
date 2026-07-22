@@ -8,6 +8,7 @@ public class UpdateData
     public string? Username { get; set; }
     public int MessageId { get; set; }
     public bool IsCallback { get; set; }
+    public bool DeleteCallback { get; set; }
     public string? CallbackData { get; set; }
     public string? MessageText { get; set; }
     public bool IsReplied { get; set; }

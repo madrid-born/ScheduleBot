@@ -255,7 +255,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         var periodLength = cycleDetail.PeriodLength;
         var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} - {MainService.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
         var (avgCycleLength, avgPeriodLength) = CalculateAverages(await GetCycleHistoryByCycleId(cycleDetail.Id));
-        var followers = (await GetNotifyUsersByCycleId(cycleDetail.Id)).Where(x => x!.ChatId != chatId).Aggregate("", (current, user) => current + user!.Name + " (@" + user.Username + ")\n");
+        var followers = (await GetNotifyUsersByCycleId(cycleDetail.Id)).Where(x => x!.ChatId != chatId).Aggregate("", (current, user) => current + user!.Name + " (@[" + user.Username + "])\n");
 
         return (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength, followers);
     }

@@ -18,6 +18,11 @@ public class DatabaseService(AppDbContext dbContext)
     {
         return await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
     }
+    
+    public async Task<List<User>> GetUsersByIds(List<Guid> ids)
+    {
+        return await dbContext.Users.Where(u => ids.Contains(u.Id)).ToListAsync();
+    }
 
     #region Register
     

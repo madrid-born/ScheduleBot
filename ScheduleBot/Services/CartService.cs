@@ -14,7 +14,17 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
     
     public async Task<List<CartItem>> GetProductsByCartId(Guid cartId)
     {
-        return await _dbContext.CartItem.Where(c => c.CartId == cartId).ToListAsync();
+        return await _dbContext.CartItem.Where(c => c.CartId == cartId).OrderBy(c => c.CreateTime).ToListAsync();
+    }
+    
+    public async Task<CartItem?> GetProductByProductId(Guid productId)
+    {
+        return await _dbContext.CartItem.FirstOrDefaultAsync(c => c.Id == productId);
+    }
+    
+    public async Task<List<CartAccess>> GetCartAccessByCartId(Guid cartId)
+    {
+        return await _dbContext.CartAccess.Where(c => c.CartId == cartId).ToListAsync();
     }
     
     public async Task<List<Cart>> GetCartsByTelId(long chatId = 0)
@@ -24,11 +34,24 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
         return await _dbContext.Cart.Where(c => cartAccesses.Contains(c.Id)).ToListAsync();
     }
     
+    public async Task<Tuple<Cart, List<CartItem?>>> GetCartAndItemsByCartId2(Guid cartId)
+    {
+        var cart = await GetCartByCartId(cartId);
+        var cartItems = await GetProductsByCartId(cartId);
+        return new(cart!, cartItems!);
+    }
+    
     public async Task<List<Tuple<string, List<string?>>>> GetCartAndItemsByCartId(Guid cartId)
     {
         var cart = await GetCartByCartId(cartId);
         var cartItems = (await GetProductsByCartId(cartId)).Select(x => x.Name).ToList();
         return [new(cart!.Name!, cartItems)];
+    }
+    
+    public async Task<List<User>> GetUsersWithAccessByCartId(Guid cartId)
+    {
+        var cartAccesses = await GetCartAccessByCartId(cartId);
+        return await GetUsersByIds(cartAccesses.Select(x => x.UserId).ToList());
     }
     
     public async Task<Guid> CreateNewCart(long chatId, string cartName)
@@ -61,10 +84,16 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
         var cart = await GetCartByCartId(cartId);
         if (cart!.CreatorId != user!.Id) return false;
         
-        var result = await _dbContext.Cart
+        await _dbContext.CartItem
+            .Where(c => c.CartId == cartId)
+            .ExecuteDeleteAsync();
+        await _dbContext.CartAccess
+            .Where(c => c.CartId == cartId)
+            .ExecuteDeleteAsync();
+        var deleteCart = await _dbContext.Cart
             .Where(c => c.Id == cartId)
             .ExecuteDeleteAsync();
-        return result > 0;
+        return deleteCart > 0;
     }
 
     public async Task InviteAccept(long dataChatId, Guid cartId)
@@ -94,18 +123,44 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
             Id = Guid.NewGuid(),
             CartId = cart!.Id,
             Name =  productName,
+            CreateTime = DateTime.Now,
+            TempAdded = true,
+            TempDeleted = false
         };
         
         _dbContext.CartItem.Add(cartItem);
         return await _dbContext.SaveChangesAsync() > 0;
     }
     
-    public async Task<bool> RemoveProductFromCart(Guid cartId, Guid cartItemId)
+    public async Task<bool> DeleteProductFromCart(Guid productId)
     {
-        var cart = await GetCartByCartId(cartId);
-        var result = await _dbContext.CartItem
-            .Where(c => c.CartId == cart!.Id && c.Id == cartItemId)
-            .ExecuteDeleteAsync();
-        return result > 0;
+        var cartItem = await GetProductByProductId(productId);
+        cartItem!.TempDeleted = !cartItem.TempDeleted;
+        return await _dbContext.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> SubmitProductServiceChanges(Guid cartId)
+    {
+        var products = await GetProductsByCartId(cartId);
+        var added = products.Where(p => p is { TempAdded: true, TempDeleted: false });
+        foreach (var product in added) product.TempAdded = false;
+        return  await _dbContext.CartItem.Where(p => p.TempDeleted).ExecuteDeleteAsync() + await _dbContext.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> CancelProductServiceChanges(Guid cartId)
+    {
+        var products = await GetProductsByCartId(cartId);
+        var deleted = products.Where(p => p.TempDeleted);
+        foreach (var product in deleted) product.TempDeleted = false;
+        return  await _dbContext.CartItem.Where(p => p.TempAdded).ExecuteDeleteAsync() + await _dbContext.SaveChangesAsync() > 0;
+    }
+
+    public async Task<Tuple<List<CartItem>, List<CartItem>, List<CartItem>>> LoadProductServiceChanges(Guid cartId)
+    {
+        var products = await GetProductsByCartId(cartId);
+        var added = products.Where(p => p is { TempAdded: true, TempDeleted: false }).ToList();
+        var deleted = products.Where(p => p is { TempAdded: false, TempDeleted: true }).ToList();
+        var both = products.Where(p => p is { TempAdded: true, TempDeleted: true }).ToList();
+        return new Tuple<List<CartItem>, List<CartItem>, List<CartItem>>(added, deleted, both);
     }
 }

@@ -16,6 +16,9 @@ public class CartItem
     public Guid Id { get; set; }
     public Guid CartId { get; set; }
     public string? Name { get; set; }
+    public DateTime CreateTime { get; set; }
+    public bool TempAdded { get; set; }
+    public bool TempDeleted { get; set; }
 }
 
 public class CartAccess

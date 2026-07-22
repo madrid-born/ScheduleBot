@@ -71,7 +71,7 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
     {
         var user = await db.InsertUserEmail(data.ChatId, data.MessageText);
         
-        var adminMessage = string.Format(Messages.AdminMessageTemplate, user.Id, user.ChatId, user.Name, user.Email, "@"+user.Username);
+        var adminMessage = string.Format(Messages.AdminMessageTemplate, user.Id, user.ChatId, user.Name, user.Email, "[@"+user.Username+"]");
         var keyboard = new InlineKeyboardMarkup
         ([[
             InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}\\{CallBacks.AcceptRegister}\\{user.ChatId}"),

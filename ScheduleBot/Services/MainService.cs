@@ -10,9 +10,9 @@ public class MainService(ITelegramBotClient bot)
 {
     #region BotServices
     
-    public async Task SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null)
+    public async Task<int> SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null)
     {
-        await bot.SendMessage(chatId, message, replyMarkup: addMainKeyboard ? GetMainKeyboard() : replyMarkup, parseMode: ParseMode.Markdown);
+        return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(), parseMode: ParseMode.Markdown)).MessageId;
     }
     
     public ReplyKeyboardMarkup GetMainKeyboard()

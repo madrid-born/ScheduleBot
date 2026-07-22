@@ -205,7 +205,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             await ctServices.LoadCycleDetail(data.ChatId);
         var message = string.Format(Messages.CurrentData, lastPeriodStart, cycleLength, periodLength, avgCycleLength, avgPeriodLength) +
                       string.Format(Messages.Followers, followers);
-        await services.SendMessage(data.ChatId, message, addMainKeyboard: true);
+        await services.SendMessage(data.ChatId, message);
 
         var collection = new List<List<Tuple<string, string>>>
         {
@@ -316,7 +316,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var users = await ctServices.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, $"{user.Name}(@{user.Username})"), true);
+            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, $"{user.Name}([@{user.Username}])"), true);
         }
     }
     
