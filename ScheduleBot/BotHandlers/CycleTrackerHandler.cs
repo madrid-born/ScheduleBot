@@ -28,6 +28,8 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
                 [new(Messages.Setup,         CallBacks.Setup)],
                 [new(Messages.JoinToCycle,   CallBacks.JoinToCycle)],
                 [new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
+                [new(Messages.EditNotify, CallBacks.EditNotify)],
+
             ];
         }
         
@@ -56,6 +58,9 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
                         break;
                     case CallBacks.JoinToCycle:
                         await JoinToCyclePressed(data);
+                        break;
+                    case CallBacks.EditNotify:
+                        await LoadCycleList(data.ChatId, CallBacks.EditNotify);
                         break;
                 }
                 break;
