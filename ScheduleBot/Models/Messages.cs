@@ -18,6 +18,8 @@ public static class Messages
     public const string PeriodTracker = "Period Tracker";
     public const string CartSymbol = "🛒 ";
     public const string Cart = "Cart";
+    public const string TransactionSymbol = "🏦 ";
+    public const string Transaction = "Transaction";
     public const string SpotifySymbol = "🎵 ";
     public const string Spotify = "Spotify";
     
@@ -184,6 +186,12 @@ public static class Messages
     
     public const string CartNo = "Enter the Product name.";
     public const string AskProductName = "Enter the Product name.";
+
+    #endregion
+
+    #region Transaction
+
+    public const string EnterBluFile = "EnterBluFile";
 
     #endregion
 

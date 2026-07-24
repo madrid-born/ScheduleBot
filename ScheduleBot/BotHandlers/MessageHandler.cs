@@ -13,6 +13,7 @@ public class MessageHandler(
     CycleTrackerHandler cycleTrackerHandler,
     UserSessionService sessionService,
     CartHandler cartHandler,
+    TransactionHandler transactionHandler,
     MainService mainService,
     IConfiguration configuration)
 {
@@ -21,7 +22,7 @@ public class MessageHandler(
         long chatId = 0;
         try
         {
-            var updateData = ExtractUpdateDataAsync(update);
+            var updateData = await ExtractUpdateDataAsync(update);
             chatId = updateData.ChatId;
             if (!await userHandler.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
@@ -47,7 +48,7 @@ public class MessageHandler(
         }
     }
 
-    private static UpdateData ExtractUpdateDataAsync(Update update)
+    private async Task<UpdateData> ExtractUpdateDataAsync(Update update)
     {
         var data = new UpdateData();
         
@@ -78,6 +79,14 @@ public class MessageHandler(
             data.MessageText = update.Message.Text;
             data.MessageSeparated = (update.Message.Text ?? "").Split('"').ToList();
 
+            if (update.Message.Document != null)
+            {
+                if (update.Message.Document.FileName!.EndsWith(".xlsx"))
+                {
+                    data.Document = new ImportedFile(await ProcessExcelFile(update.Message.Document));
+                }
+            }
+            
             data.Command = update.Message.Text;
             
             if (update.Message.ReplyToMessage == null) return data;
@@ -93,6 +102,19 @@ public class MessageHandler(
         }
         
         return data;
+    }
+
+    private async Task<string> ProcessExcelFile(Document document)
+    {
+        var file = await bot.GetFile(document.FileId);
+
+        var fileAddress = Path.Combine(
+            Path.GetTempPath(),
+            $"{Guid.NewGuid()}.xlsx");
+
+        await using var fs = File.Create(fileAddress);
+        await bot.DownloadFile(file.FilePath!, fs);
+        return fileAddress;
     }
 
     private async Task HandleCallbackAsync(UpdateData data)
@@ -113,8 +135,24 @@ public class MessageHandler(
         }
     }
 
+    private async Task<bool> CheckDocument(UpdateData data)
+    {
+        var flag = false;
+        if (data.Document == null) return flag;
+        data.RepliedMessage = Messages.EnterBluFile;
+        switch (data.RepliedMessage)
+        {
+            case Messages.EnterBluFile:
+                await transactionHandler.ProcessBluFile(data);
+                flag = true;
+                break;
+        }
+        return flag;
+    }
+
     private async Task HandleMessageAsync(UpdateData data)
     {
+        if (await CheckDocument(data)) return;
         if (await CheckReplied(data)) return;
         if (await CheckCommand(data)) return;
         if (await CheckKeyboard(data)) return;
@@ -236,6 +274,10 @@ public class MessageHandler(
                 break;
             case Messages.CartSymbol:
                 await cartHandler.HandleSection(data);
+                flag = true;
+                break;
+            case Messages.TransactionSymbol:
+                await transactionHandler.HandleSection(data);
                 flag = true;
                 break;
             case Messages.AboutSymbol:

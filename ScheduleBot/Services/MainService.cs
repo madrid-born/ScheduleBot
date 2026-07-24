@@ -29,6 +29,7 @@ public class MainService(ITelegramBotClient bot)
         var collection = new List<List<string>>
         {
             new() { Messages.PeriodTrackerSymbol + Messages.PeriodTracker, Messages.CartSymbol + Messages.Cart },
+            new() { Messages.TransactionSymbol + Messages.Transaction, },
         };
         
         return (ReplyKeyboardMarkup)CreateKeyboard(collection, resizeKeyboard: true);
@@ -104,7 +105,16 @@ public class MainService(ITelegramBotClient bot)
         var year = int.Parse(date.Substring(0, 4));
         var month = int.Parse(date.Substring(5, 2));
         var day = int.Parse(date.Substring(8, 2));
-        return pc.ToDateTime(year, month, day, 0, 0, 0, 0);
+        var hour = 0;
+        var minute = 0;
+        var second = 0;
+        if (date.Length > 10)
+        {
+            hour = int.Parse(date.Substring(11, 2));
+            minute = int.Parse(date.Substring(14, 2));
+            second = int.Parse(date.Substring(17, 2));
+        }
+        return pc.ToDateTime(year, month, day, hour, minute, second, 0);
     }
     
     public static string ConvertGregorianToJalali(DateTime date)
@@ -116,6 +126,10 @@ public class MainService(ITelegramBotClient bot)
         var day = pc.GetDayOfMonth(date);
 
         return $"{year:D4}/{month:D2}/{day:D2}";
+    }
+    public static string ConvertGregorianToJalaliWithTime(DateTime date)
+    {
+        return $"{ConvertGregorianToJalali(date)} {date.Hour}:{date.Minute}:{date.Second}";
     }
 
     #endregion
