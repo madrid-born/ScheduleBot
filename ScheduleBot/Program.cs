@@ -36,13 +36,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+var telegramString = builder.Environment.IsDevelopment() ? "Development" : "Telegram";
+var botTokenString = builder.Configuration[$"{telegramString}:BotToken"];
+var botUrlString = builder.Configuration[$"{telegramString}:Url"];
+var adminIdString = builder.Configuration[$"{telegramString}:AdminChatId"];
 
-var botTokenString = "Telegram:BotToken";
 HttpClient httpClient;
-
 if (builder.Environment.IsDevelopment())
 {
-    botTokenString = "Telegram:ProductionBotToken";
     var proxyUrl = builder.Configuration["Proxy:Url"];
     httpClient = !string.IsNullOrWhiteSpace(proxyUrl)
         ? new HttpClient(new HttpClientHandler { Proxy = new WebProxy(proxyUrl), UseProxy = true })
@@ -50,16 +51,15 @@ if (builder.Environment.IsDevelopment())
 }
 else httpClient = new HttpClient();
 
-var botToken = builder.Configuration[botTokenString] 
-               ?? throw new InvalidOperationException("Bot token not found");
+var botToken = botTokenString ?? throw new InvalidOperationException("Bot token not found");
 
-
-builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken, httpClient));
+var bot = new TelegramBotClient(botToken, httpClient);
+builder.Services.AddSingleton<ITelegramBotClient>(bot);
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
+builder.Services.AddSingleton(new MainService(bot) { Url = botUrlString, BotToken = botTokenString, AdminChatId = long.Parse(adminIdString) });
 builder.Services.AddSingleton<UserSessionService>();
 builder.Services.AddScoped<DatabaseService>();
 builder.Services.AddScoped<MessageHandler>();
-builder.Services.AddScoped<MainService>();
 builder.Services.AddScoped<UserHandler>();
 builder.Services.AddScoped<CycleTrackerHandler>();
 builder.Services.AddScoped<CycleTrackerService>();

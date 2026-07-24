@@ -7,8 +7,6 @@ namespace ScheduleBot.BotHandlers;
 
 public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService services, IConfiguration configuration)
 {
-    private readonly long _adminChatId = configuration.GetValue<long>("Telegram:AdminChatId");
-    
     public async Task HandleCallBack(UpdateData data)
     {
         switch (data.DataSeparated[1])
@@ -77,7 +75,7 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
             InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}\\{CallBacks.AcceptRegister}\\{user.ChatId}"),
             InlineKeyboardButton.WithCallbackData(Messages.No, $"{CallBacks.Register}\\{CallBacks.RejectRegister}\\{user.ChatId}"),
         ]]);
-        await bot.SendMessage(_adminChatId, adminMessage, replyMarkup: keyboard);
+        await bot.SendMessage(services.AdminChatId, adminMessage, replyMarkup: keyboard);
         await bot.SendMessage(data.ChatId, Messages.RegistrationSuccessful);
     }
     
@@ -86,7 +84,7 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
         var chatId = long.Parse(data.DataSeparated[2]);
         var status = accept ? Messages.Approved : Messages.Rejected ;
         await db.UpdateUserAcceptance(chatId, accept);
-        await bot.SendMessage(_adminChatId, string.Format(Messages.AdminAcceptanceTemplate, chatId ,status));
+        await bot.SendMessage(services.AdminChatId, string.Format(Messages.AdminAcceptanceTemplate, chatId ,status));
         await bot.SendMessage(chatId, string.Format(Messages.UserAcceptanceTemplate, status),
             replyMarkup: accept ? services.GetMainKeyboard() : null);
     }

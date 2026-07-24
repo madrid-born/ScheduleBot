@@ -16,8 +16,6 @@ public class MessageHandler(
     MainService mainService,
     IConfiguration configuration)
 {
-    private readonly long _adminChatId = configuration.GetValue<long>("Telegram:AdminChatId");
-
     public async Task HandleUpdateAsync(ITelegramBotClient bot1, Update update, CancellationToken ct)
     {
         long chatId = 0;

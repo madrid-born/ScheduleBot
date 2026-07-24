@@ -8,6 +8,15 @@ namespace ScheduleBot.Services;
 
 public class MainService(ITelegramBotClient bot)
 {
+
+    #region Statics
+
+    public string Url { get; set; }
+    public string BotToken { get; set; }
+    public long AdminChatId { get; set; }
+
+    #endregion
+    
     #region BotServices
     
     public async Task<int> SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null,ParseMode parseMode = ParseMode.Markdown)
@@ -66,7 +75,7 @@ public class MainService(ITelegramBotClient bot)
 
     #endregion
 
-    #region Statics
+    #region StaticMethods
 
     public static DateTime? DateValidation(string dataMessageText)
     {

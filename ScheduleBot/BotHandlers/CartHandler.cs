@@ -211,7 +211,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             await services.SendMessage(data.ChatId, Messages.CartNotFound);
             return;
         }
-        var link = $"{configuration["Telegram:ProductionUrl"]}?start={CallBacks.Cart}_{CallBacks.JoinToCart}_{cart.Id}";
+        var link = $"{services.Url}?start={CallBacks.Cart}_{CallBacks.JoinToCart}_{cart.Id}";
         var keyboard =  InlineKeyboardButton.WithUrl("Direct join to the cart", link);
         await services.SendMessage(data.ChatId, string.Format(Messages.InviteToCart, cart.Name, cart.Id), replyMarkup: keyboard);
     }

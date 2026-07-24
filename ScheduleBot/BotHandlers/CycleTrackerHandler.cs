@@ -327,7 +327,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     private async Task AddToCycle(UpdateData data)
     {
         var result = (await ctServices.GetCycleByTelId(data.ChatId))!.Id;
-        var link = $"{configuration["Telegram:ProductionUrl"]}?start={CallBacks.Cycle}_{CallBacks.JoinToCycle}_{result}";
+        var link = $"{services.Url}?start={CallBacks.Cycle}_{CallBacks.JoinToCycle}_{result}";
         var keyboard =  InlineKeyboardButton.WithUrl("Direct join to the cycle notification", link);
         await services.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), true, replyMarkup: keyboard);
     }
