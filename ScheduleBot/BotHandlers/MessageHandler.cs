@@ -192,13 +192,18 @@ public class MessageHandler(
                 await cycleTrackerHandler.JoinToCycleById(data);
                 flag = true;
                 break;
-            // Cycle Tracker
+            // cart
             case Messages.AskCartName:
                 await cartHandler.CreateCart(data);
                 flag = true;
                 break;
             case Messages.AskCartId:
                 await cartHandler.JoinToCart(data);
+                flag = true;
+                break;
+            //Transaction
+            case Messages.AskWalletName:
+                await transactionHandler.CreateWallet(data);
                 flag = true;
                 break;
         }

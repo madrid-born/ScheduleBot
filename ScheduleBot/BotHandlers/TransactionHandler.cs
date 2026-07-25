@@ -2,41 +2,78 @@
 using ScheduleBot.Models;
 using ScheduleBot.Services;
 using Telegram.Bot;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
 public class TransactionHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, IConfiguration configuration,
-    UserSessionService sessionService, MainService services, TransactionService cServices, ILogger<CycleTrackerHandler> logger)
+    UserSessionService sessionService, MainService services, TransactionService tServices, ILogger<CycleTrackerHandler> logger)
 {
     public async Task HandleSection(UpdateData data)
     {
-        // List<List<Tuple<string, string>>> collection = 
-        // [
-        //     [new(Messages.Edit,        CallBacks.Edit), new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
-        //     [new(Messages.AddToCycle,  CallBacks.AddToCycle)],
-        //     [new(Messages.JoinToCycle, CallBacks.JoinToCycle)]
-        // ];
-        //
-        // if (await ctServices.GetCycleByTelId(data.ChatId) == null)
-        // {
-        //     collection = 
-        //     [
-        //         [new(Messages.Setup,         CallBacks.Setup)],
-        //         [new(Messages.JoinToCycle,   CallBacks.JoinToCycle)],
-        //         [new(Messages.CurrentStatus, CallBacks.CurrentStatus)],
-        //     ];
-        // }
-        //
-        // var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.MainSection}\\");
-        // await services.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
+        List<List<Tuple<string, string>>> collection = 
+        [
+            [new(Messages.KeyboardCreateWallet,   CallBacks.CreateWallet), new(Messages.KeyboardInviteToWallet, CallBacks.InviteToWallet)],
+            [new(Messages.KeyboardAddTransaction, CallBacks.AddTransaction)]
+        ];
+        
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Transaction}\\{CallBacks.MainSection}\\");
+        await services.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
     }
+    
+    public async Task HandleCallBack(UpdateData data)
+    {
+        switch (data.DataSeparated[1])
+        {
+            case CallBacks.MainSection:
+                switch (data.DataSeparated[2])
+                {
+                    case CallBacks.CreateWallet:
+                        await services.SendMessage(data.ChatId, Messages.AskWalletName, replyMarkup: new ForceReplyMarkup());
+                        break;
+                    case CallBacks.InviteToWallet:
+                        await LoadWallets(data.ChatId, data.DataSeparated[2]);
+                        break;
+                    case CallBacks.AddTransaction:
+                        // await services.SendMessage(data.ChatId, Messages.AskCartId, replyMarkup: new ForceReplyMarkup());
+                        break;
+                }
+                break;
+            case CallBacks.Show:
+            {
+                // var tryParse = Guid.TryParse(data.DataSeparated[2], out var cartId2);
+                // await ShowCarts(data, tryParse ? cartId2 : Guid.Empty);
+                break;
+            }
+        }
+    }
+
+    #region Wallet
+    
+    public async Task CreateWallet(UpdateData data)
+    {
+        var walletName = data.MessageText!;
+        var walletId = await tServices.CreateNewWallet(data.ChatId, walletName);
+        await services.SendMessage(data.ChatId, string.Format(Messages.WalletCreated, walletName, walletId));
+    }
+    
+    private async Task LoadWallets(long dataChatId, string s)
+    {
+        throw new NotImplementedException();
+    }
+    
+    #endregion
+
+    
+    
+    
     
     public async Task ProcessBluFile(UpdateData data)
     {
         using var workbook = new XLWorkbook(data.Document!.FileAddress);
         var ws = workbook.Worksheet(1);
 
-        var ss2 = new List<TransactionProcess>();
+        var transactionProcesses = new List<TransactionProcess>();
         for (var row = 12;; row++)
         {
             if (ws.Cell(row, 19).IsEmpty()) break;
@@ -52,9 +89,9 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 BalanceAfter = ws.Cell(row, 2).GetValue<decimal>()/10,
                 Processed = false
             };
-            ss2.Add(ss);
+            transactionProcesses.Add(ss);
         }
 
-        ss2.Reverse();
+        transactionProcesses.Reverse();
     }
 }
