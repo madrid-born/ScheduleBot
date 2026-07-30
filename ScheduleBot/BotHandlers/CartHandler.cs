@@ -122,32 +122,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             var user = await cServices.GetUserByTelId(chatId);
             carts = carts.Where(c => c.CreatorId == user!.Id).ToList();
         }
-        List<List<Tuple<string, string>>> collection = [];
-        for (var index = pageNumber * 4; index < pageNumber * 4 + 4; index += 2)
-        {
-            List<Tuple<string, string>> row = [];
-            for (var i = 0; i < 2; i++)
-            {
-                var cart = new Cart { Id = Guid.Empty, Name = "-" };
-                try { cart = carts[index + i]; }
-                catch (Exception e) { /*ignored*/ }
-                
-                row.Add(new Tuple<string, string>(cart.Name!, $"{callBack}\\{cart.Id.ToString()}"));
-            }
-            collection.Add(row);
-        }
-        collection.Add(
-        [
-            new (Messages.PreviousPage, $"{CallBacks.PreviousPage}\\{callBack}\\{pageNumber}"),
-            new (pageNumber.ToString(), ""),
-            new (Messages.NextPage,     $"{CallBacks.NextPage}\\{callBack}\\{pageNumber}")
-
-        ]);
-        if (new List<string>{CallBacks.Show}.Contains(callBack))
-        {
-            collection.Add([new (Messages.All, $"{callBack}\\{CallBacks.All}")]);
-        }
-        
+        var collection = services.LoadCollectionInPages(carts, callBack, pageNumber, x => x.Id, x => x.Name!);
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cart}\\");
         await services.SendMessage(chatId, Messages.SelectCart, replyMarkup: keyboard);
     }

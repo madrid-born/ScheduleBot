@@ -13,8 +13,8 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     {
         List<List<Tuple<string, string>>> collection = 
         [
-            [new(Messages.KeyboardCreateWallet,   CallBacks.CreateWallet), new(Messages.KeyboardInviteToWallet, CallBacks.InviteToWallet)],
-            [new(Messages.KeyboardAddTransaction, CallBacks.AddTransaction)]
+            [new(Messages.KeyboardWalletManagement,   CallBacks.WalletManagement)],
+            [new(Messages.KeyboardCreateWallet,       CallBacks.CreateWallet)]
         ];
         
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Transaction}\\{CallBacks.MainSection}\\");
@@ -23,6 +23,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     
     public async Task HandleCallBack(UpdateData data)
     {
+        var tt = data.DataSeparated[1];
         switch (data.DataSeparated[1])
         {
             case CallBacks.MainSection:
@@ -31,11 +32,8 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                     case CallBacks.CreateWallet:
                         await services.SendMessage(data.ChatId, Messages.AskWalletName, replyMarkup: new ForceReplyMarkup());
                         break;
-                    case CallBacks.InviteToWallet:
-                        await LoadWallets(data.ChatId, data.DataSeparated[2]);
-                        break;
-                    case CallBacks.AddTransaction:
-                        // await services.SendMessage(data.ChatId, Messages.AskCartId, replyMarkup: new ForceReplyMarkup());
+                    case CallBacks.WalletManagement:
+                        await LoadWallets(data.ChatId, CallBacks.WalletManagement);
                         break;
                 }
                 break;
@@ -48,7 +46,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         }
     }
 
-    #region Wallet
+    #region Create Wallet
     
     public async Task CreateWallet(UpdateData data)
     {
@@ -57,14 +55,24 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         await services.SendMessage(data.ChatId, string.Format(Messages.WalletCreated, walletName, walletId));
     }
     
-    private async Task LoadWallets(long dataChatId, string s)
-    {
-        throw new NotImplementedException();
-    }
-    
     #endregion
 
+    #region Wallet Managemnet
     
+    private async Task LoadWallets(long chatId, string callBack, int pageNumber = 0)
+    {
+        var wallets = await tServices.GetWalletsByTelId(chatId);
+        if (callBack == CallBacks.DeleteWallet)
+        {
+            var user = await tServices.GetUserByTelId(chatId);
+            wallets = wallets.Where(c => c.CreatorId == user!.Id).ToList();
+        }
+        var collection = services.LoadCollectionInPages(wallets, callBack, pageNumber, x => x.Id, x => x.Name!);
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Transaction}\\");
+        await services.SendMessage(chatId, Messages.SelectWallet, replyMarkup: keyboard);
+    }
+
+    #endregion
     
     
     

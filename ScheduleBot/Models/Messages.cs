@@ -193,12 +193,18 @@ public static class Messages
 
     public const string LoadTransaction = "Welcome to the Transaction section.\nWhat do you want to do?";
 
+    public const string KeyboardWalletManagement = "Wallet Management";
     public const string KeyboardCreateWallet = "Create Wallet";
+    
+    
+    
     public const string KeyboardInviteToWallet = "Invite To Wallet";
     public const string KeyboardAddTransaction = "Add Transaction to Wallet";
 
     public const string AskWalletName = "Enter the Wallet name.";
     public const string WalletCreated = "Wallet \"{0}\" has been created.\nYou can invite others to this cart using this code\n\n`{1}`";
+
+    public const string SelectWallet = "Select the wallet you want.";
 
     
     
@@ -276,8 +282,10 @@ public static class CallBacks
 
     public const string Transaction = "Transaction";
     public const string CreateWallet = "CreateWallet";
+    public const string WalletManagement = "WalletManagement";
     public const string InviteToWallet = "InviteToWallet";
     public const string AddTransaction = "AddTransaction";
+    public const string DeleteWallet = "DeleteWallet";
 
 
     #endregion

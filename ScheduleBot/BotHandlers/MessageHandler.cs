@@ -132,6 +132,9 @@ public class MessageHandler(
             case CallBacks.Cart:
                 await cartHandler.HandleCallBack(data);
                 break;
+            case CallBacks.Transaction:
+                await transactionHandler.HandleCallBack(data);
+                break;
         }
     }
 

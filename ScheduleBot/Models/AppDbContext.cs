@@ -8,7 +8,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CycleDetail> CycleDetails { get; set; }
     public DbSet<CycleHistory> CycleHistories { get; set; }
     public DbSet<CycleNotify> CycleNotifies { get; set; }
+    
     public DbSet<Cart> Cart { get; set; }
     public DbSet<CartItem> CartItem { get; set; }
     public DbSet<CartAccess> CartAccess { get; set; }
+    
+    public DbSet<Wallet>  Wallet { get; set; }
+    public DbSet<Category> WalletCategory { get; set; }
+    public DbSet<CategoryRelation> WalletCategoryRelation { get; set; }
+    public DbSet<WalletAccess> WalletAccess { get; set; }
+    public DbSet<TransactionRecord> WalletTransactions { get; set; }
 }

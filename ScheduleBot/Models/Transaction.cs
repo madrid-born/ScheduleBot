@@ -2,14 +2,47 @@
 
 namespace ScheduleBot.Models;
 
+public class Wallet
+{
+    [Key]
+    public Guid Id { get; set; }
+    public string? Name { get; set; }
+    public Guid CreatorId { get; set; }
+}
+
+public class Category
+{
+    [Key]
+    public Guid Id { get; set; }
+    public string? Name { get; set; }
+}
+
+public class CategoryRelation
+{
+    [Key]
+    public Guid Id { get; set; }
+    public Guid WalletId { get; set; }
+    public Guid CategoryId { get; set; }
+}
+
+public class WalletAccess
+{
+    [Key]
+    public Guid Id { get; set; }
+    public Guid WalletId { get; set; }
+    public Guid CategoryId { get; set; }
+}
+
 public class TransactionRecord
 {
     [Key]
     public Guid Id { get; set; }
+    public Guid WalletId { get; set; }
+    public Guid CategoryId { get; set; }
     public Guid ConsumerId { get; set; }
     public DateTime Date { get; set; }
     public bool IsDeposit { get; set; }
-    public long DocumentNo { get; set; }
+    public long? DocumentNo { get; set; }
     public string? Title { get; set; }
     public decimal Amount { get; set; }
 }
