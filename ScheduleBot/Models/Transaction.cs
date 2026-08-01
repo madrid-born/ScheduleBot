@@ -30,7 +30,7 @@ public class WalletAccess
     [Key]
     public Guid Id { get; set; }
     public Guid WalletId { get; set; }
-    public Guid CategoryId { get; set; }
+    public Guid UserId { get; set; }
 }
 
 public class TransactionRecord

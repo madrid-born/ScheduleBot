@@ -315,4 +315,7 @@ public static class CallBacks
 public static class Actions
 {
     public const string AwaitingProductActions = "AwaitingProductActions";
+    public const string AwaitingCategoryName = "AwaitingCategoryName";
+    public const string AwaitingBluFile = "AwaitingBluFile";
+    public const string AwaitingBluReview = "AwaitingBluReview";
 }

@@ -22,7 +22,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         {
             Id = Guid.NewGuid(),
             WalletId = wallet.Id,
-            CategoryId = user.Id
+            UserId = user.Id
         };
         
         _dbContext.Wallet.Add(wallet);
@@ -33,7 +33,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     public async Task<List<Wallet>> GetWalletsByTelId(long chatId = 0)
     {
         var user = await GetUserByTelId(chatId);
-        var walletAccesses = await _dbContext.WalletAccess.Where(w => w.CategoryId == user!.Id).Select(w => w.WalletId).ToListAsync();
+        var walletAccesses = await _dbContext.WalletAccess.Where(w => w.UserId == user!.Id).Select(w => w.WalletId).ToListAsync();
         return await _dbContext.Wallet.Where(w => walletAccesses.Contains(w.Id)).ToListAsync();
     }
 
@@ -41,7 +41,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     {
         var user = await GetUserByTelId(chatId);
         return user == null ? null : await _dbContext.WalletAccess
-            .Where(a => a.WalletId == walletId && a.CategoryId == user.Id)
+            .Where(a => a.WalletId == walletId && a.UserId == user.Id)
             .Join(_dbContext.Wallet, a => a.WalletId, w => w.Id, (_, w) => w)
             .FirstOrDefaultAsync();
     }
@@ -51,8 +51,8 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         var wallet = await _dbContext.Wallet.FindAsync(walletId);
         var user = await GetUserByTelId(chatId);
         if (wallet == null || user == null) return false;
-        if (await _dbContext.WalletAccess.AnyAsync(a => a.WalletId == walletId && a.CategoryId == user.Id)) return false;
-        _dbContext.WalletAccess.Add(new WalletAccess { Id = Guid.NewGuid(), WalletId = walletId, CategoryId = user.Id });
+        if (await _dbContext.WalletAccess.AnyAsync(a => a.WalletId == walletId && a.UserId == user.Id)) return false;
+        _dbContext.WalletAccess.Add(new WalletAccess { Id = Guid.NewGuid(), WalletId = walletId, UserId = user.Id });
         await _dbContext.SaveChangesAsync();
         return true;
     }
