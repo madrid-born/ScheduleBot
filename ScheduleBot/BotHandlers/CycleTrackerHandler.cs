@@ -33,7 +33,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             ];
         }
         
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.MainSection}\\");
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}|{CallBacks.MainSection}|");
         await services.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
     }
     
@@ -178,9 +178,9 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     {
         var collection = new List<List<Tuple<string, string>>>();
         collection.AddRange(Messages.NotifyModes.Select((notifyMode, index) =>
-            (List<Tuple<string, string>>)[new(notifyMode, $"{index}\\{cycleId}")]));
+            (List<Tuple<string, string>>)[new(notifyMode, $"{index}|{cycleId}")]));
 
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.SetNotifyMode}\\");
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}|{CallBacks.SetNotifyMode}|");
         await services.SendMessage(chatId, Messages.AskForNotifyMode, replyMarkup: keyboard);
     }
     
@@ -220,7 +220,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             new() { new(Messages.EditNotify, CallBacks.EditNotify) },
         };
         var keyboard = services.CreateKeyboard(inlineCollection: collection,
-            callBackStart: $"{CallBacks.Cycle}\\{CallBacks.EditSection}\\");
+            callBackStart: $"{CallBacks.Cycle}|{CallBacks.EditSection}|");
 
         await services.SendMessage(data.ChatId, Messages.EditCheck, replyMarkup: keyboard);
     }
@@ -236,7 +236,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         collection.AddRange((await ctServices.GetFollowersByChatId(data.ChatId)).Select(user =>
             (List<Tuple<string, string>>)[new(user.Name!, user.Id.ToString())]));
 
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{CallBacks.RemoveFollower}\\");
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}|{CallBacks.RemoveFollower}|");
         await services.SendMessage(data.ChatId, Messages.SelectUser, replyMarkup: keyboard);
     }
     
@@ -296,7 +296,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     {
         await services.ApproveKeyboardInline(chatId,
             isStart ? Messages.DidItStart : Messages.DidItEnd,
-            $"{CallBacks.Cycle}\\{(isStart ? CallBacks.ReportStart : CallBacks.ReportEnd)}\\");
+            $"{CallBacks.Cycle}|{(isStart ? CallBacks.ReportStart : CallBacks.ReportEnd)}|");
     }
     
     private async Task Report(UpdateData data, bool isStart)
@@ -367,7 +367,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         collection.AddRange((await ctServices.GetFollowingByChatId(chatId)).Select(user =>
             (List<Tuple<string, string>>)[new(user.UserName, user.CycleId.ToString())]));
 
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}\\{callBack}\\");
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}|{callBack}|");
         await services.SendMessage(chatId, Messages.SelectCycle, replyMarkup: keyboard);
     }
     

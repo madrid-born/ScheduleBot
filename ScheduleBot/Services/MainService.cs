@@ -74,24 +74,19 @@ public class MainService(ITelegramBotClient bot)
         await SendMessage(chatId, message, replyMarkup: keyboard);
     }
 
-    public List<List<Tuple<string, string>>> LoadCollectionInPages<T>(
-        List<T> items,
-        string callBack,
-        int pageNumber,
-        Func<T, Guid> idSelector,
-        Func<T, string> nameSelector)
+    public List<List<Tuple<string, string>>> LoadCollectionInPages<T>(List<T> items, string callBack, int pageNumber,
+        Func<T, Guid> idSelector, Func<T, string> nameSelector, int width = 3, int height = 3)
     {
         List<List<Tuple<string, string>>> collection = [];
+        var pageSize = width * height;
 
-        for (var index = pageNumber * 4; index < pageNumber * 4 + 4; index += 2)
+        for (var index = pageNumber * pageSize; index < pageNumber * pageSize + pageSize; index += height)
         {
             List<Tuple<string, string>> row = [];
 
-            for (var i = 0; i < 2; i++)
+            for (var i = 0; i < width; i++)
             {
-                var item = index + i < items.Count 
-                    ? items[index + i] 
-                    : default;
+                var item = index + i < items.Count ? items[index + i] : default;
 
                 var name = item == null ? "-" : nameSelector(item);
                 var id = item == null ? Guid.Empty : idSelector(item);
@@ -99,7 +94,7 @@ public class MainService(ITelegramBotClient bot)
                 row.Add(
                     new Tuple<string, string>(
                         name,
-                        $"{callBack}\\{id}"
+                        $"{callBack}|{id}"
                     )
                 );
             }
@@ -109,19 +104,51 @@ public class MainService(ITelegramBotClient bot)
 
         collection.Add(
         [
-            new(Messages.PreviousPage, $"{CallBacks.PreviousPage}\\{callBack}\\{pageNumber}"),
+            new(Messages.PreviousPage, $"{CallBacks.PreviousPage}|{callBack}|{pageNumber}"),
             new(pageNumber.ToString(), ""),
-            new(Messages.NextPage, $"{CallBacks.NextPage}\\{callBack}\\{pageNumber}")
+            new(Messages.NextPage, $"{CallBacks.NextPage}|{callBack}|{pageNumber}")
         ]);
         
         if (new List<string>{CallBacks.Show}.Contains(callBack))
         {
-            collection.Add([new (Messages.All, $"{callBack}\\{CallBacks.All}")]);
+            collection.Add([new (Messages.All, $"{callBack}|{CallBacks.All}")]);
         }
 
         return collection;
     }
-    
+
+    public List<List<Tuple<string, string>>> LoadCollectionInScroller<T>(List<T> items,
+        Func<T, Guid> idSelector, Func<T, string> nameSelector,
+        Func<T, bool>? tempAddedSelector = null, Func<T, bool>? tempDeletedSelector = null,
+        int width = 3)
+    {
+        tempAddedSelector ??= _ => false;
+        tempDeletedSelector ??= _ => false;
+
+        List<List<Tuple<string, string>>> collection = [];
+        for (var index = 0; index < (double)items.Count/width ; index += 1)
+        {
+            List<Tuple<string, string>> row = [];
+            for (var i = 0; i < width; i++)
+            {
+                var item = index * width + i < items.Count ? items[index * width + i] : default;
+                
+                var prefix = "";
+                if (item != null)
+                {
+                    if (tempAddedSelector(item)) prefix = "🆕 ";
+                    if (tempDeletedSelector(item)) prefix = "🗑 ";
+                    row.Add(new Tuple<string, string>(prefix+nameSelector(item), $"{idSelector(item).ToString()}"));
+                }
+                else row.Add(new Tuple<string, string>("-", "-"));
+            }
+            collection.Add(row);
+        }
+        collection.Add([new (Messages.Done, $"{CallBacks.Done}"), new (Messages.Cancel, $"{CallBacks.Cancel}"),]);
+
+        return collection;
+    }
+
     #endregion
 
     #region StaticMethods

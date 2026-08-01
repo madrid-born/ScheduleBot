@@ -43,7 +43,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             ];
         }
         
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cart}\\{CallBacks.MainSection}\\");
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cart}|{CallBacks.MainSection}|");
         await services.SendMessage(data.ChatId, Messages.LoadCart, replyMarkup: keyboard);
     }
     
@@ -123,7 +123,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             carts = carts.Where(c => c.CreatorId == user!.Id).ToList();
         }
         var collection = services.LoadCollectionInPages(carts, callBack, pageNumber, x => x.Id, x => x.Name!);
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cart}\\");
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cart}|");
         await services.SendMessage(chatId, Messages.SelectCart, replyMarkup: keyboard);
     }
     
@@ -222,29 +222,10 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
 
     #region ProductMethods
 
-    private ReplyMarkup CreateProductKeyboard(List<CartItem> products, List<CartItem>? newOnes = null, List<CartItem>? oldOnes = null)
+    private ReplyMarkup CreateProductKeyboard(List<CartItem> products)
     {
-        List<List<Tuple<string, string>>> collection = [];
-        for (var index = 0; index < (double)products.Count/3 ; index += 1)
-        {
-            List<Tuple<string, string>> row = [];
-            for (var i = 0; i < 3; i++)
-            {
-                var product = new CartItem { Id = Guid.Empty, Name = "-" };
-                try { product = products[index*3 + i]; }
-                catch (Exception e) { /*ignored*/ }
-
-                var prefix = "";
-                if (product.TempAdded) prefix = "🆕 ";
-                if (product.TempDeleted) prefix = "🗑 ";
-                
-                row.Add(new Tuple<string, string>(prefix+product.Name!, $"{product.Id.ToString()}"));
-            }
-            collection.Add(row);
-        }
-        collection.Add([new (Messages.Done, $"{CallBacks.Done}"), new (Messages.Cancel, $"{CallBacks.Cancel}"),]);
-        
-        return services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Cart}\\{CallBacks.ProductAction}\\");
+        var collection = services.LoadCollectionInScroller(products, x => x.Id, x => x.Name!, x => x.TempAdded, x => x.TempDeleted);
+        return services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Cart}|{CallBacks.ProductAction}|");
     }
     
     private async Task EditProductKeyboard(long chatId, int messageId, Guid cartId)
@@ -264,9 +245,9 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         if (!isLoaded) await services.SendMessage(data.ChatId, Messages.CartLoadFail);
         var products = await cServices.GetProductsByCartId(cartId);
         var keyboard = CreateProductKeyboard(products);
-        var messageId = await services.SendMessage(data.ChatId, Messages.ProductAction, replyMarkup: keyboard);
+        var messageId = await services.SendMessage(data.ChatId, Messages.ScrollerAction, replyMarkup: keyboard);
         sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingProductActions,
-            callbackData: $"{messageId}\\{cartIdAsString}");
+            callbackData: $"{messageId}|{cartIdAsString}");
     }
 
     public async Task AddProductToCart(UpdateData data, string? callbackData)
@@ -277,7 +258,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
             await services.SendMessage(data.ChatId, Messages.CartNotFound);
             return;
         }
-        var callbacks = callbackData.Split("\\").ToList();
+        var callbacks = callbackData.Split("|").ToList();
         var isMessageId = int.TryParse(callbacks[0], out var messageId);
         var isCartId = Guid.TryParse(callbacks[1], out var cartId);
         if (!isCartId || !isMessageId) await services.SendMessage(data.ChatId, Messages.CartIdFormatFail);
@@ -289,7 +270,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
     {
         var session = sessionService.GetData(data.ChatId);
         if (session == null) throw new Exception();
-        var callbacks = session.CallbackData.Split("\\").ToList();
+        var callbacks = session.CallbackData.Split("|").ToList();
         var isMessageId = int.TryParse(callbacks[0], out var messageId);
         var isCartId = Guid.TryParse(callbacks[1], out var cartId);
         var cart = await cServices.GetCartByCartId(cartId);
@@ -303,7 +284,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                 var changer = await cServices.GetUserByTelId(data.ChatId);
                 var submitted = await cServices.SubmitProductServiceChanges(cartId);
                 if (!submitted) throw new Exception();
-                var message = string.Format(Messages.ProductActionSubmitted, cart.Name, changer!.FullName, changes);
+                var message = string.Format(Messages.ScrollerActionSubmitted, cart.Name, changer!.FullName, changes, CallBacks.Cart);
                 var usersWithAccess = await cServices.GetUsersWithAccessByCartId(cartId);
                 sessionService.ClearSession(data.ChatId);
                 await bot.DeleteMessage(data.ChatId, messageId);
@@ -315,7 +296,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                 var changes = CreateChangeMessage(await cServices.LoadProductServiceChanges(cartId));
                 var canceled = await cServices.CancelProductServiceChanges(cartId);
                 if (!canceled) throw new Exception();
-                var message = string.Format(Messages.ProductActionAborted, cart.Name, changes);
+                var message = string.Format(Messages.ScrollerActionAborted, cart.Name, changes, CallBacks.Cart);
                 sessionService.ClearSession(data.ChatId);
                 await bot.DeleteMessage(data.ChatId, messageId);
                 await services.SendMessage(data.ChatId, message);
@@ -338,7 +319,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         var added = string.Join("\n", changes.Item1.Select(x => x.Name));
         var deleted = string.Join("\n", changes.Item2.Select(x => x.Name));
         var both = string.Join("\n", changes.Item3.Select(x => x.Name));
-        return string.Format(Messages.ProductActionChanges, added, deleted, both);
+        return string.Format(Messages.ScrollerActionChanges, added, deleted, both);
     }
     
     #endregion

@@ -39,7 +39,7 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
             }
             catch (Exception e) { /*ignored*/ }
             
-            var keyboard = new InlineKeyboardMarkup([[InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}\\{CallBacks.AskToRegister}")]]);
+            var keyboard = new InlineKeyboardMarkup([[InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}|{CallBacks.AskToRegister}")]]);
             await bot.SendMessage(chatId, Messages.NotDefinedUser, replyMarkup: keyboard);
             return false;
         }
@@ -72,8 +72,8 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
         var adminMessage = string.Format(Messages.AdminMessageTemplate, user.Id, user.ChatId, user.Name, user.Email, "[@"+user.Username+"]");
         var keyboard = new InlineKeyboardMarkup
         ([[
-            InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}\\{CallBacks.AcceptRegister}\\{user.ChatId}"),
-            InlineKeyboardButton.WithCallbackData(Messages.No, $"{CallBacks.Register}\\{CallBacks.RejectRegister}\\{user.ChatId}"),
+            InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}|{CallBacks.AcceptRegister}|{user.ChatId}"),
+            InlineKeyboardButton.WithCallbackData(Messages.No, $"{CallBacks.Register}|{CallBacks.RejectRegister}|{user.ChatId}"),
         ]]);
         await bot.SendMessage(services.AdminChatId, adminMessage, replyMarkup: keyboard);
         await bot.SendMessage(data.ChatId, Messages.RegistrationSuccessful);

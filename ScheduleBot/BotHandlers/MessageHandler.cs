@@ -66,7 +66,7 @@ public class MessageHandler(
                 textData = textData[1..];
                 data.DeleteCallback = false;
             }
-            data.DataSeparated = textData.Split("\\").ToList();
+            data.DataSeparated = textData.Split("|").ToList();
             if (update.CallbackQuery.Message.Text == null) return data;
             data.MessageText = update.CallbackQuery.Message.Text;
             data.MessageSeparated = (update.CallbackQuery.Message.Text ?? "").Split('"').ToList();
@@ -254,6 +254,20 @@ public class MessageHandler(
                         }
                         break;
                     }
+                    case CallBacks.Transaction:
+                    {
+                        switch (splitter[1])
+                        {
+                            case CallBacks.JoinWallet:
+                            {
+                                data.MessageText = splitter[2];
+                                await transactionHandler.JoinToWalletById(data);
+                                flag = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
                 }
                 return flag;
             }
@@ -309,6 +323,10 @@ public class MessageHandler(
         {
             case Actions.AwaitingProductActions:
                 await cartHandler.AddProductToCart(data, session.CallbackData);
+                flag = true;
+                break;
+            case Actions.AwaitingCategoryName:
+                await transactionHandler.AddCategoriesToWallet(data, session.CallbackData);
                 flag = true;
                 break;
         }

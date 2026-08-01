@@ -42,6 +42,12 @@ public static class Messages
     public const string InvalidDate = "Invalid date format. Please use YYYY-MM-DD";
     public const string InvalidInteger = "Invalid Integer format. Please use a Natural Number";
     
+    public const string ScrollerAction = "You can type new items to add 🆕\nAnd click on item to remove 🗑\nAnd make sure to press done to submit or cancel to decline your changes ✅ ❌";
+    public const string ScrollerActionChanges = "\nAdded:\n\n{0}\n\n\nDeleted:\n{1}\n\n\nAdded then deleted:\n{2}\n\n";
+    public const string ScrollerActionSubmitted = "The following changes had been submitted to '{0}' {3} by {1}\n{2}\n";
+    public const string ScrollerActionAborted = "The following changes had been declined for '{0}' {2} \n{1}\n";
+
+    
     #endregion
     
     #region Register
@@ -177,15 +183,6 @@ public static class Messages
     public const string RedundantAccess = "You are already in the mentioned cart.";
 
     public const string CartLoadFail = "Loading cart failed.";
-    public const string ProductAction = "You can type new items to add 🆕\nAnd click on item to remove from cart 🗑\nAnd make sure to press done to submit or cancel to decline your changes ✅ ❌";
-    public const string ProductActionChanges = "\nAdded:\n\n{0}\n\n\nDeleted:\n{1}\n\n\nAdded then deleted:\n{2}\n\n";
-    public const string ProductActionSubmitted = "The following changes had been submitted to '{0}' cart by {1}\n{2}\n";
-    public const string ProductActionAborted = "The following changes had been declined for '{0}' cart \n{1}\n";
-
-    
-    
-    public const string CartNo = "Enter the Product name.";
-    public const string AskProductName = "Enter the Product name.";
 
     #endregion
 
@@ -205,10 +202,13 @@ public static class Messages
 
     public const string AskWalletName = "Enter the Wallet name.";
     public const string WalletCreated = "Wallet \"{0}\" has been created.\nYou can invite others using this code\n\n`{1}`";
+    public const string WalletLoadFail = "Loading wallet failed.";
+    public const string WalletIdFormatFail = "Wallet code format is not valid.";
 
     public const string SelectWallet = "Select the wallet you want.";
     public const string WalletNotFound = "Wallet not found or you do not have access to it.";
-    public const string InviteToWallet = "Invite to wallet \"{0}\" with this link:\n{1}";
+    public const string WalletSelected = "Wallet {0} is selected\nYou can choose the action you want from the list below.";
+    public const string InviteToWallet = "Invite to wallet \"{0}\" with the below button";
     public const string WalletJoined = "You joined wallet \"{0}\".";
     public const string CategoryMenu = "Categories for wallet \"{0}\":\n{1}";
     public const string AskCategoryName = "Enter the category name.";
@@ -295,18 +295,18 @@ public static class CallBacks
     #region Transaction
 
     public const string Transaction = "Transaction";
-    public const string CreateWallet = "CreateWallet";
-    public const string WalletManagement = "WalletManagement";
-    public const string InviteToWallet = "InviteToWallet";
-    public const string AddTransaction = "AddTransaction";
-    public const string DeleteWallet = "DeleteWallet";
-    public const string ManageCategories = "ManageCategories";
-    public const string AddCategory = "AddCategory";
-    public const string DeleteCategory = "DeleteCategory";
-    public const string ManualTransaction = "ManualTransaction";
-    public const string BluTransaction = "BluTransaction";
-    public const string BluAction = "BluAction";
-    public const string JoinWallet = "JoinWallet";
+    public const string CreateWallet = "CW";
+    public const string WalletManagement = "WM";
+    public const string InviteToWallet = "ITW";
+    public const string AddTransaction = "AT";
+    public const string DeleteWallet = "DW";
+    public const string ManageCategories = "MC";
+    public const string CategoryAction = "CA";
+    public const string DeleteCategory = "DC";
+    public const string ManualTransaction = "MT";
+    public const string BluTransaction = "BT";
+    public const string BluAction = "BA";
+    public const string JoinWallet = "JW";
 
 
     #endregion

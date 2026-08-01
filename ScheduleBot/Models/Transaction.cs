@@ -14,15 +14,11 @@ public class Category
 {
     [Key]
     public Guid Id { get; set; }
-    public string? Name { get; set; }
-}
-
-public class CategoryRelation
-{
-    [Key]
-    public Guid Id { get; set; }
     public Guid WalletId { get; set; }
-    public Guid CategoryId { get; set; }
+    public DateTime CreateTime { get; set; }
+    public string? Name { get; set; }
+    public bool TempAdded { get; set; }
+    public bool TempDeleted { get; set; }
 }
 
 public class WalletAccess
