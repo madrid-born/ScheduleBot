@@ -13,11 +13,12 @@ using Telegram.Bot;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var connString = builder.Environment.IsDevelopment() ? "DefaultConnectionTest" : "DefaultConnection";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        builder.Configuration.GetConnectionString(connString),
         sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(

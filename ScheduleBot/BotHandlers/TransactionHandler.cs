@@ -18,7 +18,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         ];
         
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Transaction}\\{CallBacks.MainSection}\\");
-        await services.SendMessage(data.ChatId, Messages.LoadPeriodTracker, replyMarkup: keyboard);
+        await services.SendMessage(data.ChatId, Messages.LoadTransaction, replyMarkup: keyboard);
     }
 
     public async Task HandleCallBack(UpdateData data)
