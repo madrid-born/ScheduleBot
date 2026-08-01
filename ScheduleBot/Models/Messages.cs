@@ -195,16 +195,30 @@ public static class Messages
 
     public const string KeyboardWalletManagement = "Wallet Management";
     public const string KeyboardCreateWallet = "Create Wallet";
-    
-    
-    
+    public const string KeyboardManageCategories = "Manage Categories";
+    public const string KeyboardAddCategory = "Add Category";
+    public const string KeyboardDeleteCategory = "Delete Category";
     public const string KeyboardInviteToWallet = "Invite To Wallet";
     public const string KeyboardAddTransaction = "Add Transaction to Wallet";
+    public const string KeyboardManualTransaction = "Manual";
+    public const string KeyboardBluTransaction = "Auto from Blu";
 
     public const string AskWalletName = "Enter the Wallet name.";
-    public const string WalletCreated = "Wallet \"{0}\" has been created.\nYou can invite others to this cart using this code\n\n`{1}`";
+    public const string WalletCreated = "Wallet \"{0}\" has been created.\nYou can invite others using this code\n\n`{1}`";
 
     public const string SelectWallet = "Select the wallet you want.";
+    public const string WalletNotFound = "Wallet not found or you do not have access to it.";
+    public const string InviteToWallet = "Invite to wallet \"{0}\" with this link:\n{1}";
+    public const string WalletJoined = "You joined wallet \"{0}\".";
+    public const string CategoryMenu = "Categories for wallet \"{0}\":\n{1}";
+    public const string AskCategoryName = "Enter the category name.";
+    public const string CategoryCreated = "Category \"{0}\" was added.";
+    public const string SelectCategory = "Select a category.";
+    public const string AskManualTransaction = "Enter transaction as: [+|-] amount | title\nExample: -125000 | groceries";
+    public const string TransactionSaved = "Transaction saved.";
+    public const string BluFilePrompt = "Send the Blu .xlsx export file now.";
+    public const string BluReview = "{0}\n{1:N0}\n{2}\n\nAdd this transaction?";
+    public const string BluFinished = "Blu transactions processed.";
 
     
     
@@ -286,6 +300,13 @@ public static class CallBacks
     public const string InviteToWallet = "InviteToWallet";
     public const string AddTransaction = "AddTransaction";
     public const string DeleteWallet = "DeleteWallet";
+    public const string ManageCategories = "ManageCategories";
+    public const string AddCategory = "AddCategory";
+    public const string DeleteCategory = "DeleteCategory";
+    public const string ManualTransaction = "ManualTransaction";
+    public const string BluTransaction = "BluTransaction";
+    public const string BluAction = "BluAction";
+    public const string JoinWallet = "JoinWallet";
 
 
     #endregion
