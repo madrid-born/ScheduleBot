@@ -202,9 +202,9 @@ public class MainService(ITelegramBotClient bot)
 
         return $"{year:D4}/{month:D2}/{day:D2}";
     }
-    public static string ConvertGregorianToJalaliWithTime(DateTime date)
+    public static string ConvertGregorianToJalaliAndGregorianWithTime(DateTime date)
     {
-        return $"{ConvertGregorianToJalali(date)} {date.Hour}:{date.Minute}:{date.Second}";
+        return $"{date.Hour}:{date.Minute}:{date.Second}\n{date.Year}/{date.Month}/{date.Day} - {ConvertGregorianToJalali(date)}";
     }
 
     #endregion

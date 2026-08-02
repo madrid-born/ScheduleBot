@@ -140,17 +140,8 @@ public class MessageHandler(
 
     private async Task<bool> CheckDocument(UpdateData data)
     {
-        var flag = false;
-        if (data.Document == null) return flag;
-        data.RepliedMessage = Messages.EnterBluFile;
-        switch (data.RepliedMessage)
-        {
-            case Messages.EnterBluFile:
-                await transactionHandler.ProcessBluFile(data);
-                flag = true;
-                break;
-        }
-        return flag;
+        if (data.Document == null) return false;
+        return await CheckSession(data);
     }
 
     private async Task HandleMessageAsync(UpdateData data)
@@ -318,6 +309,17 @@ public class MessageHandler(
         {
             sessionService.ClearSession(data.ChatId);
             return flag;
+        }
+
+        if (data.Document != null)
+        {
+            switch (session.Action)
+            {
+                case Actions.AwaitingBluFile:
+                    await transactionHandler.ProcessBluFile(data);
+                    flag = true;
+                    break;
+            }
         }
         switch (session.Action)
         {

@@ -36,6 +36,7 @@ public static class Messages
     public const string Cancel = "❌ Cancel";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
+    public const string Skip = "skip";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
     public const string NotFound = "Command not found.";
     public const string SomethingWentWrong = "something went wrong.";
@@ -218,6 +219,7 @@ public static class Messages
     public const string TransactionSaved = "Transaction saved.";
     public const string BluFilePrompt = "Send the Blu .xlsx export file now.";
     public const string BluReview = "{0}\n{1:N0}\n{2}\n\nAdd this transaction?";
+    public const string BluView = "👉 Index: {0}\n💲 Transaction number: {1}\n📅 Date and time: {2}\n🏧 Type: {3}\n🛂 Description: {4}\n📥 Deposit: {5}\n📤 Withdraw: {6}\n🧾 Balance after: {7}";
     public const string BluFinished = "Blu transactions processed.";
 
     

@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Office2010.Word;
 using ScheduleBot.Models;
 using ScheduleBot.Services;
 using Telegram.Bot;
@@ -57,8 +58,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 await AddTransactionMenu(data.ChatId, walletId);
                 break;
             case CallBacks.ManualTransaction when Guid.TryParse(value, out var walletId):
-                await SelectCategory(data.ChatId, walletId, CallBacks.ManualTransaction);
-                break;
+                throw new NotImplementedException();
             case CallBacks.BluTransaction when Guid.TryParse(value, out var walletId):
                 sessionService.SetData(data.ChatId, Actions.AwaitingBluFile, walletId.ToString());
                 await services.SendMessage(data.ChatId, Messages.BluFilePrompt);
@@ -235,96 +235,31 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     }
     
     #endregion
-    
 
-    private async Task CategoryMenu(UpdateData data, Guid walletId)
-    {
-        var wallet = await tServices.GetWalletForUser(walletId, data.ChatId);
-        if (wallet == null) { await services.SendMessage(data.ChatId, Messages.WalletNotFound); return; }
-        var categories = await tServices.GetCategories(walletId);
-        var rows = categories.Select(c => new List<Tuple<string, string>> { new(c.Name!, $"{CallBacks.DeleteCategory}|{walletId}|{c.Id}") }).ToList();
-        rows.Add([new(Messages.KeyboardAddCategory, $"{CallBacks.CategoryAction}|{walletId}")]);
-        await services.SendMessage(data.ChatId, string.Format(Messages.CategoryMenu, wallet.Name, categories.Count == 0 ? "(none)" : string.Join(", ", categories.Select(c => c.Name))), replyMarkup: services.CreateKeyboard(inlineCollection: rows, callBackStart: $"{CallBacks.Transaction}|"));
-    }
+    #region Transaction
+
 
     private async Task AddTransactionMenu(long chatId, Guid walletId)
-    {        
-        List<List<Tuple<string, string>>> rows = 
+    {
+        List<List<Tuple<string, string>>> collection =
         [
             [new(Messages.KeyboardManualTransaction, $"{CallBacks.ManualTransaction}|{walletId}")],
             [new(Messages.KeyboardBluTransaction, $"{CallBacks.BluTransaction}|{walletId}")]
         ];
-
-        await services.SendMessage(chatId, Messages.KeyboardAddTransaction, replyMarkup: services.CreateKeyboard(inlineCollection: rows, callBackStart: $"{CallBacks.Transaction}|"));
-    }
-
-    private async Task SelectCategory(long chatId, Guid walletId, string next)
-    {
-        var categories = await tServices.GetCategories(walletId);
-        var rows = categories.Select(c => new List<Tuple<string, string>> { new(c.Name!, $"{next}|{walletId}|{c.Id}") }).ToList();
-        await services.SendMessage(chatId, Messages.SelectCategory, replyMarkup: services.CreateKeyboard(inlineCollection: rows, callBackStart: $"{CallBacks.Transaction}|"));
-    }
-    
-
-    // public async Task CreateCategory(UpdateData data, string walletId)
-    // {
-    //     await tServices.AddCategory(data.ChatId, Guid.Parse(walletId), data.MessageText!);
-    //     await services.SendMessage(data.ChatId, string.Format(Messages.CategoryCreated, data.MessageText));
-    // }
-
-    // public async Task AddManualTransaction(UpdateData data, string callbackData)
-    // {
-    //     var p = callbackData.Split('|');
-    //     var parts = (data.MessageText ?? "").Split('|', 2);
-    //     if (parts.Length != 2 || !decimal.TryParse(parts[0].Trim().TrimStart('+', '-'), out var amount) || (parts[0].Trim()[0] != '+' && parts[0].Trim()[0] != '-')) { await services.SendMessage(data.ChatId, Messages.AskManualTransaction); return; }
-    //     await tServices.AddTransaction(data.ChatId, Guid.Parse(p[0]), Guid.Parse(p[1]), DateTime.Now, parts[0].Trim()[0] == '+', amount, parts[1]);
-    //     sessionService.ClearSession(data.ChatId); await services.SendMessage(data.ChatId, Messages.TransactionSaved);
-    // }
-
-    private async Task ShowBluRow(long chatId)
-    {
-        var s = sessionService.GetData(chatId)!; var rows = (List<TransactionProcess>)s.Context["rows"]; var i = (int)s.Context["index"]; if (i >= rows.Count) { sessionService.ClearSession(chatId); await services.SendMessage(chatId, Messages.BluFinished); return; }
-        var r = rows[i];
-        List<List<Tuple<string, string>>> buttons = 
-        [
-            [new(Messages.Yes, $"{CallBacks.BluAction}|{i}|add"), new(Messages.No, $"{CallBacks.BluAction}|{i}|ignore")]
-        ];
-
-        await services.SendMessage(chatId,
-            string.Format(Messages.BluReview, r.Date, r.Deposit > 0 ? r.Deposit : r.Withdraw, r.Description,
-                r.Description),
-            replyMarkup: services.CreateKeyboard(inlineCollection: buttons,
-                callBackStart: $"{CallBacks.Transaction}|"));
-    }
-
-    private async Task BluAction(UpdateData data)
-    {
-        var s = sessionService.GetData(data.ChatId);
-        if (s == null) return;
-        var rows = (List<TransactionProcess>)s.Context["rows"];
-        var i = int.Parse(data.DataSeparated[2]);
-        var r = rows[i];
-        if (data.DataSeparated.ElementAtOrDefault(3) == "add")
-        {
-            var category = (await tServices.GetCategories(Guid.Parse((string)s.Context["wallet"]))).FirstOrDefault();
-            if (category != null)
-                await tServices.AddTransaction(data.ChatId, Guid.Parse((string)s.Context["wallet"]), category.Id,
-                    r.Date, r.Deposit > 0, r.Deposit > 0 ? r.Deposit : r.Withdraw, r.Description, r.DocumentNo);
-        }
-
-        s.Context["index"] = i + 1;
-        await ShowBluRow(data.ChatId);
+        
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Transaction}|");
+        await services.SendMessage(chatId, Messages.KeyboardAddTransaction, replyMarkup: keyboard);
     }
 
     public async Task ProcessBluFile(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
         if (session == null) return;
-        var rows = new List<TransactionProcess>();
+        var transactionProcesses = new List<TransactionProcess>();
         using var workbook = new XLWorkbook(data.Document!.FileAddress);
         var ws = workbook.Worksheet(1);
         for (var row = 12; !ws.Cell(row, 19).IsEmpty(); row++)
-            rows.Add(new TransactionProcess
+            transactionProcesses.Add(new TransactionProcess
             {
                 Index = ws.Cell(row, 19).GetValue<int>(),
                 Date = MainService.ConvertJalaliToGregorian(ws.Cell(row, 18).GetString()),
@@ -336,11 +271,114 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 BalanceAfter = ws.Cell(row, 2).GetValue<decimal>()/10,
                 Processed = false
             });
-        rows.Reverse();
+        transactionProcesses.Reverse();
         session.Action = Actions.AwaitingBluReview;
-        session.Context["rows"] = rows;
+        session.Context["transactionProcesses"] = transactionProcesses;
         session.Context["wallet"] = session.CallbackData;
         session.Context["index"] = 0;
         await ShowBluRow(data.ChatId);
     }
+    
+    private async Task ShowBluRow(long chatId)
+    {
+        var session = sessionService.GetData(chatId);
+        var transactionProcesses = (List<TransactionProcess>)session!.Context["transactionProcesses"];
+        var index = (int)session.Context["index"];
+        if (index >= transactionProcesses.Count)
+        {
+            sessionService.ClearSession(chatId);
+            await services.SendMessage(chatId, Messages.BluFinished);
+            return;
+        }
+
+        var bluReviewP1 = "👉 Index: {0}\n🏧 Type: {1}\n📅 Date and time: {2}\n\n";
+        var bluReviewP2D = "🟢 Deposit: {0:N0}\n";
+        var bluReviewP2W = "🔴 Withdraw: {0:N0}\n";
+        var bluReviewP2 = "💲 Balance after: {0:N0}\n\n";
+        var bluReviewP3 = "🛂 Description: {0}\n\n";
+        var bluReviewP4 = "Category: {0}\n";
+        var bluReviewP5 = "Title: {0}\n";
+        var bluAsk123 = "\nDo you want to add this transaction?";
+        var bluAsk4 = "\nSelect the category this transaction belonged to";
+        var bluAsk5 = "\nWrite down the transaction title or skip";
+        var bluAsk6 = "\nClick to save";
+        
+        var transactionProcess = transactionProcesses[index];
+        
+        var dateAndTime = MainService.ConvertGregorianToJalaliAndGregorianWithTime(transactionProcess.Date);
+        var indexString = $"{index+1}/{transactionProcesses.Count}";
+        
+        var messageP1 = string.Format(bluReviewP1, indexString, transactionProcess.Type, dateAndTime);
+        var messageP2 = (transactionProcess.Deposit > 0 ? string.Format(bluReviewP2D, transactionProcess.Deposit) : "") + 
+                        (transactionProcess.Withdraw > 0 ? string.Format(bluReviewP2W, transactionProcess.Withdraw) : "") +
+                        string.Format(bluReviewP2, transactionProcess.BalanceAfter);
+        var messageP3 = string.Format(bluReviewP3, transactionProcess.Description);
+        var messageP4 = string.Format(bluReviewP4, transactionProcess.CategoryName);
+        var messageP5 = string.Format(bluReviewP5, transactionProcess.Title);
+
+        var message = messageP1 + messageP2 + messageP3;
+        List<List<Tuple<string, string>>> collection = [];
+
+        switch (session.Action)
+        {
+            case Actions.AwaitingBluReview:
+                message += bluAsk123;
+                collection = [[new(Messages.Yes, "add"), new(Messages.No, "ignore")]];
+                break;
+            case "acceptToSave":
+                message += bluAsk4;
+                // TODO : collection = LoadCategoriesCollection();
+                break;
+            case "categorySelected":
+                message += messageP4 + bluAsk5;
+                collection = [[new(Messages.Skip, "skip")]];
+                break;
+            case "TitleSelected":
+                message += messageP4 + messageP5 + bluAsk6;
+                collection = [[new (Messages.Done, $"{CallBacks.Done}"), new (Messages.Cancel, $"{CallBacks.Cancel}"),]];
+                break;
+
+        }
+
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.BluAction}|");
+        await services.SendMessage(chatId, message, replyMarkup: keyboard);
+    }
+
+    private async Task BluAction(UpdateData data)
+    {
+        var session = sessionService.GetData(data.ChatId);
+        if (session == null) return;
+        var transactionProcesses = (List<TransactionProcess>)session.Context["transactionProcesses"];
+        var index = int.Parse(data.DataSeparated[2]);
+        var transactionProcess = transactionProcesses[index];
+        if (data.DataSeparated.ElementAtOrDefault(3) == "add")
+        {
+            var category = (await tServices.GetCategories(Guid.Parse((string)session.Context["wallet"]))).FirstOrDefault();
+            if (category != null)
+                await tServices.AddTransaction(data.ChatId, Guid.Parse((string)session.Context["wallet"]), category.Id,
+                    transactionProcess.Date, transactionProcess.Deposit > 0, transactionProcess.Deposit > 0 ? transactionProcess.Deposit : transactionProcess.Withdraw, transactionProcess.Description, transactionProcess.DocumentNo);
+        }
+
+        session.Context["index"] = index + 1;
+        await ShowBluRow(data.ChatId);
+    }
+    
+    #endregion
+
+    // public async Task AddManualTransaction(UpdateData data, string callbackData)
+    // {
+    //     var p = callbackData.Split('|');
+    //     var parts = (data.MessageText ?? "").Split('|', 2);
+    //     if (parts.Length != 2 || !decimal.TryParse(parts[0].Trim().TrimStart('+', '-'), out var amount) ||
+    //         (parts[0].Trim()[0] != '+' && parts[0].Trim()[0] != '-'))
+    //     {
+    //         await services.SendMessage(data.ChatId, Messages.AskManualTransaction);
+    //         return;
+    //     }
+    //
+    //     await tServices.AddTransaction(data.ChatId, Guid.Parse(p[0]), Guid.Parse(p[1]), DateTime.Now,
+    //         parts[0].Trim()[0] == '+', amount, parts[1]);
+    //     sessionService.ClearSession(data.ChatId);
+    //     await services.SendMessage(data.ChatId, Messages.TransactionSaved);
+    // }
 }
