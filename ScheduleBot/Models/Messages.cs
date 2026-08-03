@@ -36,7 +36,9 @@ public static class Messages
     public const string Cancel = "❌ Cancel";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
+    public const string Add = "Add";
     public const string Skip = "skip";
+    public const string Ignore = "Ignore";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
     public const string NotFound = "Command not found.";
     public const string SomethingWentWrong = "something went wrong.";
@@ -219,8 +221,19 @@ public static class Messages
     public const string TransactionSaved = "Transaction saved.";
     public const string BluFilePrompt = "Send the Blu .xlsx export file now.";
     public const string BluReview = "{0}\n{1:N0}\n{2}\n\nAdd this transaction?";
-    public const string BluView = "👉 Index: {0}\n💲 Transaction number: {1}\n📅 Date and time: {2}\n🏧 Type: {3}\n🛂 Description: {4}\n📥 Deposit: {5}\n📤 Withdraw: {6}\n🧾 Balance after: {7}";
     public const string BluFinished = "Blu transactions processed.";
+    public const string BluReviewP1 = "👉 Index: {0}\n🏧 Type: {1}\n📅 Date and time: {2}\n\n";
+    public const string BluReviewP2D = "🟢 Deposit: {0:N0}\n";
+    public const string BluReviewP2W = "🔴 Withdraw: {0:N0}\n";
+    public const string BluReviewP2 = "💲 Balance after: {0:N0}\n\n";
+    public const string BluReviewP3 = "🛂 Description: {0}\n\n";
+    public const string BluReviewP4 = "Category: {0}\n";
+    public const string BluReviewP5 = "Title: {0}\n";
+    public const string BluAsk123 = "\nDo you want to add this transaction?";
+    public const string BluAsk4 = "\nSelect the category this transaction belonged to";
+    public const string BluAsk5 = "\nWrite down the transaction title or skip";
+    public const string BluAsk6 = "\nClick to save";
+    public const string BluView = "\nTransaction had been saved";
 
     
     
@@ -236,6 +249,9 @@ public static class CallBacks
 
     public const string Yes = "Yes";
     public const string No = "No";
+    public const string Add = "Add";
+    public const string Skip = "Skip";
+    public const string Ignore = "Ignore";
     public const string PreviousPage = "<<";
     public const string NextPage = ">>";
     public const string All = "All";
@@ -304,13 +320,18 @@ public static class CallBacks
     public const string DeleteWallet = "DW";
     public const string ManageCategories = "MC";
     public const string CategoryAction = "CA";
-    public const string DeleteCategory = "DC";
+    public const string SelectCategory = "SC";
     public const string ManualTransaction = "MT";
     public const string BluTransaction = "BT";
     public const string BluAction = "BA";
     public const string JoinWallet = "JW";
 
-
+    public const string WaitForReview = "WaitForReview";
+    public const string AcceptToSave = "AcceptToSave";
+    public const string CategorySelected = "categorySelected";
+    public const string TitleSelected = "TitleSelected";
+    public const string Saved = "Saved";
+        
     #endregion
 }
 
@@ -320,4 +341,12 @@ public static class Actions
     public const string AwaitingCategoryName = "AwaitingCategoryName";
     public const string AwaitingBluFile = "AwaitingBluFile";
     public const string AwaitingBluReview = "AwaitingBluReview";
+}
+
+public static class Context
+{
+    public const string Tps = "TransactionProcesses";
+    public const string Wallet = "Wallet";
+    public const string Index = "Index";
+    public const string MessageId = "MessageId";
 }

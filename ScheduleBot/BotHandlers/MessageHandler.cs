@@ -331,6 +331,10 @@ public class MessageHandler(
                 await transactionHandler.AddCategoriesToWallet(data, session.CallbackData);
                 flag = true;
                 break;
+            case Actions.AwaitingBluReview:
+                // TODO : await transactionHandler.SetTransactionTitle(data, session.CallbackData);
+                flag = true;
+                break;
         }
         return flag;
     }

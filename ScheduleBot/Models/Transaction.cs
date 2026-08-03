@@ -53,6 +53,7 @@ public class TransactionProcess
     public decimal Deposit { get; set; }
     public decimal Withdraw { get; set; }
     public decimal BalanceAfter { get; set; }
+    public Guid CategoryId { get; set; }
     public string CategoryName { get; set; }
     public string Title { get; set; }
     public bool Processed { get; set; }

@@ -26,8 +26,19 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             UserId = user.Id
         };
         
+        var category = new Category
+        {
+            Id = Guid.NewGuid(),
+            WalletId = wallet.Id,
+            CreateTime = DateTime.Now,
+            Name = "Not specified",
+            TempAdded = false,
+            TempDeleted = false
+        };
+        
         _dbContext.Wallet.Add(wallet);
         _dbContext.WalletAccess.Add(walletAccess);
+        _dbContext.WalletCategory.Add(category);
         await _dbContext.SaveChangesAsync();
         return wallet.Id;
     }
@@ -67,7 +78,12 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     public async Task<List<Category>> GetCategories(Guid walletId)
     {
         return await _dbContext.WalletCategory.Where(r => r.WalletId == walletId).ToListAsync();
-    } 
+    }
+
+    public async Task<Category?> GetDefaultCategory(Guid walletId)
+    {
+        return await _dbContext.WalletCategory.FirstOrDefaultAsync(r => r.WalletId == walletId);
+    }
     
     public async Task<bool> AddTransaction(long chatId, Guid walletId, Guid categoryId, DateTime date, bool deposit, decimal amount, string title, long? documentNo = null)
     {
@@ -139,5 +155,10 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     private async Task<Category?> GetCategoryByCategoryId(Guid categoryId)
     {
         return await _dbContext.WalletCategory.FirstOrDefaultAsync(c => c.Id == categoryId);
+    }
+
+    public async Task AddTransaction(long dataChatId, Guid walletId, TransactionProcess transactionProcess)
+    {
+        throw new NotImplementedException();
     }
 }

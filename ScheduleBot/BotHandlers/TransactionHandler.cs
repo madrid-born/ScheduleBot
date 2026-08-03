@@ -155,11 +155,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     {
         var categories = await tServices.GetCategoriesByWalletId(walletId);
         var keyboard = CreateCategoriesKeyboard(categories);
-        await bot.EditMessageReplyMarkup(
-            chatId: chatId,
-            messageId: messageId,
-            replyMarkup: (InlineKeyboardMarkup) keyboard
-        );
+        await bot.EditMessageReplyMarkup(chatId: chatId, messageId: messageId, replyMarkup: (InlineKeyboardMarkup) keyboard);
     }
     
     public async Task AddCategoriesToWallet(UpdateData data, string? callbackData)
@@ -272,97 +268,124 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 Processed = false
             });
         transactionProcesses.Reverse();
-        session.Action = Actions.AwaitingBluReview;
-        session.Context["transactionProcesses"] = transactionProcesses;
-        session.Context["wallet"] = session.CallbackData;
-        session.Context["index"] = 0;
+        session.SetAction(Actions.AwaitingBluReview);
+        session.SetContext(Context.Tps, transactionProcesses);
+        session.SetContext(Context.Wallet, session.CallbackData);
+        session.SetContext(Context.Index, 0);
+        session.SetContext(Context.MessageId, 0);
+        session.SetCallBack(CallBacks.WaitForReview);
         await ShowBluRow(data.ChatId);
     }
     
     private async Task ShowBluRow(long chatId)
     {
         var session = sessionService.GetData(chatId);
-        var transactionProcesses = (List<TransactionProcess>)session!.Context["transactionProcesses"];
-        var index = (int)session.Context["index"];
+        var transactionProcesses = (List<TransactionProcess>)session!.Context[Context.Tps];
+        var index = (int)session.Context[Context.Index];
+        var loadedMessageId = (int)session.Context[Context.MessageId];
         if (index >= transactionProcesses.Count)
         {
             sessionService.ClearSession(chatId);
             await services.SendMessage(chatId, Messages.BluFinished);
             return;
         }
-
-        var bluReviewP1 = "👉 Index: {0}\n🏧 Type: {1}\n📅 Date and time: {2}\n\n";
-        var bluReviewP2D = "🟢 Deposit: {0:N0}\n";
-        var bluReviewP2W = "🔴 Withdraw: {0:N0}\n";
-        var bluReviewP2 = "💲 Balance after: {0:N0}\n\n";
-        var bluReviewP3 = "🛂 Description: {0}\n\n";
-        var bluReviewP4 = "Category: {0}\n";
-        var bluReviewP5 = "Title: {0}\n";
-        var bluAsk123 = "\nDo you want to add this transaction?";
-        var bluAsk4 = "\nSelect the category this transaction belonged to";
-        var bluAsk5 = "\nWrite down the transaction title or skip";
-        var bluAsk6 = "\nClick to save";
         
         var transactionProcess = transactionProcesses[index];
-        
         var dateAndTime = MainService.ConvertGregorianToJalaliAndGregorianWithTime(transactionProcess.Date);
         var indexString = $"{index+1}/{transactionProcesses.Count}";
         
-        var messageP1 = string.Format(bluReviewP1, indexString, transactionProcess.Type, dateAndTime);
-        var messageP2 = (transactionProcess.Deposit > 0 ? string.Format(bluReviewP2D, transactionProcess.Deposit) : "") + 
-                        (transactionProcess.Withdraw > 0 ? string.Format(bluReviewP2W, transactionProcess.Withdraw) : "") +
-                        string.Format(bluReviewP2, transactionProcess.BalanceAfter);
-        var messageP3 = string.Format(bluReviewP3, transactionProcess.Description);
-        var messageP4 = string.Format(bluReviewP4, transactionProcess.CategoryName);
-        var messageP5 = string.Format(bluReviewP5, transactionProcess.Title);
+        var messageP1 = string.Format(Messages.BluReviewP1, indexString, transactionProcess.Type, dateAndTime);
+        var messageP2 = (transactionProcess.Deposit > 0 ? string.Format(Messages.BluReviewP2D, transactionProcess.Deposit) : "") + 
+                        (transactionProcess.Withdraw > 0 ? string.Format(Messages.BluReviewP2W, transactionProcess.Withdraw) : "") +
+                        string.Format(Messages.BluReviewP2, transactionProcess.BalanceAfter);
+        var messageP3 = string.Format(Messages.BluReviewP3, transactionProcess.Description);
+        var messageP4 = string.Format(Messages.BluReviewP4, transactionProcess.CategoryName);
+        var messageP5 = string.Format(Messages.BluReviewP5, transactionProcess.Title);
 
         var message = messageP1 + messageP2 + messageP3;
-        List<List<Tuple<string, string>>> collection = [];
+        List<List<Tuple<string, string>>>? collection = [];
 
-        switch (session.Action)
+        if (session.Action !=  Actions.AwaitingBluReview) return;
+        switch (session.CallbackData)
         {
-            case Actions.AwaitingBluReview:
-                message += bluAsk123;
-                collection = [[new(Messages.Yes, "add"), new(Messages.No, "ignore")]];
+            case CallBacks.WaitForReview:
+                message += Messages.BluAsk123;
+                collection = [[new(Messages.Add, CallBacks.Add), new(Messages.Ignore, CallBacks.Ignore)]];
                 break;
-            case "acceptToSave":
-                message += bluAsk4;
+            case CallBacks.AcceptToSave:
+                message += Messages.BluAsk4;
                 // TODO : collection = LoadCategoriesCollection();
                 break;
-            case "categorySelected":
-                message += messageP4 + bluAsk5;
-                collection = [[new(Messages.Skip, "skip")]];
+            case CallBacks.CategorySelected:
+                message += messageP4 + Messages.BluAsk5;
+                collection = [[new(Messages.Skip, CallBacks.Skip)]];
                 break;
-            case "TitleSelected":
-                message += messageP4 + messageP5 + bluAsk6;
-                collection = [[new (Messages.Done, $"{CallBacks.Done}"), new (Messages.Cancel, $"{CallBacks.Cancel}"),]];
+            case CallBacks.TitleSelected:
+                message += messageP4 + messageP5 + Messages.BluAsk6;
+                collection = [[new (Messages.Done, CallBacks.Done), new (Messages.Cancel, CallBacks.Cancel),]];
                 break;
-
+            case CallBacks.Saved:
+                message += messageP4 + messageP5 + Messages.BluView;
+                collection = null;
+                session.SetContext(Context.Index, index + 1);
+                session.SetContext(Context.MessageId, 0);
+                await ShowBluRow(chatId);
+                break;
         }
 
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.BluAction}|");
-        await services.SendMessage(chatId, message, replyMarkup: keyboard);
+        if (loadedMessageId != 0)
+        {
+            await bot.EditMessageReplyMarkup(chatId: chatId, messageId: loadedMessageId,
+                replyMarkup: (InlineKeyboardMarkup)keyboard);
+        }
+        else
+        {
+            var messageId = await services.SendMessage(chatId, message, replyMarkup: keyboard);
+            session.SetContext(Context.MessageId, messageId);
+        }
     }
 
     private async Task BluAction(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
         if (session == null) return;
-        var transactionProcesses = (List<TransactionProcess>)session.Context["transactionProcesses"];
-        var index = int.Parse(data.DataSeparated[2]);
+        var transactionProcesses = (List<TransactionProcess>)session.Context[Context.Tps];
+        // var index = int.Parse(data.DataSeparated[2]);
+        var index = (int)session.Context[Context.Index];
+        var walletId = (Guid)session.Context[Context.Wallet];
         var transactionProcess = transactionProcesses[index];
-        if (data.DataSeparated.ElementAtOrDefault(3) == "add")
-        {
-            var category = (await tServices.GetCategories(Guid.Parse((string)session.Context["wallet"]))).FirstOrDefault();
-            if (category != null)
-                await tServices.AddTransaction(data.ChatId, Guid.Parse((string)session.Context["wallet"]), category.Id,
-                    transactionProcess.Date, transactionProcess.Deposit > 0, transactionProcess.Deposit > 0 ? transactionProcess.Deposit : transactionProcess.Withdraw, transactionProcess.Description, transactionProcess.DocumentNo);
-        }
 
-        session.Context["index"] = index + 1;
+        switch (data.DataSeparated.ElementAtOrDefault(3))
+        {
+            case CallBacks.Add:
+                session.SetCallBack(CallBacks.AcceptToSave);
+                break;
+            case CallBacks.Ignore:
+                session.SetContext(Context.Index, index + 1);
+                session.SetCallBack(CallBacks.WaitForReview);
+                break;
+            case CallBacks.SelectCategory:
+                break;
+            case CallBacks.Skip:
+                transactionProcess.Title = transactionProcess.Type + transactionProcess.Description;
+                session.SetCallBack(CallBacks.TitleSelected);
+                break;
+            case CallBacks.Cancel:
+                transactionProcess.CategoryId = Guid.Empty;
+                transactionProcess.CategoryName = "";
+                transactionProcess.Title = "";
+                session.SetCallBack(CallBacks.WaitForReview);
+                break;
+            case CallBacks.Done:
+                await tServices.AddTransaction(data.ChatId, walletId, transactionProcess);
+                session.SetCallBack(CallBacks.Saved);
+                break;
+        }
+        
         await ShowBluRow(data.ChatId);
     }
-    
+
     #endregion
 
     // public async Task AddManualTransaction(UpdateData data, string callbackData)
