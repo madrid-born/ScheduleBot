@@ -196,8 +196,6 @@ public static class Messages
     public const string KeyboardWalletManagement = "Wallet Management";
     public const string KeyboardCreateWallet = "Create Wallet";
     public const string KeyboardManageCategories = "Manage Categories";
-    public const string KeyboardAddCategory = "Add Category";
-    public const string KeyboardDeleteCategory = "Delete Category";
     public const string KeyboardInviteToWallet = "Invite To Wallet";
     public const string KeyboardAddTransaction = "Add Transaction to Wallet";
     public const string KeyboardManualTransaction = "Manual";
@@ -207,21 +205,14 @@ public static class Messages
     public const string WalletCreated = "Wallet \"{0}\" has been created.\nYou can invite others using this code\n\n`{1}`";
     public const string WalletLoadFail = "Loading wallet failed.";
     public const string WalletIdFormatFail = "Wallet code format is not valid.";
-
     public const string SelectWallet = "Select the wallet you want.";
     public const string WalletNotFound = "Wallet not found or you do not have access to it.";
     public const string WalletSelected = "Wallet {0} is selected\nYou can choose the action you want from the list below.";
     public const string InviteToWallet = "Invite to wallet \"{0}\" with the below button";
     public const string WalletJoined = "You joined wallet \"{0}\".";
-    public const string CategoryMenu = "Categories for wallet \"{0}\":\n{1}";
-    public const string AskCategoryName = "Enter the category name.";
-    public const string CategoryCreated = "Category \"{0}\" was added.";
-    public const string SelectCategory = "Select a category.";
-    public const string AskManualTransaction = "Enter transaction as: [+|-] amount | title\nExample: -125000 | groceries";
-    public const string TransactionSaved = "Transaction saved.";
+    
     public const string BluFilePrompt = "Send the Blu .xlsx export file now.";
-    public const string BluReview = "{0}\n{1:N0}\n{2}\n\nAdd this transaction?";
-    public const string BluFinished = "Blu transactions processed.";
+    public const string BluFinished = "All Blu transactions in this file processed.";
     public const string BluReviewP1 = "👉 Index: {0}\n🏧 Type: {1}\n📅 Date and time: {2}\n\n";
     public const string BluReviewP2D = "🟢 Deposit: {0:N0}\n";
     public const string BluReviewP2W = "🔴 Withdraw: {0:N0}\n";
@@ -233,12 +224,8 @@ public static class Messages
     public const string BluAsk4 = "\nSelect the category this transaction belonged to";
     public const string BluAsk5 = "\nWrite down the transaction title or skip";
     public const string BluAsk6 = "\nClick to save";
-    public const string BluView = "\nTransaction had been saved";
-
+    public const string BluView = "\nTransaction had been saved ✅";
     
-    
-    public const string EnterBluFile = "EnterBluFile";
-
     #endregion
 
 }

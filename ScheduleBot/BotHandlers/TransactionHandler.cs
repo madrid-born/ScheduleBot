@@ -251,10 +251,16 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     {
         var session = sessionService.GetData(data.ChatId);
         if (session == null) return;
+        var walletId = Guid.Parse(session.CallbackData);
         var transactionProcesses = new List<TransactionProcess>();
         using var workbook = new XLWorkbook(data.Document!.FileAddress);
         var ws = workbook.Worksheet(1);
         for (var row = 12; !ws.Cell(row, 19).IsEmpty(); row++)
+        {
+            if (await tServices.GetTransactionByDocumentNo(long.Parse(ws.Cell(row, 16).GetString()), walletId))
+            {
+                break;
+            }
             transactionProcesses.Add(new TransactionProcess
             {
                 Index = ws.Cell(row, 19).GetValue<int>(),
@@ -267,10 +273,11 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 BalanceAfter = ws.Cell(row, 2).GetValue<decimal>()/10,
                 Processed = false
             });
+        }
         transactionProcesses.Reverse();
         session.SetAction(Actions.AwaitingBluReview);
         session.SetContext(Context.Tps, transactionProcesses);
-        session.SetContext(Context.Wallet, session.CallbackData);
+        session.SetContext(Context.Wallet, walletId);
         session.SetContext(Context.Index, 0);
         session.SetContext(Context.MessageId, 0);
         session.SetCallBack(CallBacks.WaitForReview);
@@ -316,7 +323,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
             case CallBacks.AcceptToSave:
                 message += Messages.BluAsk4;
                 var categories = await tServices.GetCategories(walletId);
-                collection = services.LoadCollectionOneClicker(categories, x => x.Id, x => x.Name!);
+                collection = services.LoadCollectionOneClicker(categories, x => x.Id, x => x.Name!, prefixCallbackData: CallBacks.SelectCategory);
                 break;
             case CallBacks.CategorySelected:
                 message += messageP4 + Messages.BluAsk5;
@@ -331,6 +338,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 collection = null;
                 session.SetContext(Context.Index, index + 1);
                 session.SetContext(Context.MessageId, 0);
+                session.SetCallBack(CallBacks.WaitForReview);
                 await ShowBluRow(chatId);
                 break;
         }
@@ -338,7 +346,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.BluAction}|");
         if (loadedMessageId != 0)
         {
-            await bot.EditMessageReplyMarkup(chatId: chatId, messageId: loadedMessageId,
+            await bot.EditMessageText(chatId: chatId, messageId: loadedMessageId, text: message,
                 replyMarkup: (InlineKeyboardMarkup)keyboard);
         }
         else
@@ -357,7 +365,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var walletId = (Guid)session.Context[Context.Wallet];
         var transactionProcess = transactionProcesses[index];
 
-        switch (data.DataSeparated.ElementAtOrDefault(3))
+        switch (data.DataSeparated.ElementAtOrDefault(2))
         {
             case CallBacks.Add:
                 session.SetCallBack(CallBacks.AcceptToSave);
@@ -367,7 +375,9 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 session.SetCallBack(CallBacks.WaitForReview);
                 break;
             case CallBacks.SelectCategory:
-                transactionProcess.CategoryId = Guid.Parse(data.DataSeparated.ElementAtOrDefault(4)!);
+                var category = await tServices.GetCategoryByCategoryId(Guid.Parse(data.DataSeparated.ElementAtOrDefault(3)!));
+                transactionProcess.CategoryId = category!.Id;
+                transactionProcess.CategoryName = category.Name!;
                 session.SetCallBack(CallBacks.CategorySelected);
                 break;
             case CallBacks.Skip:

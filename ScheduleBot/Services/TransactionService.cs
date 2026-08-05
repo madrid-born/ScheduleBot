@@ -144,7 +144,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         return await _dbContext.SaveChangesAsync() > 0;
     }
 
-    private async Task<Category?> GetCategoryByCategoryId(Guid categoryId)
+    public async Task<Category?> GetCategoryByCategoryId(Guid categoryId)
     {
         return await _dbContext.WalletCategory.FirstOrDefaultAsync(c => c.Id == categoryId);
     }
@@ -168,5 +168,10 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             Title = transactionProcess.Title,
         });
         return await _dbContext.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> GetTransactionByDocumentNo(long documentNo, Guid walletId)
+    {
+        return await _dbContext.WalletTransactions.FirstOrDefaultAsync(c => c.DocumentNo == documentNo && c.WalletId == walletId) != null;
     }
 }

@@ -35,7 +35,7 @@ public class MainService(ITelegramBotClient bot)
         return (ReplyKeyboardMarkup)CreateKeyboard(collection, resizeKeyboard: true);
     }
     
-    public ReplyMarkup CreateKeyboard(IEnumerable<IEnumerable<string>>? normalCollection = null,IEnumerable<IEnumerable<Tuple<string, string>>>? inlineCollection = null,
+    public ReplyMarkup? CreateKeyboard(IEnumerable<IEnumerable<string>>? normalCollection = null,IEnumerable<IEnumerable<Tuple<string, string>>>? inlineCollection = null,
         string symbol = "", string callBackStart = "", bool resizeKeyboard = true)
     {
         if (inlineCollection != null)
@@ -49,7 +49,7 @@ public class MainService(ITelegramBotClient bot)
 
             return new InlineKeyboardMarkup(keyboard);
         }
-        else
+        if (normalCollection != null)
         {
             var keyboard = normalCollection!
                 .Select(row => row
@@ -59,6 +59,8 @@ public class MainService(ITelegramBotClient bot)
 
             return new ReplyKeyboardMarkup(keyboard){ResizeKeyboard = resizeKeyboard};
         }
+
+        return null;
     }
     
     public async Task ApproveKeyboardInline(long chatId, string message, string callBackStart)
@@ -150,7 +152,7 @@ public class MainService(ITelegramBotClient bot)
     }
     
     public List<List<Tuple<string, string>>> LoadCollectionOneClicker<T>(List<T> items,
-        Func<T, Guid> idSelector, Func<T, string> nameSelector, int width = 2)
+        Func<T, Guid> idSelector, Func<T, string> nameSelector, int width = 2, string prefixCallbackData = "")
     {
 
         List<List<Tuple<string, string>>> collection = [];
@@ -162,7 +164,7 @@ public class MainService(ITelegramBotClient bot)
                 var item = index * width + i < items.Count ? items[index * width + i] : default;
 
                 row.Add(item != null
-                    ? new Tuple<string, string>(nameSelector(item), $"{idSelector(item).ToString()}")
+                    ? new Tuple<string, string>(nameSelector(item), $"{prefixCallbackData}|{idSelector(item).ToString()}")
                     : new Tuple<string, string>("-", "-"));
             }
             collection.Add(row);
