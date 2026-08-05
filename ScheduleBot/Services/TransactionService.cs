@@ -84,14 +84,6 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     {
         return await _dbContext.WalletCategory.FirstOrDefaultAsync(r => r.WalletId == walletId);
     }
-    
-    public async Task<bool> AddTransaction(long chatId, Guid walletId, Guid categoryId, DateTime date, bool deposit, decimal amount, string title, long? documentNo = null)
-    {
-        var user = await GetUserByTelId(chatId);
-        if (user == null || await GetWalletForUser(walletId, chatId) == null || !await _dbContext.WalletCategory.AnyAsync(r => r.WalletId == walletId && r.Id == categoryId)) return false;
-        _dbContext.WalletTransactions.Add(new TransactionRecord { Id = Guid.NewGuid(), WalletId = walletId, CategoryId = categoryId, ConsumerId = user.Id, Date = date, IsDeposit = deposit, Amount = Math.Abs(amount), Title = title.Trim(), DocumentNo = documentNo });
-        return await _dbContext.SaveChangesAsync() > 0;
-    }
 
     public async Task<List<Category>> GetCategoriesByWalletId(Guid walletId)
     {
@@ -157,8 +149,24 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         return await _dbContext.WalletCategory.FirstOrDefaultAsync(c => c.Id == categoryId);
     }
 
-    public async Task AddTransaction(long dataChatId, Guid walletId, TransactionProcess transactionProcess)
+    public async Task<bool> AddTransaction(long chatId, Guid walletId, TransactionProcess transactionProcess)
     {
-        throw new NotImplementedException();
+        var user = await GetUserByTelId(chatId);
+        if (user == null || await GetWalletForUser(walletId, chatId) == null ||
+            !await _dbContext.WalletCategory.AnyAsync(r => r.WalletId == walletId && r.Id == transactionProcess.CategoryId)) return false;
+        _dbContext.WalletTransactions.Add(new TransactionRecord
+        {
+            Id = Guid.NewGuid(),
+            WalletId = walletId,
+            ConsumerId = user.Id,
+            CategoryId = transactionProcess.CategoryId,
+            Date = transactionProcess.Date,
+            Deposit = transactionProcess.Deposit,
+            Withdraw = transactionProcess.Withdraw,
+            BalanceAfter = transactionProcess.BalanceAfter,
+            DocumentNo = transactionProcess.DocumentNo,
+            Title = transactionProcess.Title,
+        });
+        return await _dbContext.SaveChangesAsync() > 0;
     }
 }

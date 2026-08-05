@@ -37,10 +37,11 @@ public class TransactionRecord
     public Guid CategoryId { get; set; }
     public Guid ConsumerId { get; set; }
     public DateTime Date { get; set; }
-    public bool IsDeposit { get; set; }
+    public decimal Deposit { get; set; }
+    public decimal Withdraw { get; set; }
+    public decimal BalanceAfter { get; set; }
     public long? DocumentNo { get; set; }
     public string? Title { get; set; }
-    public decimal Amount { get; set; }
 }
 
 public class TransactionProcess

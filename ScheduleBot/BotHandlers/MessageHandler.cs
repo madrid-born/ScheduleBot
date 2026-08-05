@@ -332,7 +332,7 @@ public class MessageHandler(
                 flag = true;
                 break;
             case Actions.AwaitingBluReview:
-                // TODO : await transactionHandler.SetTransactionTitle(data, session.CallbackData);
+                await transactionHandler.SetTransactionTitle(data, session.CallbackData);
                 flag = true;
                 break;
         }

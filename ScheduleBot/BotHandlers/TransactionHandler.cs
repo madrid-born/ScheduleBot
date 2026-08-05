@@ -282,6 +282,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var session = sessionService.GetData(chatId);
         var transactionProcesses = (List<TransactionProcess>)session!.Context[Context.Tps];
         var index = (int)session.Context[Context.Index];
+        var walletId = (Guid)session.Context[Context.Wallet];
         var loadedMessageId = (int)session.Context[Context.MessageId];
         if (index >= transactionProcesses.Count)
         {
@@ -314,7 +315,8 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 break;
             case CallBacks.AcceptToSave:
                 message += Messages.BluAsk4;
-                // TODO : collection = LoadCategoriesCollection();
+                var categories = await tServices.GetCategories(walletId);
+                collection = services.LoadCollectionOneClicker(categories, x => x.Id, x => x.Name!);
                 break;
             case CallBacks.CategorySelected:
                 message += messageP4 + Messages.BluAsk5;
@@ -351,7 +353,6 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var session = sessionService.GetData(data.ChatId);
         if (session == null) return;
         var transactionProcesses = (List<TransactionProcess>)session.Context[Context.Tps];
-        // var index = int.Parse(data.DataSeparated[2]);
         var index = (int)session.Context[Context.Index];
         var walletId = (Guid)session.Context[Context.Wallet];
         var transactionProcess = transactionProcesses[index];
@@ -366,6 +367,8 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 session.SetCallBack(CallBacks.WaitForReview);
                 break;
             case CallBacks.SelectCategory:
+                transactionProcess.CategoryId = Guid.Parse(data.DataSeparated.ElementAtOrDefault(4)!);
+                session.SetCallBack(CallBacks.CategorySelected);
                 break;
             case CallBacks.Skip:
                 transactionProcess.Title = transactionProcess.Type + transactionProcess.Description;
@@ -385,7 +388,23 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         
         await ShowBluRow(data.ChatId);
     }
-
+    
+    public async Task SetTransactionTitle(UpdateData data, string callbackData)
+    {
+        var transactionTitle = data.MessageText!;
+        var session = sessionService.GetData(data.ChatId);
+        if (session == null) return;
+        if (callbackData != CallBacks.CategorySelected)
+        {
+            return;
+        }
+        var transactionProcesses = (List<TransactionProcess>)session.Context[Context.Tps];
+        var transactionProcess = transactionProcesses[(int)session.Context[Context.Index]];
+        transactionProcess.Title = transactionTitle;
+        session.SetCallBack(CallBacks.TitleSelected);
+        await ShowBluRow(data.ChatId);
+    }
+    
     #endregion
 
     // public async Task AddManualTransaction(UpdateData data, string callbackData)

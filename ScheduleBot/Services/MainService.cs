@@ -148,6 +148,28 @@ public class MainService(ITelegramBotClient bot)
 
         return collection;
     }
+    
+    public List<List<Tuple<string, string>>> LoadCollectionOneClicker<T>(List<T> items,
+        Func<T, Guid> idSelector, Func<T, string> nameSelector, int width = 2)
+    {
+
+        List<List<Tuple<string, string>>> collection = [];
+        for (var index = 0; index < (double)items.Count/width ; index += 1)
+        {
+            List<Tuple<string, string>> row = [];
+            for (var i = 0; i < width; i++)
+            {
+                var item = index * width + i < items.Count ? items[index * width + i] : default;
+
+                row.Add(item != null
+                    ? new Tuple<string, string>(nameSelector(item), $"{idSelector(item).ToString()}")
+                    : new Tuple<string, string>("-", "-"));
+            }
+            collection.Add(row);
+        }
+
+        return collection;
+    }
 
     #endregion
 
