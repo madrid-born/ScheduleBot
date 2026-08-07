@@ -257,6 +257,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var ws = workbook.Worksheet(1);
         for (var row = 12; !ws.Cell(row, 19).IsEmpty(); row++)
         {
+            //TODO : load all then calculate 
             if (await tServices.GetTransactionByDocumentNo(long.Parse(ws.Cell(row, 16).GetString()), walletId))
             {
                 break;

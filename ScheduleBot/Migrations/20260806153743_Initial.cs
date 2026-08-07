@@ -145,24 +145,15 @@ namespace ScheduleBot.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    WalletId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreateTime = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TempAdded = table.Column<bool>(type: "bit", nullable: false),
+                    TempDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_WalletCategory", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "WalletCategoryRelation",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    WalletId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WalletCategoryRelation", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -174,10 +165,11 @@ namespace ScheduleBot.Migrations
                     CategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ConsumerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsDeposit = table.Column<bool>(type: "bit", nullable: false),
+                    Deposit = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Withdraw = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    BalanceAfter = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     DocumentNo = table.Column<long>(type: "bigint", nullable: true),
-                    Title = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -217,9 +209,6 @@ namespace ScheduleBot.Migrations
 
             migrationBuilder.DropTable(
                 name: "WalletCategory");
-
-            migrationBuilder.DropTable(
-                name: "WalletCategoryRelation");
 
             migrationBuilder.DropTable(
                 name: "WalletTransactions");

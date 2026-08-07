@@ -12,8 +12,8 @@ using ScheduleBot.Models;
 namespace ScheduleBot.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260801131330_rwe")]
-    partial class rwe
+    [Migration("20260806153743_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -186,7 +186,7 @@ namespace ScheduleBot.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<decimal>("Amount")
+                    b.Property<decimal>("BalanceAfter")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<Guid>("CategoryId")
@@ -198,17 +198,20 @@ namespace ScheduleBot.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("Deposit")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<long?>("DocumentNo")
                         .HasColumnType("bigint");
-
-                    b.Property<bool>("IsDeposit")
-                        .HasColumnType("bit");
 
                     b.Property<string>("Title")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("WalletId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Withdraw")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
