@@ -77,7 +77,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 break;
             
             case CallBacks.GenerateReport:
-                await HandleReportCallback(data, action);
+                await HandleReportCallback(data, value!);
                 break;
             
         }
@@ -150,7 +150,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
 
     #region Category
     
-    private ReplyMarkup CreateCategoriesKeyboard(List<Category> categories)
+    private ReplyMarkup? CreateCategoriesKeyboard(List<Category> categories)
     {
         var collection = services.LoadCollectionInScroller(categories, x => x.Id, x => x.Name!, x => x.TempAdded, x => x.TempDeleted);
         return services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.CategoryAction}|");
@@ -160,7 +160,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     {
         var isLoaded = Guid.TryParse(walletIdAsString, out var walletId);
         if (!isLoaded) await services.SendMessage(data.ChatId, Messages.WalletLoadFail);
-        var categories = await tServices.GetCategoriesByWalletId(walletId);
+        var categories = await tServices.GetCategoriesByWalletIdAll(walletId);
         var keyboard = CreateCategoriesKeyboard(categories);
         var messageId = await services.SendMessage(data.ChatId, Messages.ScrollerAction, replyMarkup: keyboard);
         sessionService.SetData(chatId: data.ChatId, action: Actions.AwaitingCategoryName, callbackData: $"{messageId}|{walletIdAsString}");
@@ -168,7 +168,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     
     private async Task EditCategoriesKeyboard(long chatId, int messageId, Guid walletId)
     {
-        var categories = await tServices.GetCategoriesByWalletId(walletId);
+        var categories = await tServices.GetCategoriesByWalletIdAll(walletId);
         var keyboard = CreateCategoriesKeyboard(categories);
         await bot.EditMessageReplyMarkup(chatId: chatId, messageId: messageId, replyMarkup: (InlineKeyboardMarkup) keyboard);
     }
@@ -474,7 +474,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
 
     private async Task HandleReportCallback(UpdateData data, string action)
     {
-        var value = data.DataSeparated.ElementAtOrDefault(3);
+        var value = data.DataSeparated.ElementAtOrDefault(3)!;
         
         var session = sessionService.GetData(data.ChatId);
         if (session == null) return;
@@ -488,39 +488,30 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         {
             case CallBacks.MultipleSelectToggle:
                 var categoryId = Guid.Parse(value);
-                if (selectedIds.Contains(categoryId))
-                    selectedIds.Remove(categoryId);
-                else
-                    selectedIds.Add(categoryId);
-                
-                // Update session
-                session.Context[Context.ReportSelectedCategories] = selectedIds;
+                if (!selectedIds.Remove(categoryId)) selectedIds.Add(categoryId);
+                session.SetContext(Context.ReportSelectedCategories, selectedIds);
                 await ShowCategorySelection(data.ChatId, walletId, selectedIds, allSelected, messageId);
                 break;
-                
             case CallBacks.MultipleSelectAll:
                 var allCategories = await tServices.GetCategoriesByWalletId(walletId);
-                selectedIds = new List<Guid>(allCategories.Where(c => !c.TempDeleted).Select(c => c.Id));
-                session.Context[Context.ReportSelectedCategories] = selectedIds;
-                session.Context[Context.ReportAllSelected] = true;
+                selectedIds = new List<Guid>(allCategories.Select(c => c.Id));
+                session.SetContext(Context.ReportSelectedCategories, selectedIds);
+                session.SetContext(Context.ReportAllSelected, true);
                 await ShowCategorySelection(data.ChatId, walletId, selectedIds, true, messageId);
                 break;
-                
             case CallBacks.MultipleDeselectAll:
                 selectedIds.Clear();
-                session.Context[Context.ReportSelectedCategories] = selectedIds;
-                session.Context[Context.ReportAllSelected] = false;
+                session.SetContext(Context.ReportSelectedCategories, selectedIds);
+                session.SetContext(Context.ReportAllSelected, false);
                 await ShowCategorySelection(data.ChatId, walletId, selectedIds, false, messageId);
                 break;
-                
-            case CallBacks.ReportContinue:
-                // Generate the report
+            case CallBacks.Done:
+                await bot.DeleteMessage(data.ChatId, messageId);
                 await GenerateWalletReport(data.ChatId, walletId, selectedIds);
                 break;
-                
             case CallBacks.Cancel:
                 sessionService.ClearSession(data.ChatId);
-                await services.SendMessage(data.ChatId, "❌ Report generation cancelled.");
+                await services.SendMessage(data.ChatId, Messages.ReportCancelled);
                 break;
         }
     }
@@ -528,59 +519,27 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     private async Task GenerateWalletReport(long chatId, Guid walletId, List<Guid> selectedCategoryIds)
     {
         await services.SendMessage(chatId, Messages.ReportGenerating);
+
+        var report = await tServices.GetReportData(walletId, selectedCategoryIds);
     
-        try
-        {
-            // Get report data
-            var reportData = await tServices.GetReportData(walletId, selectedCategoryIds);
+        var pdfBytes = tServices.GeneratePdf(report);
+        using var stream = new MemoryStream(pdfBytes);
+        await bot.SendDocument(
+            chatId: chatId,
+            document: new InputFileStream(stream, string.Format(Files.PdfWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")),
+            caption: string.Format(Messages.ReportReady, report.WalletName, $"{report.GeneratedAt:yyyy/MM/dd HH:mm}", report.Transactions.Count())
+        );
         
-            if (!reportData.Transactions.Any())
-            {
-                await services.SendMessage(chatId, Messages.ReportNoTransactions);
-                sessionService.ClearSession(chatId);
-                return;
-            }
-        
-            // Build the report
-            var reportBuilder = new WalletReportBuilder();
-            var report = reportBuilder.BuildReport(reportData);
-        
-            // Generate PDF
-            var pdfGenerator = new WalletReportPdfGenerator();
-            var pdfBytes = pdfGenerator.GeneratePdf(report);
-        
-            // Send PDF
-            var fileName = $"Wallet_Report_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-            using var stream = new MemoryStream(pdfBytes);
-            await bot.SendDocument(
-                chatId: chatId,
-                document: new InputFileStream(stream, fileName),
-                caption: $"📊 {Messages.ReportReady}\n\nWallet: {report.WalletName}\nGenerated: {report.GeneratedAt:yyyy/MM/dd HH:mm}\nTransactions: {report.Transactions.Count()}"
-            );
-            
-            // Generate Excel
-            var excelBytes = pdfGenerator.GenerateExcel(report);
+        var excelBytes = tServices.GenerateExcel(report);
+        using var excelStream = new MemoryStream(excelBytes);
+        await bot.SendDocument(
+            chatId: chatId,
+            document: new InputFileStream(excelStream, string.Format(Files.ExcelWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")),
+            caption: Messages.ExcelCaption
+        );
 
-            // Send Excel
-            var excelFileName = $"Wallet_Transactions_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-            using var excelStream = new MemoryStream(excelBytes);
-            await bot.SendDocument(
-                chatId: chatId,
-                document: new InputFileStream(excelStream, excelFileName),
-                caption: $"📊 Transaction details in Excel format"
-            );
-
-            // Clear session
-            sessionService.ClearSession(chatId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error generating report");
-            await services.SendMessage(chatId, $"❌ Error generating report: {ex.Message}");
-        }
+        sessionService.ClearSession(chatId);
     }
-
-    
     
     #endregion
 
@@ -600,606 +559,4 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     //     sessionService.ClearSession(data.ChatId);
     //     await services.SendMessage(data.ChatId, Messages.TransactionSaved);
     // }
-}
-
-//
-// using ScheduleBot.Models;
-// using ScheduleBot.Models.Report;
-//
-// namespace ScheduleBot.Services;
-
-public class WalletReportBuilder
-{
-    public WalletReport BuildReport(ReportData data)
-    {
-        var report = new WalletReport
-        {
-            WalletName = data.Wallet.Name ?? "Unnamed Wallet",
-            GeneratedAt = DateTime.Now,
-            Transactions = data.Transactions,
-            TotalTransactions = data.Transactions.Count,
-            FromDate = data.Transactions.Any() ? data.Transactions.Min(t => t.Date) : (DateTime?)null,
-            ToDate = data.Transactions.Any() ? data.Transactions.Max(t => t.Date) : (DateTime?)null,
-        };
-        
-        // Build summary
-        report.Summary = BuildSummary(data.Transactions);
-        
-        // Build category reports
-        report.CategoryReports = BuildCategoryReports(data);
-        
-        // Build monthly reports
-        report.MonthlyReports = BuildMonthlyReports(data.Transactions);
-        
-        // Build user reports
-        report.UserReports = BuildUserReports(data);
-        
-        return report;
-    }
-    
-    private ReportSummary BuildSummary(List<TransactionRecord> transactions)
-    {
-        if (!transactions.Any())
-            return new ReportSummary();
-        
-        var deposits = transactions.Where(t => t.Deposit > 0).ToList();
-        var withdrawals = transactions.Where(t => t.Withdraw > 0).ToList();
-        
-        var summary = new ReportSummary
-        {
-            TotalDeposits = deposits.Sum(t => t.Deposit),
-            TotalWithdrawals = withdrawals.Sum(t => t.Withdraw),
-            DepositCount = deposits.Count,
-            WithdrawCount = withdrawals.Count,
-            NetCashFlow = deposits.Sum(t => t.Deposit) - withdrawals.Sum(t => t.Withdraw),
-            LargestDeposit = deposits.Any() ? deposits.Max(t => t.Deposit) : 0,
-            LargestWithdrawal = withdrawals.Any() ? withdrawals.Max(t => t.Withdraw) : 0,
-            EarliestTransaction = transactions.Min(t => t.Date),
-            LatestTransaction = transactions.Max(t => t.Date),
-            AverageTransaction = transactions.Any() ? transactions.Average(t => t.Deposit + t.Withdraw) : 0,
-            AverageDeposit = deposits.Any() ? deposits.Average(t => t.Deposit) : 0,
-            AverageWithdrawal = withdrawals.Any() ? withdrawals.Average(t => t.Withdraw) : 0
-        };
-        
-        // Calculate opening and closing balance
-        if (transactions.Any())
-        {
-            summary.OpeningBalance = transactions.First().BalanceAfter - (transactions.First().Deposit - transactions.First().Withdraw);
-            summary.ClosingBalance = transactions.Last().BalanceAfter;
-        }
-        
-        return summary;
-    }
-    
-    private List<CategoryReport> BuildCategoryReports(ReportData data)
-    {
-        var reports = new List<CategoryReport>();
-        var totalWithdrawals = data.Transactions.Where(t => t.Withdraw > 0).Sum(t => t.Withdraw);
-        var totalDeposits = data.Transactions.Where(t => t.Deposit > 0).Sum(t => t.Deposit);
-        
-        foreach (var category in data.Categories)
-        {
-            if (!data.TransactionsByCategory.ContainsKey(category.Id) || !data.TransactionsByCategory[category.Id].Any())
-                continue;
-            
-            var categoryTransactions = data.TransactionsByCategory[category.Id];
-            var deposits = categoryTransactions.Where(t => t.Deposit > 0).ToList();
-            var withdrawals = categoryTransactions.Where(t => t.Withdraw > 0).ToList();
-            
-            var report = new CategoryReport
-            {
-                CategoryId = category.Id,
-                CategoryName = category.Name ?? "Unnamed Category",
-                TransactionCount = categoryTransactions.Count,
-                TotalDeposits = deposits.Sum(t => t.Deposit),
-                TotalWithdrawals = withdrawals.Sum(t => t.Withdraw),
-                NetCashFlow = deposits.Sum(t => t.Deposit) - withdrawals.Sum(t => t.Withdraw),
-                PercentageOfTotalWithdrawals = totalWithdrawals > 0 ? (withdrawals.Sum(t => t.Withdraw) / totalWithdrawals) * 100 : 0,
-                PercentageOfTotalDeposits = totalDeposits > 0 ? (deposits.Sum(t => t.Deposit) / totalDeposits) * 100 : 0,
-                AverageTransaction = categoryTransactions.Average(t => t.Deposit + t.Withdraw),
-                LargestTransaction = categoryTransactions.Max(t => t.Deposit + t.Withdraw),
-                FirstTransaction = categoryTransactions.Min(t => t.Date),
-                LastTransaction = categoryTransactions.Max(t => t.Date)
-            };
-            
-            reports.Add(report);
-        }
-        
-        return reports.OrderByDescending(r => r.TotalWithdrawals).ToList();
-    }
-    
-    private List<MonthlyReport> BuildMonthlyReports(List<TransactionRecord> transactions)
-    {
-        var reports = new List<MonthlyReport>();
-        
-        var monthlyGroups = transactions
-            .GroupBy(t => new { t.Date.Year, t.Date.Month })
-            .OrderBy(g => g.Key.Year)
-            .ThenBy(g => g.Key.Month);
-        
-        decimal runningBalance = 0;
-        
-        foreach (var group in monthlyGroups)
-        {
-            var monthlyTransactions = group.ToList();
-            var deposits = monthlyTransactions.Where(t => t.Deposit > 0).Sum(t => t.Deposit);
-            var withdrawals = monthlyTransactions.Where(t => t.Withdraw > 0).Sum(t => t.Withdraw);
-            var netCashFlow = deposits - withdrawals;
-            runningBalance += netCashFlow;
-            
-            var report = new MonthlyReport
-            {
-                Year = group.Key.Year,
-                Month = group.Key.Month,
-                MonthName = new DateTime(group.Key.Year, group.Key.Month, 1).ToString("MMMM"),
-                TransactionCount = monthlyTransactions.Count,
-                Deposits = deposits,
-                Withdrawals = withdrawals,
-                NetCashFlow = netCashFlow,
-                ClosingBalance = monthlyTransactions.Last().BalanceAfter
-            };
-            
-            reports.Add(report);
-        }
-        
-        return reports;
-    }
-    
-    private List<UserReport> BuildUserReports(ReportData data)
-    {
-        var reports = new List<UserReport>();
-        
-        var userGroups = data.Transactions
-            .GroupBy(t => t.ConsumerId)
-            .Select(g => new
-            {
-                UserId = g.Key,
-                Transactions = g.ToList()
-            });
-        
-        foreach (var group in userGroups)
-        {
-            var user = data.UserMap.ContainsKey(group.UserId) ? data.UserMap[group.UserId] : null;
-            var userName = user?.Name ?? "Unknown User";
-            
-            var deposits = group.Transactions.Where(t => t.Deposit > 0).Sum(t => t.Deposit);
-            var withdrawals = group.Transactions.Where(t => t.Withdraw > 0).Sum(t => t.Withdraw);
-            
-            var report = new UserReport
-            {
-                UserId = group.UserId,
-                UserName = userName,
-                TransactionCount = group.Transactions.Count,
-                Deposits = deposits,
-                Withdrawals = withdrawals,
-                NetCashFlow = deposits - withdrawals
-            };
-            
-            reports.Add(report);
-        }
-        
-        return reports.OrderByDescending(r => r.NetCashFlow).ToList();
-    }
-}
-
-// using QuestPDF.Fluent;
-// using QuestPDF.Helpers;
-// using QuestPDF.Infrastructure;
-// using ScheduleBot.Models.Report;
-//
-// namespace ScheduleBot.Services;
-
-public class WalletReportPdfGenerator
-{
-    public byte[] GeneratePdf(WalletReport report)
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-        
-        var document = Document.Create(container =>
-        {
-            container.Page(page =>
-            {
-                page.Margin(40);
-                page.Size(PageSizes.A4);
-                page.PageColor(Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(9));
-                
-                page.Header().Element(ComposeHeader);
-                page.Content().Element(ComposeContent);
-                page.Footer().Element(ComposeFooter);
-                
-                void ComposeHeader(IContainer container)
-                {
-                    container.Column(col =>
-                    {
-                        col.Spacing(5);
-                        
-                        col.Item().Text("📊 WALLET FINANCIAL REPORT")
-                            .FontSize(20)
-                            .Bold()
-                            .FontColor(Colors.Blue.Darken3);
-                        
-                        col.Item().Row(row =>
-                        {
-                            row.RelativeItem().Column(infoCol =>
-                            {
-                                infoCol.Item().Text($"Wallet: {report.WalletName}").FontSize(12);
-                                infoCol.Item().Text($"Generated: {report.GeneratedAt:yyyy/MM/dd HH:mm:ss}").FontSize(10).FontColor(Colors.Grey.Medium);
-                                if (report.FromDate.HasValue && report.ToDate.HasValue)
-                                {
-                                    infoCol.Item().Text($"Period: {report.FromDate:yyyy/MM/dd} - {report.ToDate:yyyy/MM/dd}").FontSize(10);
-                                }
-                                infoCol.Item().Text($"Total Transactions: {report.TotalTransactions}").FontSize(11).Bold();
-                            });
-                            
-                            row.ConstantItem(150).Border(1).BorderColor(Colors.Grey.Lighten1).Padding(5).Column(summaryBox =>
-                            {
-                                summaryBox.Item().Text("Quick Stats").FontSize(10).Bold().AlignCenter();
-                                summaryBox.Item().Text($"Deposits: {report.Summary.TotalDeposits:N0}").FontSize(9);
-                                summaryBox.Item().Text($"Withdrawals: {report.Summary.TotalWithdrawals:N0}").FontSize(9);
-                                summaryBox.Item().Text($"Net: {report.Summary.NetCashFlow:N0}").FontSize(9)
-                                    .FontColor(report.Summary.NetCashFlow >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2);
-                            });
-                        });
-                    });
-                }
-                
-                void ComposeContent(IContainer container)
-                {
-                    container.Column(col =>
-                    {
-                        col.Spacing(15);
-                        
-                        // 1. Financial Summary
-                        col.Item().Element(ComposeFinancialSummary);
-                        
-                        // 2. Category Analysis
-                        if (report.CategoryReports.Any())
-                            col.Item().Element(ComposeCategoryAnalysis);
-                        
-                        // 3. Monthly Summary
-                        if (report.MonthlyReports.Any())
-                            col.Item().Element(ComposeMonthlySummary);
-                        
-                        // 4. User Activity
-                        if (report.UserReports.Any())
-                            col.Item().Element(ComposeUserActivity);
-                        
-                        // 5. Transaction Details
-                        if (report.Transactions.Any())
-                            col.Item().Element(ComposeTransactionDetails);
-                    });
-                }
-                
-                void ComposeFinancialSummary(IContainer container)
-                {
-                    container.Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten4).Padding(10).Column(col =>
-                    {
-                        col.Spacing(8);
-                        col.Item().Text("📈 FINANCIAL SUMMARY").FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
-                        
-                        col.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                            });
-                            
-                            table.Header(header =>
-                            {
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Metric").Bold().FontSize(10);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Amount").Bold().AlignRight().FontSize(10);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Count").Bold().AlignRight().FontSize(10);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Average").Bold().AlignRight().FontSize(10);
-                            });
-                            
-                            void AddRow(string metric, decimal amount, int count, decimal avg)
-                            {
-                                table.Cell().Padding(3).Text(metric);
-                                table.Cell().Padding(3).Text($"{amount:N0}").AlignRight();
-                                table.Cell().Padding(3).Text($"{count}").AlignRight();
-                                table.Cell().Padding(3).Text($"{avg:N0}").AlignRight();
-                            }
-                            
-                            AddRow("Deposits", report.Summary.TotalDeposits, report.Summary.DepositCount, report.Summary.AverageDeposit);
-                            AddRow("Withdrawals", report.Summary.TotalWithdrawals, report.Summary.WithdrawCount, report.Summary.AverageWithdrawal);
-                            
-                            table.Cell().Padding(3).Text("Net Cash Flow").Bold();
-                            table.Cell().Padding(3).Text($"{report.Summary.NetCashFlow:N0}").AlignRight().FontColor(report.Summary.NetCashFlow >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2).Bold();
-                            table.Cell().Padding(3).Text("").AlignRight();
-                            table.Cell().Padding(3).Text("").AlignRight();
-                            
-                            // AddRow("Opening Balance", report.Summary.OpeningBalance, 0, 0);
-                            // AddRow("Closing Balance", report.Summary.ClosingBalance, 0, 0);
-                            // AddRow("Largest Transaction", report.Summary.LargestDeposit > report.Summary.LargestWithdrawal ? report.Summary.LargestDeposit : report.Summary.LargestWithdrawal, 0, 0);
-                            // AddRow("Average Transaction", report.Summary.AverageTransaction, 0, 0);
-                        });
-                    });
-                }
-                
-                void ComposeCategoryAnalysis(IContainer container)
-                {
-                    container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(col =>
-                    {
-                        col.Spacing(8);
-                        col.Item().Text("📊 CATEGORY ANALYSIS").FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
-                        
-                        col.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                            });
-                            
-                            table.Header(header =>
-                            {
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Category").Bold().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Count").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Deposits").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Withdrawals").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Net").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("% of Total").Bold().AlignRight().FontSize(9);
-                            });
-                            
-                            // Show ALL categories
-                            var rowIndex = 0;
-                            foreach (var categoryReport in report.CategoryReports)
-                            {
-                                var backgroundColor = rowIndex++ % 2 == 0 ? Colors.Grey.Lighten4 : Colors.White;
-                                table.Cell().Padding(3).Background(backgroundColor).Text(categoryReport.CategoryName);
-                                table.Cell().Padding(3).Background(backgroundColor).Text($"{categoryReport.TransactionCount}").AlignRight();
-                                table.Cell().Padding(3).Background(backgroundColor).Text($"{categoryReport.TotalDeposits:N0}").AlignRight();
-                                table.Cell().Padding(3).Background(backgroundColor).Text($"{categoryReport.TotalWithdrawals:N0}").AlignRight();
-                                table.Cell().Padding(3).Background(backgroundColor).Text($"{categoryReport.NetCashFlow:N0}").AlignRight().FontColor(categoryReport.NetCashFlow >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2);
-                                table.Cell().Padding(3).Background(backgroundColor).Text($"{categoryReport.PercentageOfTotalWithdrawals:F1}%").AlignRight();
-                            }
-                            
-                            // Add Total row
-                            table.Cell().Padding(3).Text("TOTAL").Bold();
-                            table.Cell().Padding(3).Text($"{report.CategoryReports.Sum(c => c.TransactionCount)}").AlignRight().Bold();
-                            table.Cell().Padding(3).Text($"{report.CategoryReports.Sum(c => c.TotalDeposits):N0}").AlignRight().Bold();
-                            table.Cell().Padding(3).Text($"{report.CategoryReports.Sum(c => c.TotalWithdrawals):N0}").AlignRight().Bold();
-                            table.Cell().Padding(3).Text($"{report.CategoryReports.Sum(c => c.NetCashFlow):N0}").AlignRight().Bold();
-                            table.Cell().Padding(3).Text("100%").AlignRight().Bold();
-                        });
-                    });
-                }
-                
-                void ComposeMonthlySummary(IContainer container)
-                {
-                    container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(col =>
-                    {
-                        col.Spacing(8);
-                        col.Item().Text("📅 MONTHLY SUMMARY").FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
-                        
-                        col.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                            });
-                            
-                            table.Header(header =>
-                            {
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Month").Bold().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Count").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Deposits").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Withdrawals").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Net").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Closing Balance").Bold().AlignRight().FontSize(9);
-                            });
-                            
-                            // Show ALL months
-                            foreach (var month in report.MonthlyReports)
-                            {
-                                table.Cell().Padding(3).Text($"{month.MonthName} {month.Year}");
-                                table.Cell().Padding(3).Text($"{month.TransactionCount}").AlignRight();
-                                table.Cell().Padding(3).Text($"{month.Deposits:N0}").AlignRight();
-                                table.Cell().Padding(3).Text($"{month.Withdrawals:N0}").AlignRight();
-                                table.Cell().Padding(3).Text($"{month.NetCashFlow:N0}").AlignRight()
-                                    .FontColor(month.NetCashFlow >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2);
-                                table.Cell().Padding(3).Text($"{month.ClosingBalance:N0}").AlignRight();
-                            }
-                        });
-                    });
-                }
-                
-                void ComposeUserActivity(IContainer container)
-                {
-                    container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(col =>
-                    {
-                        col.Spacing(8);
-                        col.Item().Text("👥 USER ACTIVITY").FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
-                        
-                        col.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                            });
-                            
-                            table.Header(header =>
-                            {
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("User").Bold().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Count").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Deposits").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Withdrawals").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Net").Bold().AlignRight().FontSize(9);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Avg/Transaction").Bold().AlignRight().FontSize(9);
-                            });
-                            
-                            // Show ALL users
-                            foreach (var user in report.UserReports)
-                            {
-                                var avgPerTransaction = user.TransactionCount > 0 
-                                    ? (user.Deposits + user.Withdrawals) / user.TransactionCount 
-                                    : 0;
-                                
-                                table.Cell().Padding(3).Text(user.UserName);
-                                table.Cell().Padding(3).Text($"{user.TransactionCount}").AlignRight();
-                                table.Cell().Padding(3).Text($"{user.Deposits:N0}").AlignRight();
-                                table.Cell().Padding(3).Text($"{user.Withdrawals:N0}").AlignRight();
-                                table.Cell().Padding(3).Text($"{user.NetCashFlow:N0}").AlignRight()
-                                    .FontColor(user.NetCashFlow >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2);
-                                table.Cell().Padding(3).Text($"{avgPerTransaction:N0}").AlignRight();
-                            }
-                        });
-                    });
-                }
-                
-                void ComposeTransactionDetails(IContainer container)
-                {
-                    container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(col =>
-                    {
-                        col.Spacing(8);
-                        col.Item().Text("📋 TRANSACTION DETAILS").FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
-                        
-                        col.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(0.5f);
-                                columns.RelativeColumn(0.8f);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(1);
-                            });
-                            
-                            table.Header(header =>
-                            {
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Date").Bold().FontSize(8);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Time").Bold().FontSize(8);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Consumer").Bold().FontSize(8);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Category").Bold().FontSize(8);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Title").Bold().FontSize(8);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Withdraw").Bold().AlignRight().FontSize(8);
-                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Deposit").Bold().AlignRight().FontSize(8);
-                            });
-                            
-                            // Show ALL transactions
-                            var rowIndex = 0;
-
-                            foreach (var transaction in report.Transactions)
-                            {
-                                var categoryName = report.CategoryReports.FirstOrDefault(c => c.CategoryId == transaction.CategoryId)?.CategoryName ?? "Unknown";
-                                var consumerName = report.UserReports.FirstOrDefault(u => u.UserId == transaction.ConsumerId)?.UserName ?? "Unknown User";
-                                var backgroundColor = rowIndex++ % 2 == 0 ? Colors.Grey.Lighten4 : Colors.White;
-
-                                table.Cell().Padding(3).Background(backgroundColor).Text($"{MainService.ConvertGregorianToJalali(transaction.Date)}").FontSize(8);
-                                table.Cell().Padding(3).Background(backgroundColor).Text($"{transaction.Date:HH:mm}").FontSize(8);
-                                table.Cell().Padding(3).Background(backgroundColor).Text(consumerName).FontSize(8);
-                                table.Cell().Padding(3).Background(backgroundColor).Text(categoryName).FontSize(8);
-                                table.Cell().Padding(3).Background(backgroundColor).Text(transaction.Title).FontSize(8);
-                                table.Cell().Padding(3).Background(backgroundColor).Text(transaction.Withdraw > 0 ? $"{transaction.Withdraw:N0}" : "").AlignRight().FontSize(8);
-                                table.Cell().Padding(3).Background(backgroundColor).Text(transaction.Deposit > 0 ? $"{transaction.Deposit:N0}" : "").AlignRight().FontSize(8);
-                            }
-                        });
-                    });
-                }
-                
-                void ComposeFooter(IContainer container)
-                {
-                    container.AlignCenter().Column(col =>
-                    {
-                        col.Item().LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
-                        col.Spacing(3);
-                        col.Item().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        })/*.FontSize(8).FontColor(Colors.Grey.Medium)*/;
-                    });
-                }
-            });
-        });
-        
-        return document.GeneratePdf();
-    }
-    
-    public byte[] GenerateExcel(WalletReport report)
-    {
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Transactions");
-        
-        // Set headers
-        var headers = new[] { "Date", "Time", "Consumer", "Category", "Title", "Withdraw", "Deposit" };
-        for (int i = 0; i < headers.Length; i++)
-        {
-            worksheet.Cell(1, i + 1).Value = headers[i];
-            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightBlue;
-        }
-        
-        // Add data rows
-        int row = 2;
-        foreach (var transaction in report.Transactions)
-        {
-            var categoryName = report.CategoryReports.FirstOrDefault(c => c.CategoryId == transaction.CategoryId)?.CategoryName ?? "Unknown";
-            var consumerName = report.UserReports.FirstOrDefault(u => u.UserId == transaction.ConsumerId)?.UserName ?? "Unknown User";
-            
-            worksheet.Cell(row, 1).Value = MainService.ConvertGregorianToJalali(transaction.Date);
-            worksheet.Cell(row, 2).Value = transaction.Date.ToString("HH:mm");
-            worksheet.Cell(row, 3).Value = consumerName;
-            worksheet.Cell(row, 4).Value = categoryName;
-            worksheet.Cell(row, 5).Value = transaction.Title ?? "";
-            worksheet.Cell(row, 6).Value = transaction.Withdraw > 0 ? transaction.Withdraw : 0;
-            worksheet.Cell(row, 7).Value = transaction.Deposit > 0 ? transaction.Deposit : 0;
-            row++;
-        }
-        
-        // Auto-fit columns
-        worksheet.Columns().AdjustToContents();
-        
-        // Add a summary sheet
-        var summarySheet = workbook.Worksheets.Add("Summary");
-        summarySheet.Cell(1, 1).Value = "Financial Summary";
-        summarySheet.Cell(1, 1).Style.Font.Bold = true;
-        summarySheet.Cell(1, 1).Style.Font.FontSize = 14;
-        
-        var summaryData = new[]
-        {
-            new { Metric = "Total Deposits", Value = report.Summary.TotalDeposits },
-            new { Metric = "Total Withdrawals", Value = report.Summary.TotalWithdrawals },
-            new { Metric = "Net Cash Flow", Value = report.Summary.NetCashFlow },
-            new { Metric = "Opening Balance", Value = report.Summary.OpeningBalance },
-            new { Metric = "Closing Balance", Value = report.Summary.ClosingBalance },
-            new { Metric = "Transaction Count", Value = (decimal)report.TotalTransactions }
-        };
-        
-        int summaryRow = 3;
-        foreach (var item in summaryData)
-        {
-            summarySheet.Cell(summaryRow, 1).Value = item.Metric;
-            summarySheet.Cell(summaryRow, 2).Value = item.Value;
-            summaryRow++;
-        }
-        
-        summarySheet.Columns().AdjustToContents();
-        
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        return stream.ToArray();
-    }
 }

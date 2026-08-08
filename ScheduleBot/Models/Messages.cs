@@ -229,12 +229,13 @@ public static class Messages
     public const string BluAsk6 = "\nClick to save";
     public const string BluView = "\nTransaction had been saved ✅";
     
-    public const string NoCategoryInWallet = "❌ No categories found in this wallet. Please add categories first.";
-    public const string ReportCategorySelection = "📋 Select Categories for Report\n\nSelect which categories to include in the report. Click a category to toggle it on/off.\n\nSelected: {0}/{1} categories";
-    public const string ReportGenerating = "📊 Generating your report... Please wait.";
-    public const string ReportReady = "✅ Your wallet report is ready!";
-    public const string ReportNoTransactions = "❌ No transactions found for the selected categories.";
-
+    public const string NoCategoryInWallet = "No categories found in this wallet. Please add categories first.";
+    public const string ReportCancelled = "Report generation cancelled.";
+    public const string ReportCategorySelection = "Select Categories for Report\n\nSelect which categories to include in the report. Click a category to toggle it on/off.\n\nSelected: {0}/{1} categories";
+    public const string ReportGenerating = "Generating your report... Please wait.";
+    public const string ExcelCaption = "Transaction details in Excel format!";
+    public const string ReportReady = "Your wallet report is ready!\n\nWallet: {0}\nGenerated: {1}\nTransactions: {2}";
+    
     #endregion
 
 }
@@ -363,4 +364,10 @@ public static class Context
     public const string ReportSelectedCategories = "ReportSelectedCategories";
     public const string ReportAllSelected = "ReportAllSelected";
     public const string ReportMessageId = "ReportMessageId";
+}
+
+public static class Files
+{
+    public const string PdfWalletReport = "WalletReport_{0}.pdf";
+    public const string ExcelWalletReport = "WalletDetailedTransactions_{0}.pdf";
 }
