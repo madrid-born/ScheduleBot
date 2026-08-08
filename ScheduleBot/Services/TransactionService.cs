@@ -170,8 +170,15 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         return await _dbContext.SaveChangesAsync() > 0;
     }
 
-    public async Task<bool> GetTransactionByDocumentNo(long documentNo, Guid walletId)
+    public async Task<bool> GetTransactionByDocumentNo(long chatId, long documentNo, Guid walletId)
     {
-        return await _dbContext.WalletTransactions.FirstOrDefaultAsync(c => c.DocumentNo == documentNo && c.WalletId == walletId) != null;
+        var user =  await GetUserByTelId(chatId);
+        return await _dbContext.WalletTransactions.FirstOrDefaultAsync(c => c.ConsumerId == user!.Id && c.DocumentNo == documentNo && c.WalletId == walletId) != null;
+    }
+
+    public async Task<List<TransactionRecord>> GetTransactionByWalletAndUser(long chatId, Guid walletId)
+    {
+        var user =  await GetUserByTelId(chatId);
+        return await _dbContext.WalletTransactions.Where(c => c.ConsumerId == user!.Id && c.WalletId == walletId).ToListAsync();
     }
 }

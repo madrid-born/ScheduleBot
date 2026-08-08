@@ -77,7 +77,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
             var user = await tServices.GetUserByTelId(chatId);
             wallets = wallets.Where(c => c.CreatorId == user!.Id).ToList();
         }
-        var collection = services.LoadCollectionInPages(wallets, callBack, pageNumber, x => x.Id, x => x.Name!);
+        var collection = services.LoadCollectionInPages(wallets, callBack, pageNumber, x => x.Id, x => x.Name!, width:2, height:2);
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Transaction}|");
         await services.SendMessage(chatId, Messages.SelectWallet, replyMarkup: keyboard);
     }
@@ -255,13 +255,10 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var transactionProcesses = new List<TransactionProcess>();
         using var workbook = new XLWorkbook(data.Document!.FileAddress);
         var ws = workbook.Worksheet(1);
+        var savedTransactions = await tServices.GetTransactionByWalletAndUser(data.ChatId, walletId);
         for (var row = 12; !ws.Cell(row, 19).IsEmpty(); row++)
         {
-            //TODO : load all then calculate 
-            if (await tServices.GetTransactionByDocumentNo(long.Parse(ws.Cell(row, 16).GetString()), walletId))
-            {
-                break;
-            }
+            if (savedTransactions.Any(x => x.DocumentNo == long.Parse(ws.Cell(row, 16).GetString()))) break;
             transactionProcesses.Add(new TransactionProcess
             {
                 Index = ws.Cell(row, 19).GetValue<int>(),
@@ -324,7 +321,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
             case CallBacks.AcceptToSave:
                 message += Messages.BluAsk4;
                 var categories = await tServices.GetCategories(walletId);
-                collection = services.LoadCollectionOneClicker(categories, x => x.Id, x => x.Name!, prefixCallbackData: CallBacks.SelectCategory);
+                collection = services.LoadCollectionOneClicker(categories.OrderBy(x => x.CreateTime).ToList(), x => x.Id, x => x.Name!, prefixCallbackData: CallBacks.SelectCategory, width:3);
                 break;
             case CallBacks.CategorySelected:
                 message += messageP4 + Messages.BluAsk5;
@@ -366,6 +363,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var walletId = (Guid)session.Context[Context.Wallet];
         var transactionProcess = transactionProcesses[index];
 
+        //todo : split the amount
         switch (data.DataSeparated.ElementAtOrDefault(2))
         {
             case CallBacks.Add:
@@ -382,7 +380,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 session.SetCallBack(CallBacks.CategorySelected);
                 break;
             case CallBacks.Skip:
-                transactionProcess.Title = transactionProcess.Type + transactionProcess.Description;
+                transactionProcess.Title = /*transactionProcess.Type +*/ transactionProcess.Description;
                 session.SetCallBack(CallBacks.TitleSelected);
                 break;
             case CallBacks.Cancel:
@@ -392,7 +390,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 session.SetCallBack(CallBacks.WaitForReview);
                 break;
             case CallBacks.Done:
-                await tServices.AddTransaction(data.ChatId, walletId, transactionProcess);
+                await tServices.AddTransaction(1150299756, walletId, transactionProcess);
                 session.SetCallBack(CallBacks.Saved);
                 break;
         }
