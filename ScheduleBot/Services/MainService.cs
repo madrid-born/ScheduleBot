@@ -200,12 +200,11 @@ public class MainService(ITelegramBotClient bot)
         
         List<Tuple<string, string>> footer =
         [
+            new(Messages.Cancel, CallBacks.Cancel),
             allSelected
                 ? new Tuple<string, string>(Messages.DeselectAll, CallBacks.MultipleDeselectAll)
                 : new Tuple<string, string>(Messages.SelectAll, CallBacks.MultipleSelectAll),
             new(Messages.Done, CallBacks.Done),
-            new(Messages.Cancel, CallBacks.Cancel)
-
         ];
         collection.Add(footer);
 
@@ -265,9 +264,16 @@ public class MainService(ITelegramBotClient bot)
 
         return $"{year:D4}/{month:D2}/{day:D2}";
     }
+    
     public static string ConvertGregorianToJalaliAndGregorianWithTime(DateTime date)
     {
         return $"{date.Hour}:{date.Minute}:{date.Second}\n{date.Year}/{date.Month}/{date.Day} - {ConvertGregorianToJalali(date)}";
+    }
+    
+    public static string TruncateString(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength - 3), "...");
     }
 
     #endregion

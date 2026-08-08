@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Globalization;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -270,11 +271,17 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         
         #endregion
 
-        #region BuildMonthlyReports
-        
+        #region BuildMonthlyReports (Persian Months - Alternative)
+
         var monthlyReports = new List<MonthlyReport>();
+        var persianCalendar = new PersianCalendar();
+        var persianCulture = new CultureInfo("fa-IR");
         var monthlyGroups = transactions
-            .GroupBy(t => new { t.Date.Year, t.Date.Month })
+            .GroupBy(t => new 
+            { 
+                Year = persianCalendar.GetYear(t.Date), 
+                Month = persianCalendar.GetMonth(t.Date) 
+            })
             .OrderBy(g => g.Key.Year)
             .ThenBy(g => g.Key.Month);
 
@@ -284,12 +291,13 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             var monthDeposits = monthlyTransactions.Where(t => t.Deposit > 0).Sum(t => t.Deposit);
             var monthWithdrawals = monthlyTransactions.Where(t => t.Withdraw > 0).Sum(t => t.Withdraw);
             var netCashFlow = monthDeposits - monthWithdrawals;
-
+            var persianDate = new DateTime(group.Key.Year, group.Key.Month, 1, persianCalendar);
+    
             var report = new MonthlyReport
             {
                 Year = group.Key.Year,
                 Month = group.Key.Month,
-                MonthName = new DateTime(group.Key.Year, group.Key.Month, 1).ToString("MMMM"),
+                MonthName = persianDate.ToString("MMMM", persianCulture), // Gets Persian month name
                 TransactionCount = monthlyTransactions.Count,
                 Deposits = monthDeposits,
                 Withdrawals = monthWithdrawals,
@@ -298,7 +306,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             };
             monthlyReports.Add(report);
         }
-        
+
         #endregion
 
         #region BuildUserReports
@@ -637,7 +645,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
                                 table.Cell().Padding(3).Background(backgroundColor).Text($"{transaction.Date:HH:mm}").FontSize(8);
                                 table.Cell().Padding(3).Background(backgroundColor).Text(consumerName).FontSize(8);
                                 table.Cell().Padding(3).Background(backgroundColor).Text(categoryName).FontSize(8);
-                                table.Cell().Padding(3).Background(backgroundColor).Text(transaction.Title).FontSize(8);
+                                table.Cell().Padding(3).Background(backgroundColor).Text(MainService.TruncateString(transaction.Title, 20)).FontSize(8);
                                 table.Cell().Padding(3).Background(backgroundColor).Text(transaction.Withdraw > 0 ? $"{transaction.Withdraw:N0}" : "").AlignRight().FontSize(8);
                                 table.Cell().Padding(3).Background(backgroundColor).Text(transaction.Deposit > 0 ? $"{transaction.Deposit:N0}" : "").AlignRight().FontSize(8);
                             }
