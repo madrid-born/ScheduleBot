@@ -34,6 +34,8 @@ public static class Messages
     public const string All = "All";
     public const string Done = "✅ Done";
     public const string Cancel = "❌ Cancel";
+    public const string SelectAll = "☑ Select All";
+    public const string DeselectAll = "☐ Deselect All";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
     public const string Add = "Add";
@@ -198,6 +200,7 @@ public static class Messages
     public const string KeyboardManageCategories = "Manage Categories";
     public const string KeyboardInviteToWallet = "Invite To Wallet";
     public const string KeyboardAddTransaction = "Add Transaction to Wallet";
+    public const string KeyboardGenerateReport = "Generate Report";
     public const string KeyboardManualTransaction = "Manual";
     public const string KeyboardBluTransaction = "Auto from Blu";
 
@@ -226,6 +229,12 @@ public static class Messages
     public const string BluAsk6 = "\nClick to save";
     public const string BluView = "\nTransaction had been saved ✅";
     
+    public const string NoCategoryInWallet = "❌ No categories found in this wallet. Please add categories first.";
+    public const string ReportCategorySelection = "📋 Select Categories for Report\n\nSelect which categories to include in the report. Click a category to toggle it on/off.\n\nSelected: {0}/{1} categories";
+    public const string ReportGenerating = "📊 Generating your report... Please wait.";
+    public const string ReportReady = "✅ Your wallet report is ready!";
+    public const string ReportNoTransactions = "❌ No transactions found for the selected categories.";
+
     #endregion
 
 }
@@ -245,6 +254,11 @@ public static class CallBacks
     public const string Done = "Done";
     public const string Cancel = "Cancel";
     public const string MainSection = "MainSection";
+    public const string MultipleSelectToggle = "MST";
+    public const string MultipleSelectAll = "MSA";
+    public const string MultipleDeselectAll = "MDA";
+
+
 
     #endregion
     
@@ -304,6 +318,7 @@ public static class CallBacks
     public const string WalletManagement = "WM";
     public const string InviteToWallet = "ITW";
     public const string AddTransaction = "AT";
+    // public const string GenerateReport = "GR";
     public const string DeleteWallet = "DW";
     public const string ManageCategories = "MC";
     public const string CategoryAction = "CA";
@@ -318,6 +333,11 @@ public static class CallBacks
     public const string CategorySelected = "categorySelected";
     public const string TitleSelected = "TitleSelected";
     public const string Saved = "Saved";
+    
+    public const string GenerateReport = "GR";
+    public const string ReportContinue = "RD";
+    public const string ReportGenerate = "RG";
+
         
     #endregion
 }
@@ -328,6 +348,8 @@ public static class Actions
     public const string AwaitingCategoryName = "AwaitingCategoryName";
     public const string AwaitingBluFile = "AwaitingBluFile";
     public const string AwaitingBluReview = "AwaitingBluReview";
+    
+    public const string BuildingReport = "BuildingReport";
 }
 
 public static class Context
@@ -336,4 +358,9 @@ public static class Context
     public const string Wallet = "Wallet";
     public const string Index = "Index";
     public const string MessageId = "MessageId";
+
+    public const string ReportWalletId = "ReportWalletId";
+    public const string ReportSelectedCategories = "ReportSelectedCategories";
+    public const string ReportAllSelected = "ReportAllSelected";
+    public const string ReportMessageId = "ReportMessageId";
 }

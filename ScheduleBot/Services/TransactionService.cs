@@ -87,7 +87,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
 
     public async Task<List<Category>> GetCategoriesByWalletId(Guid walletId)
     {
-        return await _dbContext.WalletCategory.Where(c => c.WalletId == walletId).OrderBy(c => c.CreateTime).ToListAsync();
+        return await _dbContext.WalletCategory.Where(c => c.WalletId == walletId && c.TempAdded == false && c.TempDeleted == false ).OrderBy(c => c.CreateTime).ToListAsync();
     }
 
     public async Task<Guid> AddCategoryToWallet(Guid walletId, string name)
@@ -180,5 +180,56 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     {
         var user =  await GetUserByTelId(chatId);
         return await _dbContext.WalletTransactions.Where(c => c.ConsumerId == user!.Id && c.WalletId == walletId).ToListAsync();
+    }
+    
+    
+    public async Task<ReportData> GetReportData(Guid walletId, List<Guid> categoryIds)
+    {
+        var wallet = await GetWalletByWalletId(walletId);
+        if (wallet == null)
+            throw new Exception("Wallet not found");
+    
+        // Get categories
+        var allCategories = await GetCategoriesByWalletId(walletId);
+        var categories = allCategories.Where(c => !c.TempDeleted).ToList();
+    
+        // Get users with access
+        var usersWithAccess = await GetUsersWithAccessByWalletId(walletId);
+        var userList = usersWithAccess.ToList();
+    
+        // Query transactions
+        var query = _dbContext.WalletTransactions
+            .AsNoTracking()
+            .Where(t => t.WalletId == walletId);
+    
+        // Filter by categories if specified
+        if (categoryIds != null && categoryIds.Any())
+        {
+            query = query.Where(t => categoryIds.Contains(t.CategoryId));
+        }
+    
+        var transactions = await query
+            .OrderBy(t => t.Date)
+            .ToListAsync();
+    
+        // Create maps
+        var userMap = userList.ToDictionary(u => u.Id, u => u);
+        var categoryMap = allCategories.ToDictionary(c => c.Id, c => c);
+    
+        // Group transactions by category
+        var transactionsByCategory = transactions
+            .GroupBy(t => t.CategoryId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+    
+        return new ReportData
+        {
+            Wallet = wallet,
+            Categories = categories,
+            Transactions = transactions,
+            Users = userList,
+            TransactionsByCategory = transactionsByCategory,
+            UserMap = userMap,
+            CategoryMap = categoryMap
+        };
     }
 }

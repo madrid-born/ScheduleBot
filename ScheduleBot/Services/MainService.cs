@@ -172,6 +172,45 @@ public class MainService(ITelegramBotClient bot)
 
         return collection;
     }
+    
+    public List<List<Tuple<string, string>>> LoadCollectionMultiSelect<T>(List<T> items, List<Guid> selectedItems, bool allSelected,
+        Func<T, Guid> idSelector, Func<T, string> nameSelector, int width = 3, string prefixCallbackData = "")
+    {
+
+        List<List<Tuple<string, string>>> collection = [];
+        
+        for (var index = 0; index < (double)items.Count/width ; index += 1)
+        {
+            List<Tuple<string, string>> row = [];
+            for (var i = 0; i < width; i++)
+            {
+                var item = index * width + i < items.Count ? items[index * width + i] : default;
+                if (item == null)
+                {
+                    row.Add(new Tuple<string, string>("-", "-"));
+                    continue;
+                }
+                
+                var displayName = (selectedItems.Contains(idSelector(item)) ? "☑" : "☐") + $" {nameSelector(item)}";
+                row.Add(new Tuple<string, string>(displayName, $"{CallBacks.MultipleSelectToggle}|{idSelector(item)}"));
+
+            }
+            collection.Add(row);
+        }
+        
+        List<Tuple<string, string>> footer =
+        [
+            allSelected
+                ? new Tuple<string, string>(Messages.DeselectAll, CallBacks.MultipleDeselectAll)
+                : new Tuple<string, string>(Messages.SelectAll, CallBacks.MultipleSelectAll),
+            new(Messages.Done, CallBacks.Done),
+            new(Messages.Cancel, CallBacks.Cancel)
+
+        ];
+        collection.Add(footer);
+
+        return collection;
+    }
 
     #endregion
 
