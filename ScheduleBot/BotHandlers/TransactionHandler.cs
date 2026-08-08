@@ -272,6 +272,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 Processed = false
             });
         }
+        File.Delete(data.Document!.FileAddress);
         transactionProcesses.Reverse();
         session.SetAction(Actions.AwaitingBluReview);
         session.SetContext(Context.Tps, transactionProcesses);
