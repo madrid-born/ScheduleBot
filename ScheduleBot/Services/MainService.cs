@@ -24,6 +24,19 @@ public class MainService(ITelegramBotClient bot)
         return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(), parseMode: parseMode)).MessageId;
     }
     
+    public async Task EditMessage(long chatId, int messageId, string? message = null, ReplyMarkup? replyMarkup = null,
+        ParseMode parseMode = ParseMode.Markdown)
+    {
+        if(!string.IsNullOrEmpty(message))
+        {
+            await bot.EditMessageText(chatId: chatId, messageId: messageId, text: message, replyMarkup: replyMarkup as InlineKeyboardMarkup, parseMode: parseMode);
+        }
+        else
+        {
+            await bot.EditMessageReplyMarkup(chatId: chatId, messageId: messageId, replyMarkup: replyMarkup as InlineKeyboardMarkup);
+        }
+    }
+    
     public ReplyKeyboardMarkup GetMainKeyboard()
     {
         var collection = new List<List<string>>

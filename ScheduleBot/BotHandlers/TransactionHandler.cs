@@ -170,7 +170,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     {
         var categories = await tServices.GetCategoriesByWalletIdAll(walletId);
         var keyboard = CreateCategoriesKeyboard(categories);
-        await bot.EditMessageReplyMarkup(chatId: chatId, messageId: messageId, replyMarkup: (InlineKeyboardMarkup) keyboard);
+        await services.EditMessage(chatId, messageId, replyMarkup: keyboard);
     }
     
     public async Task AddCategoriesToWallet(UpdateData data, string? callbackData)
@@ -360,8 +360,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.BluAction}|");
         if (loadedMessageId != 0)
         {
-            await bot.EditMessageText(chatId: chatId, messageId: loadedMessageId, text: message,
-                replyMarkup: (InlineKeyboardMarkup)keyboard);
+            await services.EditMessage(chatId, loadedMessageId, message, keyboard);
         }
         else
         {
@@ -467,9 +466,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
             session.SetContext(Context.ReportMessageId, newMessageId);
             return;
         }
-        //todo : add edit message to main service
-        await bot.EditMessageText(chatId: chatId, messageId: messageId, text: message,
-            replyMarkup: (InlineKeyboardMarkup)keyboard);
+        await services.EditMessage(chatId, messageId, message, keyboard);
     }
 
     private async Task HandleReportCallback(UpdateData data, string action)

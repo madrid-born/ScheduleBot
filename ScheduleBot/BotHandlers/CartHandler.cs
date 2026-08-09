@@ -232,11 +232,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
     {
         var products = await cServices.GetProductsByCartId(cartId);
         var keyboard = CreateProductKeyboard(products);
-        await bot.EditMessageReplyMarkup(
-            chatId: chatId,
-            messageId: messageId,
-            replyMarkup: (InlineKeyboardMarkup) keyboard
-        );
+        await services.EditMessage(chatId, messageId, replyMarkup: keyboard);
     }
     
     private async Task LoadProducts(UpdateData data, string cartIdAsString)
