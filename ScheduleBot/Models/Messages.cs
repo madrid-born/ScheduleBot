@@ -41,6 +41,7 @@ public static class Messages
     public const string Add = "Add";
     public const string Skip = "skip";
     public const string Ignore = "Ignore";
+    public const string Split = "Split";
     public const string Welcome = "Welcome to the bot\nyou can choose your action by the keyboard below.";
     public const string NotFound = "Command not found.";
     public const string SomethingWentWrong = "something went wrong.";
@@ -224,6 +225,7 @@ public static class Messages
     public const string BluReviewP4 = "Category: {0}\n";
     public const string BluReviewP5 = "Title: {0}\n";
     public const string BluAsk123 = "\nDo you want to add this transaction?";
+    public const string BluAsk1234 = "\nIn how many section you want to split it?";
     public const string BluAsk4 = "\nSelect the category this transaction belonged to";
     public const string BluAsk5 = "\nWrite down the transaction title or skip";
     public const string BluAsk6 = "\nClick to save";
@@ -249,6 +251,7 @@ public static class CallBacks
     public const string Add = "Add";
     public const string Skip = "Skip";
     public const string Ignore = "Ignore";
+    public const string Split = "Split";
     public const string PreviousPage = "<<";
     public const string NextPage = ">>";
     public const string All = "All";
@@ -330,6 +333,7 @@ public static class CallBacks
     public const string JoinWallet = "JW";
 
     public const string WaitForReview = "WaitForReview";
+    public const string SelectSplitCount = "SelectSplitCount";
     public const string AcceptToSave = "AcceptToSave";
     public const string CategorySelected = "categorySelected";
     public const string TitleSelected = "TitleSelected";

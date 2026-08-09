@@ -332,7 +332,14 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         {
             case CallBacks.WaitForReview:
                 message += Messages.BluAsk123;
-                collection = [[new(Messages.Add, CallBacks.Add), new(Messages.Ignore, CallBacks.Ignore)]];
+                collection = [[new(Messages.Add, CallBacks.Add), new(Messages.Ignore, CallBacks.Ignore)],
+                    [new(Messages.Split, CallBacks.Split)],
+                ];
+                break;
+            case CallBacks.SelectSplitCount:
+                message += Messages.BluAsk1234;
+                var numbers = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+                collection = services.LoadCollectionOneClicker(numbers, prefixCallbackData: CallBacks.SelectSplitCount, width:3);
                 break;
             case CallBacks.AcceptToSave:
                 message += Messages.BluAsk4;
@@ -378,7 +385,6 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var walletId = (Guid)session.Context[Context.Wallet];
         var transactionProcess = transactionProcesses[index];
 
-        //todo : split the amount
         switch (data.DataSeparated.ElementAtOrDefault(2))
         {
             case CallBacks.Add:
@@ -387,6 +393,16 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
             case CallBacks.Ignore:
                 session.SetContext(Context.Index, index + 1);
                 session.SetCallBack(CallBacks.WaitForReview);
+                break;
+            case CallBacks.Split:
+                session.SetCallBack(CallBacks.SelectSplitCount);
+                break;
+            case CallBacks.SelectSplitCount:
+                var splitCountString = data.DataSeparated.ElementAtOrDefault(3);
+                if (!int.TryParse(splitCountString, out var splitCount)) return;
+                if (splitCount is < 1 or > 9) return;
+                SplitTransaction(transactionProcesses, index, splitCount);
+                session.SetCallBack(CallBacks.AcceptToSave);
                 break;
             case CallBacks.SelectCategory:
                 var category = await tServices.GetCategoryByCategoryId(Guid.Parse(data.DataSeparated.ElementAtOrDefault(3)!));
@@ -412,7 +428,58 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         
         await ShowBluRow(data.ChatId);
     }
-    
+
+    private void SplitTransaction(List<TransactionProcess> transactions, int index, int splitCount)
+    {
+        var original = transactions[index];
+        var totalAmount = original.Deposit > 0 ? original.Deposit : original.Withdraw;
+        var amountPerTransaction = totalAmount / splitCount;
+        var originalBalanceAfter = original.BalanceAfter;
+        var splitTransactions = new List<TransactionProcess>();
+        var balanceBefore = original.Deposit > 0
+            ? originalBalanceAfter - original.Deposit
+            : originalBalanceAfter + original.Withdraw;
+
+        for (var i = 1; i <= splitCount; i++)
+        {
+            var transaction = new TransactionProcess
+            {
+                Index = original.Index,
+                Date = original.Date,
+                Type = original.Type,
+                Description = original.Description,
+                DocumentNo = original.DocumentNo,
+                Deposit = 0,
+                Withdraw = 0,
+                BalanceAfter = 0,
+                Processed = false,
+                CategoryId = original.CategoryId,
+                CategoryName = original.CategoryName,
+                Title = original.Title
+            };
+
+            if (original.Deposit > 0)
+            {
+                transaction.Deposit = amountPerTransaction;
+                transaction.BalanceAfter =
+                    balanceBefore + (amountPerTransaction * i);
+            }
+            else
+            {
+                transaction.Withdraw = amountPerTransaction;
+                transaction.BalanceAfter =
+                    balanceBefore - (amountPerTransaction * i);
+            }
+
+            transaction.Description = original.Description + " (" + i + ")";
+            transaction.Title = original.Title + " (" + i + ")";
+            splitTransactions.Add(transaction);
+        }
+
+        transactions.RemoveAt(index);
+        transactions.InsertRange(index, splitTransactions);
+    }
+
     public async Task SetTransactionTitle(UpdateData data, string callbackData)
     {
         var transactionTitle = data.MessageText!;
@@ -515,6 +582,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     
     private async Task GenerateWalletReport(long chatId, Guid walletId, List<Guid> selectedCategoryIds)
     {
+        //todo : fix for linux
         await services.SendMessage(chatId, Messages.ReportGenerating);
 
         var report = await tServices.GetReportData(walletId, selectedCategoryIds);

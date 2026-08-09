@@ -165,7 +165,7 @@ public class MainService(ITelegramBotClient bot)
     }
     
     public List<List<Tuple<string, string>>> LoadCollectionOneClicker<T>(List<T> items,
-        Func<T, Guid> idSelector, Func<T, string> nameSelector, int width = 2, string prefixCallbackData = "")
+        Func<T, Guid>? idSelector = null, Func<T, string>? nameSelector = null, int width = 2, string prefixCallbackData = "")
     {
 
         List<List<Tuple<string, string>>> collection = [];
@@ -177,7 +177,10 @@ public class MainService(ITelegramBotClient bot)
                 var item = index * width + i < items.Count ? items[index * width + i] : default;
 
                 row.Add(item != null
-                    ? new Tuple<string, string>(nameSelector(item), $"{prefixCallbackData}|{idSelector(item).ToString()}")
+                    ? nameSelector == null || idSelector == null
+                        ? new Tuple<string, string>(item!.ToString(), item!.ToString())
+                        : new Tuple<string, string>(nameSelector(item),
+                            $"{prefixCallbackData}|{idSelector(item).ToString()}")
                     : new Tuple<string, string>("-", "-"));
             }
             collection.Add(row);
