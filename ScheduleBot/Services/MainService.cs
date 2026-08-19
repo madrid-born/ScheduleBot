@@ -21,6 +21,7 @@ public class MainService(ITelegramBotClient bot)
     
     public async Task<int> SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null,ParseMode parseMode = ParseMode.Markdown)
     {
+        message = message.Replace("_", "-");
         return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(), parseMode: parseMode)).MessageId;
     }
     
@@ -29,6 +30,7 @@ public class MainService(ITelegramBotClient bot)
     {
         if(!string.IsNullOrEmpty(message))
         {
+            message = message.Replace("_", "-");
             await bot.EditMessageText(chatId: chatId, messageId: messageId, text: message, replyMarkup: replyMarkup as InlineKeyboardMarkup, parseMode: parseMode);
         }
         else
@@ -178,7 +180,8 @@ public class MainService(ITelegramBotClient bot)
 
                 row.Add(item != null
                     ? nameSelector == null || idSelector == null
-                        ? new Tuple<string, string>(item!.ToString(), item!.ToString())
+                        ? new Tuple<string, string>(item!.ToString(),
+                            $"{prefixCallbackData}|{item.ToString()}")
                         : new Tuple<string, string>(nameSelector(item),
                             $"{prefixCallbackData}|{idSelector(item).ToString()}")
                     : new Tuple<string, string>("-", "-"));
