@@ -189,7 +189,8 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
 
                 row.Add(item != null
                     ? nameSelector == null || idSelector == null
-                        ? new Tuple<string, string>(item!.ToString(), item!.ToString())
+                        ? new Tuple<string, string>(item!.ToString(),
+                            $"{prefixCallbackData}|{item.ToString()}")
                         : new Tuple<string, string>(nameSelector(item),
                             $"{prefixCallbackData}|{idSelector(item).ToString()}")
                     : new Tuple<string, string>("-", "-"));
