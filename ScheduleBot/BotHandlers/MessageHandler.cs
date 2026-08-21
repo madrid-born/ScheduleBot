@@ -14,7 +14,8 @@ public class MessageHandler(
     UserSessionService sessionService,
     CartHandler cartHandler,
     TransactionHandler transactionHandler,
-    MainService mainService,
+    SpotifyHandler spotifyHandler,
+    MainService services,
     IConfiguration configuration)
 {
     public async Task HandleUpdateAsync(ITelegramBotClient bot1, Update update, CancellationToken ct)
@@ -26,25 +27,20 @@ public class MessageHandler(
             chatId = updateData.ChatId;
             if (!await userHandler.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
-            {
                 await HandleCallbackAsync(updateData);
-            }
             else
-            {
                 await HandleMessageAsync(updateData);
-            }
         }
         catch (IOException ex)
         {
-            await bot.SendMessage(chatId, ex.Message, replyMarkup: mainService.GetMainKeyboard());
+            await services.SendMessage(chatId, ex.Message);
         }
         catch (Exception ex)
         {
-            await bot.SendMessage(chatId, Messages.SomethingWentWrong, replyMarkup: mainService.GetMainKeyboard());
-            if (chatId == 315703198)
-            {
-                await bot.SendMessage(chatId, ex.Message, replyMarkup: mainService.GetMainKeyboard());
-            }
+            var adminChatId = long.Parse(configuration["Telegram:AdminChatId"]!);
+
+            await services.SendMessage(chatId, Messages.SomethingWentWrong);
+            if (chatId == adminChatId) await services.SendMessage(chatId, ex.Message);
         }
     }
 
@@ -135,6 +131,9 @@ public class MessageHandler(
             case CallBacks.Transaction:
                 await transactionHandler.HandleCallBack(data);
                 break;
+            case CallBacks.Spotify:
+                await spotifyHandler.HandleCallBack(data);
+                break;
         }
     }
 
@@ -151,7 +150,7 @@ public class MessageHandler(
         if (await CheckCommand(data)) return;
         if (await CheckKeyboard(data)) return;
         if (await CheckSession(data)) return;
-        await bot.SendMessage(data.ChatId, Messages.NotFound, replyMarkup: mainService.GetMainKeyboard());
+        await services.SendMessage(data.ChatId, Messages.NotFound);
     }
 
     private async Task<bool> CheckReplied(UpdateData data)
@@ -263,7 +262,7 @@ public class MessageHandler(
                 return flag;
             }
             flag = true;
-            await bot.SendMessage(data.ChatId, Messages.Welcome, replyMarkup: mainService.GetMainKeyboard());
+            await services.SendMessage(data.ChatId, Messages.Welcome);
         }
         return flag;
     }
@@ -291,6 +290,10 @@ public class MessageHandler(
                 break;
             case Messages.TransactionSymbol:
                 await transactionHandler.HandleSection(data);
+                flag = true;
+                break;
+            case Messages.SpotifySymbol:
+                await spotifyHandler.HandleSection(data);
                 flag = true;
                 break;
             case Messages.AboutSymbol:
@@ -333,6 +336,11 @@ public class MessageHandler(
                 break;
             case Actions.AwaitingBluReview:
                 await transactionHandler.SetTransactionTitle(data, session.CallbackData);
+                flag = true;
+                break;
+            
+            case Actions.AwaitingPlaylistId:
+                await spotifyHandler.CategorizePlaylist(data, data.MessageText!);
                 flag = true;
                 break;
         }

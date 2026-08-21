@@ -1,27 +1,32 @@
 ﻿using System.Globalization;
 using ScheduleBot.Models;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.Services;
 
-public class MainService(ITelegramBotClient bot)
+public class MainService(ITelegramBotClient bot, IConfiguration configuration, IWebHostEnvironment environment)
 {
 
     #region Statics
 
-    public string Url { get; set; }
-    public string BotToken { get; set; }
-    public long AdminChatId { get; set; }
-
+    private string Dop => environment.IsDevelopment() ? "Development" : "Production";
+    public string Url => configuration[$"{Dop}:Url"]!;
+    public string BotToken => configuration[$"{Dop}:BotToken"]!;
+    public long AdminChatId => long.Parse(configuration["Telegram:AdminChatId"]!);
+    
     #endregion
     
     #region BotServices
     
-    public async Task<int> SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null,ParseMode parseMode = ParseMode.Markdown)
+    public async Task<int> SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null, string? imageUrl = null, ParseMode parseMode = ParseMode.Markdown)
     {
-        return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(), parseMode: parseMode)).MessageId;
+        message = message.Replace("_", "-");
+        if (imageUrl != null)
+            return (await bot.SendPhoto(chatId, photo: new InputFileUrl(imageUrl), caption: message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
+        return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
     }
     
     public async Task EditMessage(long chatId, int messageId, string? message = null, ReplyMarkup? replyMarkup = null,
@@ -37,13 +42,19 @@ public class MainService(ITelegramBotClient bot)
         }
     }
     
-    public ReplyKeyboardMarkup GetMainKeyboard()
+    public async Task DeleteMessage(long chatId, int messageId)
+    {
+        await bot.DeleteMessage(chatId, messageId);
+    }
+    
+    public ReplyKeyboardMarkup GetMainKeyboard(bool isAdmin = false)
     {
         var collection = new List<List<string>>
         {
             new() { Messages.PeriodTrackerSymbol + Messages.PeriodTracker, Messages.CartSymbol + Messages.Cart },
             new() { Messages.TransactionSymbol + Messages.Transaction, },
         };
+        if (isAdmin) collection.Add([Messages.SpotifySymbol + Messages.Spotify]);
         
         return (ReplyKeyboardMarkup)CreateKeyboard(collection, resizeKeyboard: true);
     }
@@ -189,10 +200,9 @@ public class MainService(ITelegramBotClient bot)
         return collection;
     }
     
-    public List<List<Tuple<string, string>>> LoadCollectionMultiSelect<T>(List<T> items, List<Guid> selectedItems, bool allSelected,
-        Func<T, Guid> idSelector, Func<T, string> nameSelector, int width = 3, string prefixCallbackData = "")
+    public List<List<Tuple<string, string>>> LoadCollectionMultiSelect<T, TId>(List<T> items, List<TId> selectedItems, bool allSelected,
+        Func<T, TId> idSelector, Func<T, string> nameSelector, int width = 3, string prefixCallbackData = "")
     {
-
         List<List<Tuple<string, string>>> collection = [];
         
         for (var index = 0; index < (double)items.Count/width ; index += 1)
@@ -200,16 +210,18 @@ public class MainService(ITelegramBotClient bot)
             List<Tuple<string, string>> row = [];
             for (var i = 0; i < width; i++)
             {
-                var item = index * width + i < items.Count ? items[index * width + i] : default;
+                var itemIndex = index * width + i;
+                var item = itemIndex < items.Count ? items[itemIndex] : default;
                 if (item == null)
                 {
                     row.Add(new Tuple<string, string>("-", "-"));
                     continue;
                 }
                 
-                var displayName = (selectedItems.Contains(idSelector(item)) ? "☑" : "☐") + $" {nameSelector(item)}";
-                row.Add(new Tuple<string, string>(displayName, $"{CallBacks.MultipleSelectToggle}|{idSelector(item)}"));
-
+                var itemId = idSelector(item);
+                var isSelected = selectedItems.Contains(itemId);
+                var displayName = (isSelected ? "☑" : "☐") + $" {nameSelector(item)}";
+                row.Add(new Tuple<string, string>(displayName, $"{(string.IsNullOrEmpty(prefixCallbackData) ? "" : $"{prefixCallbackData}|")}{CallBacks.MultipleSelectToggle}|{itemId}"));
             }
             collection.Add(row);
         }
@@ -281,9 +293,14 @@ public class MainService(ITelegramBotClient bot)
         return $"{year:D4}/{month:D2}/{day:D2}";
     }
     
+    public static string ConvertGregorianToJalaliAndGregorian(DateTime date)
+    {
+        return $"{date.Year}/{date.Month}/{date.Day} - {ConvertGregorianToJalali(date)}";
+    }
+    
     public static string ConvertGregorianToJalaliAndGregorianWithTime(DateTime date)
     {
-        return $"{date.Hour}:{date.Minute}:{date.Second}\n{date.Year}/{date.Month}/{date.Day} - {ConvertGregorianToJalali(date)}";
+        return $"{date.Hour}:{date.Minute}:{date.Second}\n{ConvertGregorianToJalaliAndGregorian(date)}";
     }
     
     public static string TruncateString(string? text, int maxLength)

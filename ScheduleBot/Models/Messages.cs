@@ -239,6 +239,52 @@ public static class Messages
     public const string ReportReady = "Your wallet report is ready!\n\nWallet: {0}\nGenerated: {1}\nTransactions: {2}";
     
     #endregion
+    
+    #region Spotify
+
+    public const string LoadSpotify = "Welcome to the Spotify section.\nWhat do you want to do?";
+    
+    public const string KeyboardCategorizePlaylist = "Categorize Playlist";
+    public const string KeyboardNotCategorizePlaylist = "Use Not categorized playlist";
+    
+    public const string AskForPlaylistId = "Please Enter the playlist ID.";
+    public const string StartCategorizing = "Lets start categorizing playlist '{0}' by '{1}' with {2} items inside.";
+    public const string PlaylistEmpty = "Playlist '{0}' by '{1}' has no items to categorize.";
+    public const string PlaylistFinished = "Categorizing playlist finished.";
+
+    public const string TrackReviewP1 = "👉 Index: {0}\n🏧 Name: {1}\n📅 ReleasedDate: {2}\n📅 Playable: {3}\n📅 Album: {2}\n\n";
+    public const string TrackReviewP2 = "🏧 Artists: \n{0}\n\n";
+    public const string TrackReviewP3 = "🏧 Moods: \n{0}\n\n";
+    public const string TrackReviewP4 = "🏧 Genres: \n{0}\n\n";
+    public const string TrackAsk12 = "\nDo you want to add this track?";
+    public const string TrackAsk3 = "\nSelect the moods this track belongs to";
+    public const string TrackAsk4 = "\nSelect the genres this track belongs to";
+    public const string TrackAsk5 = "\nSelect the Artsit(s) section";
+    public const string TrackAsk6 = "\nClick to save";
+    public const string TrackView = "\nTransaction had been saved ✅";
+
+    
+    
+    
+    
+    public const string NextTrack = "Next Track";
+    public const string AcceptTrack = "Accept Track";
+    public const string RejectTrack = "Reject Track";
+    public const string AcceptSpotifyTrack = "Accept The Track";
+    public const string SelectSpotifyMoods = "Select Moods";
+    public const string SelectSpotifyGenres = "Select Genres";
+    public const string AcceptSpotifyPlaylists = "Accept Playlists";
+    public const string AcceptPlaylists = "Accept Playlists";
+    public const string AcceptPersianPlaylists = "(Persian) Accept Playlists";
+    public const string AcceptNonPersianPlaylists = "(NonPersian) Accept Playlists";
+    public const string AcceptNoArtistPlaylists = "None";
+    public const string RejectPlaylists = "Reject Playlists";
+    public const string Reset = "🌀 Reset";
+    public const string TrackRejected = "Track categorization cancelled.";
+    public const string TrackCategorized = "Track has been categorized ✅";
+    public const string NoSpotifyTracks = "No track was found in the configured Spotify inbox playlist.";
+
+    #endregion
 
 }
 
@@ -345,6 +391,36 @@ public static class CallBacks
 
         
     #endregion
+    
+    #region Spotify
+
+    public const string Spotify = "Spotify";
+    public const string CategorizePlaylist = "CP";
+    public const string NotCategorizePlaylist = "NCP";
+    
+    public const string TrackAction = "TA";
+    public const string WaitForTrackReview = "WFR";
+    public const string AcceptToSaveTrack = "AST";
+    public const string MoodsSelected = "MS";
+    public const string GenresSelected = "GS";
+    public const string WaitForMoodOrGenre = "WFMG";
+    public const string ArtistsSelected = "AS";
+    public const string PersianArtist = "PA";
+    public const string NonPersianArtist = "NPA";
+    public const string NoArtist = "NA";
+    public const string MoodsSelection = "MSN";
+    public const string GenreSelection = "GSN";
+
+
+    
+    public const string AcceptTrack = "AcceptTrack";
+    public const string RejectTrack = "RejectTrack";
+    public const string SpotifyMood = "Mood";
+    public const string SpotifyGenre = "Genre";
+    public const string SpotifyPlaylist = "Playlist";
+    public const string Reset = "Reset";
+
+    #endregion
 }
 
 public static class Actions
@@ -353,8 +429,12 @@ public static class Actions
     public const string AwaitingCategoryName = "AwaitingCategoryName";
     public const string AwaitingBluFile = "AwaitingBluFile";
     public const string AwaitingBluReview = "AwaitingBluReview";
-    
     public const string BuildingReport = "BuildingReport";
+    
+    public const string LoadSpotify = "AwaitingPlaylistId";
+    public const string AwaitingPlaylistId = "AwaitingPlaylistId";
+    public const string AwaitingTrackReview = "CategorizePlaylist";
+    public const string CategorizingSpotifyTrack = "CategorizingSpotifyTrack";
 }
 
 public static class Context
@@ -362,16 +442,45 @@ public static class Context
     public const string Tps = "TransactionProcesses";
     public const string Wallet = "Wallet";
     public const string Index = "Index";
+    public const string Section = "Section";
     public const string MessageId = "MessageId";
 
     public const string ReportWalletId = "ReportWalletId";
     public const string ReportSelectedCategories = "ReportSelectedCategories";
     public const string ReportAllSelected = "ReportAllSelected";
     public const string ReportMessageId = "ReportMessageId";
+
+    public const string TracksIds = "TracksIds";
+    public const string MoodsPlaylists = "MoodsPlaylists";
+    public const string GenresPlaylists = "GenresPlaylists";
+    public const string MoodsSelectedIds = "MoodsSelectedIds";
+    public const string MoodsAllSelected = "MoodsAllSelected";
+    public const string GenresSelectedIds = "GenresSelectedIds";
+    public const string GenresAllSelected = "GenresAllSelected";
+
+    
+    
+    public const string SpotifyTrack = "SpotifyTrack";
+    public const string SpotifyMessageId = "SpotifyMessageId";
+    public const string SpotifyMoods = "SpotifyMoods";
+    public const string SpotifyGenres = "SpotifyGenres";
+    public const string SpotifyKnownArtists = "SpotifyKnownArtists";
 }
 
 public static class Files
 {
     public const string PdfWalletReport = "WalletReport_{0}.pdf";
-    public const string ExcelWalletReport = "WalletDetailedTransactions_{0}.pdf";
+    public const string ExcelWalletReport = "WalletDetailedTransactions_{0}.xlsx";
+}
+
+public static class SpotifyApi
+{
+    public const string NotCategorizedPlaylistId = "21SgdiMHUdSgXrZpnuqc56";
+    public const string ApiPassword = "VeryStrongPasswordForAuthentication";
+    public const string ApiCallSignIn = "/api/Authorization/SignIn";
+    public const string ApiCallGetPlaylist = "api/PlayList/GetPlayListFromSpotify";
+    public const string ApiCallGetPlaylists = "/api/PlayList/GetPlayListsFromDatabase";
+    public const string ApiCallGetTrack = "api/PlayList/GetTrackFromSpotify";
+    public const string ApiCallAddTrack = "api/PlayList/AddTrackToCollection";
+    
 }
