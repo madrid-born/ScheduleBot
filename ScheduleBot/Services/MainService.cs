@@ -221,7 +221,7 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
                 
                 var itemId = idSelector(item);
                 var isSelected = selectedItems.Contains(itemId);
-                var displayName = (isSelected ? "☑" : "☐") + $" {nameSelector(item)}";
+                var displayName = (isSelected ? "☑" : "") + $" {nameSelector(item)}";
                 row.Add(new Tuple<string, string>(displayName, $"{(string.IsNullOrEmpty(prefixCallbackData) ? "" : $"{prefixCallbackData}|")}{CallBacks.MultipleSelectToggle}|{itemId}"));
             }
             collection.Add(row);

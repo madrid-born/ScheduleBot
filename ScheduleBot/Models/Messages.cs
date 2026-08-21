@@ -450,13 +450,16 @@ public static class Context
     public const string ReportAllSelected = "ReportAllSelected";
     public const string ReportMessageId = "ReportMessageId";
 
+    public const string TrackId = "TrackId";
     public const string TracksIds = "TracksIds";
+    public const string OtherPlaylists = "OtherPlaylists";
     public const string MoodsPlaylists = "MoodsPlaylists";
     public const string GenresPlaylists = "GenresPlaylists";
     public const string MoodsSelectedIds = "MoodsSelectedIds";
     public const string MoodsAllSelected = "MoodsAllSelected";
     public const string GenresSelectedIds = "GenresSelectedIds";
     public const string GenresAllSelected = "GenresAllSelected";
+    public const string AdditionalPlaylistIds = "AdditionalPlaylistIds";
 
     
     

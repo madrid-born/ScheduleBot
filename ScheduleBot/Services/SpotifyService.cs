@@ -99,6 +99,7 @@ public class SpotifyService(HttpClient httpClient, IConfiguration configuration)
     public async Task AddTrackToCollectionsAsync(string trackSpotifyId, IEnumerable<string> playlistSpotifyIds,
         CancellationToken cancellationToken = default)
     {
+        return;
         var playlistIds = playlistSpotifyIds.Distinct(StringComparer.Ordinal).ToList();
         if (playlistIds.Count == 0) return;
 
