@@ -8,59 +8,6 @@ public class SpotifyHandler(
     UserSessionService sessionService,
     MainService services)
 {
-    private static readonly string[][] Moods =
-    [
-        ["Taryak", "Sat By The Fire", "Directly To IR"],
-        ["I Wanna Cry", "Depression Is My Passion", "Sit And Chill"],
-        ["Just A Chemical Reaction", "Fuck The System", "Hits"],
-        ["Sweat Dreams", "Life Sucks", "Serious Party"],
-        ["Tell Me A Story", "Beautiful Day", "Beef Is Not Just Meat"]
-    ];
-
-    private static readonly string[][] Genres =
-    [
-        ["Persian HipHop", "Persian Classic", "Persian Ultra Classic"],
-        ["Rock", "Soft Rock", "Rock N Roll"],
-        ["Indie Rock", "Metal", "Trash Metal"],
-        ["Persian Rock", "American HipHop", "Pop"],
-        ["Empty Notes SoundTrack", "Movies And Games SoundTrack", "Female Vocalist"]
-    ];
-
-    private static readonly IReadOnlyDictionary<string, string> PlaylistIds = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["Taryak"] = "0AecVqw0GwwM5PXZD6Jhkp", ["Sat By The Fire"] = "5qSlEpa6dEurWAIR3Iwpy7", ["Directly To IR"] = "4a77RaEYNILmT9OJTYBIAC",
-        ["I Wanna Cry"] = "4PWSHhEzlzvrBXQrkzZOpO", ["Depression Is My Passion"] = "5tIuZLcWEdfbDO2vJD0JAP", ["Sit And Chill"] = "4gALtkA6vAyVBVZ8LVlYT7",
-        ["Just A Chemical Reaction"] = "4YNTnobR4uHuAaeJftFffy", ["Fuck The System"] = "1i74rvqryggEZgzQ9RJ1oO", ["Hits"] = "2ltSuxm3SflLBYDmXiudDi",
-        ["Sweat Dreams"] = "25yB4arw2tpDwxF3fv5xCa", ["Life Sucks"] = "66pf6tMhNw0uawI4kcUggX", ["Serious Party"] = "1YZySvWnCH760zgpt4cPT7",
-        ["Tell Me A Story"] = "0kaY6jxq6VK4mk8c4rvPpz", ["Beautiful Day"] = "7a44WRB7Jef3BeKTFPPBAg", ["Beef Is Not Just Meat"] = "0YlfrCAKzLzWEN5635S2yJ",
-        ["Persian HipHop"] = "2x3OSei2kDxK5xhvSGepmu", ["Persian Classic"] = "1VQFtYGNQmrjg550VuN9Os", ["Persian Ultra Classic"] = "4esx5g2oX2GbdIojpB4HzR",
-        ["Rock"] = "29Kb9ufLj857WZZh4c8pOs", ["Soft Rock"] = "3UOdWux3HpM08EDe3sYIa4", ["Rock N Roll"] = "48zpBLPoDEsJwkvCsNiFfG",
-        ["Indie Rock"] = "0FnOUaEIjzdLlq3qqT1lEY", ["Metal"] = "08amo8Z86PzmzpkdyVeSWo", ["Trash Metal"] = "7JQDv5L1u77L3jj9JzR3nG",
-        ["Persian Rock"] = "0244kdsnXGPE1KiMah5grS", ["American HipHop"] = "1c90hjQKekJgtWka5xapKc", ["Pop"] = "3uWFnsg83jAcuyeHn9ePYz",
-        ["Empty Notes SoundTrack"] = "1vGsehpqi1yA0jomB09FX5", ["Movies And Games SoundTrack"] = "5hqy47JU2Q8NzAMss2PlVo", ["Female Vocalist"] = "6SRqiXwf4bQlrMlb904pO1",
-        ["Ali Sorena"] = "4ZLr2eoSXUB0l2yTzzZnwS", ["Farshad"] = "0amOkqAdK9DnmDEgSxH8Hf", ["Mc Tes"] = "79uRePssbNrU05kmM6Qfp1", ["Naghsh"] = "4tEW77hpLAe30i1aTSDuBV",
-        ["Ben"] = "1MHo5Vi5xonFcUxXAnMmoQ", ["Bamdad"] = "2Fa0eWTLCtA6T23Mk1QAlj", ["Daygard"] = "1e9mQbHVSxVDqOgprODdhy", ["Soall"] = "2jiVLRaPOTOqoFizH5svpK",
-        ["Kaboos"] = "6sqiOtVhP2zA9wdlr2UaEu", ["Safir"] = "01GPv6XMWf1XWz0D9FHTHc", ["Rokh"] = "1SW4vyoEPSuP1VnEV94IRY", ["Sezavar"] = "5JKJOkAjuBF8M1ySbMUPdW",
-        ["Bahram"] = "0fCMWJriqifNiwaNt7sjio", ["Navid"] = "5Sx8NTPMp0CZZDMW84G9yK", ["Rez"] = "3bpYvtnwyufeQxo8p96MQB", ["Hichkas"] = "2rnznqJSuXjNmyih5NIeWa",
-        ["Quf"] = "1Ym1opKGJfEzBZXfLVfOry", ["Fadaei"] = "4IVILUBPa2Jom9fp5LPxyc", ["Shapur"] = "3RYNAsJFKlILk726kc25Fv", ["Hamed Slash"] = "7jsmstzMOdiQJHyyou8RE0",
-        ["Reza Pishro"] = "1dwX6q1S2XXhSGM6XPGLKa", ["Ho3ein"] = "2ty7WsOm5h1xpi8NaAqWmp", ["Sadegh"] = "5onnI39zx5OFq1gIIdtNjB", ["Shayea"] = "7z7OAhhLk6YAXGHE7oOCGe",
-        ["Shahin Najafi"] = "5PaCXgb5D5JOM0ZnL9u4r5", ["Yas"] = "5zMSIMGyLfpm3xsh9wiOGs", ["SoelChigini"] = "1HCmwxw1mV4qwzzUmVb9zm", ["Naaji"] = "0nKvw0rmjOtzEQpxkXkWdq",
-        ["Ahood"] = "3MpGFQO5VnuAphILc79s31", ["Hiphopologist"] = "02zbgydLkBempUaxUQd29r", ["Banan"] = "6o4gFki5mys2pdGc0C82Xt",
-        ["Mohammad-Reza Shajarian"] = "4KFHa0lHMOj0dkPeJmZncn", ["Homayoun Shajarian"] = "4KFHa0lHMOj0dkPeJmZncn", ["Farhad Mehrad"] = "4OkcJXPSaf9u5nVwyQObSv",
-        ["Hayedeh"] = "3lGocTcJzwH0AvfyebrWm1", ["Ebi"] = "5aKtj3JJgLd1AX94VJWUHY", ["Dariush"] = "2NBz69vz7grjalqMdO2J41", ["Fereidoon Foroughi"] = "6SsBT5eiPumt6f8yT2Aqf8",
-        ["Fereydoon Foroughi"] = "6SsBT5eiPumt6f8yT2Aqf8", ["Parastoo Ahmadi"] = "5dFgDwfThzdbCIrXnAHhbx", ["Az Shanbe"] = "7rz7MtMZQbB2cciCGhZx88",
-        ["Moody Moussavi"] = "0LK9xbwJCxMZuaQg4gtegL", ["B-Band"] = "1hXPzFCNozjASslwJMeCc3", ["Architects"] = "5uWHivxFLz9LmpqacIhyhG",
-        ["Cassyette"] = "2lIA869v3xVWQjzSfClWQI", ["Bring Me The Horizon"] = "5i2zeH5o3KEo7kaoUmtkDX", ["System Of A Down"] = "7INjceX35qNPV1JOKOjtUf",
-        ["Metallica"] = "6OscXI89zOOVsLHNdzc3Ng", ["Five Finger Death Punch"] = "70c8nLrI0pRIlZEZOxHBk4", ["Halestorm"] = "2vovqXgMy0dqwVq9IREqYQ",
-        ["Kami Kehoe"] = "6otJdRvHL46J6SsSOa0t3f", ["Linkin Park"] = "3N8UuAPoTDlGI6BbLkHxSP", ["TOOL"] = "1LD15Ffadc4rJvQi1RVo47",
-        ["Queen"] = "3elhh5SVn04V8ojeQU6yHD", ["The Score"] = "3gBf3ZidH0wKAzAfZaCaa9", ["Imagine Dragons"] = "5YYy4lPdaKgeT0cjjTBLYP",
-        ["Måneskin"] = "7HitZa0NYuin5s2csRyQRa", ["Arctic Monkeys"] = "1CA28XILPxF0oMJeGYmYPI", ["Bec Lauder and The Noise"] = "0JwRG3Asb4qwRQIHBi1L4s",
-        ["Dea Matrona"] = "25qlSbOk59zSYUINbVxDWQ", ["U2"] = "2YqwXmmTSwXg23aeorwtvw", ["Red Hot Chili Peppers"] = "2pqV7XSigQwTFLi2oX1cPg",
-        ["Pink Floyd"] = "3VKEPtvrzFno8To791jnTd", ["Twenty One Pilots"] = "2vKV0DUYCQ3s6ssmu9iMxp", ["Eminem"] = "5fiEyDRixTbbrivcOsYuWO",
-        ["NF"] = "4ONAxDnusJwhg0nYahRUGT", ["Jacob Lee"] = "6ARxHWqFz2comSziVAu5vs",
-        ["Other Persian Artists"] = "3mdVjPbrU8Gz7XxNY5JeS0", ["Other NonPersian Artists"] = "4vL8aklaP4kkNhY4x6IMZ3", ["All Songs"] = "0R37XmZXLrE7zgAFYvIfdr"
-    };
-
     public async Task HandleSection(UpdateData data)
     {
         if (data.ChatId != services.AdminChatId) return;
@@ -91,32 +38,9 @@ public class SpotifyHandler(
                 break;
             case CallBacks.NotCategorizePlaylist:
                 await CategorizePlaylist(data);
-                // await LoadNextTrack(data);
                 break;
             case CallBacks.TrackAction:
                 await TrackCategorizingAction(data);
-                break;
-
-            
-            
-            case CallBacks.AcceptTrack:
-                await ShowMoods(data);
-                break;
-            case CallBacks.RejectTrack:
-                if (TryGetSession(data, out _))
-                {
-                    sessionService.ClearSession(data.ChatId);
-                    await services.EditMessage(data.ChatId, data.MessageId, Messages.TrackRejected);
-                }
-                break;
-            case CallBacks.SpotifyMood:
-                await HandleCategory(data, Moods, Context.SpotifyMoods, Messages.SelectSpotifyMoods, CallBacks.SpotifyMood, ShowGenres);
-                break;
-            case CallBacks.SpotifyGenre:
-                await HandleCategory(data, Genres, Context.SpotifyGenres, Messages.SelectSpotifyGenres, CallBacks.SpotifyGenre, ShowPlaylistAcceptance);
-                break;
-            case CallBacks.SpotifyPlaylist:
-                await FinishCategorization(data);
                 break;
         }
     }
@@ -153,12 +77,10 @@ public class SpotifyHandler(
         session.SetContext(Context.OtherPlaylists, playlists.Where(x => x.PlaylistTypeId == 4).ToList());
         session.SetContext(Context.MoodsPlaylists, playlists.Where(x => x.PlaylistTypeId == 1).ToList());
         session.SetContext(Context.GenresPlaylists, playlists.Where(x => x.PlaylistTypeId == 2).ToList());
-        session.SetContext(Context.AdditionalPlaylistIds, new List<string>());
-        session.SetContext(Context.MoodsSelectedIds, new List<string>());
-        session.SetContext(Context.GenresSelectedIds, new List<string>());
+        session.SetContext(Context.Section, CallBacks.WaitForTrackReview);
         session.SetContext(Context.Index, 0);
         session.SetContext(Context.MessageId, 0);
-        session.SetContext(Context.Section, CallBacks.WaitForTrackReview);
+        EmptyContextForTrack(session);
         await CategorizeTrack(data.ChatId);
     }
 
@@ -169,6 +91,7 @@ public class SpotifyHandler(
         var section = (string)session.Context[Context.Section];
         var index = (int)session.Context[Context.Index];
         var loadedMessageId = (int)session.Context[Context.MessageId];
+        var response = (string)session.Context[Context.Response];
         if (index >= trackIds.Count)
         {
             sessionService.ClearSession(chatId);
@@ -200,9 +123,9 @@ public class SpotifyHandler(
                 current + ((List<Playlist>)session.Context[Context.MoodsPlaylists]).FirstOrDefault(x =>
                     x.SpotifyId == moodId)!.PlaylistName + "\n");
         
-        var genresText = ((List<string>)session.Context[Context.MoodsSelectedIds]).Aggregate("",
+        var genresText = ((List<string>)session.Context[Context.GenresSelectedIds]).Aggregate("",
             (current, moodId) =>
-                current + ((List<Playlist>)session.Context[Context.MoodsPlaylists]).FirstOrDefault(x =>
+                current + ((List<Playlist>)session.Context[Context.GenresPlaylists]).FirstOrDefault(x =>
                     x.SpotifyId == moodId)!.PlaylistName + "\n");
 
         var dateAndTime = track.ReleaseDate == null
@@ -210,7 +133,7 @@ public class SpotifyHandler(
             : MainService.ConvertGregorianToJalaliAndGregorian((DateTime)track.ReleaseDate);
         var indexString = $"{index + 1}/{trackIds.Count}";
 
-        var messageP1 = string.Format(Messages.TrackReviewP1, indexString, track.TrackName, dateAndTime, track.isPlayable ? "True" : "Not Now", album != null ? album.AlbumName : "None");
+        var messageP1 = string.Format(Messages.TrackReviewP1, indexString, track.TrackName, dateAndTime, album != null ? album.AlbumName : "None");
         var messageP2 = string.Format(Messages.TrackReviewP2, artistsText);
         var messageP3 = string.Format(Messages.TrackReviewP3, moodsText);
         var messageP4 = string.Format(Messages.TrackReviewP4, genresText);
@@ -254,16 +177,12 @@ public class SpotifyHandler(
                 collection = [[new(Messages.Done, CallBacks.Done), new(Messages.Cancel, CallBacks.Cancel),]];
                 break;
             case CallBacks.Saved:
-                message += messageP3 + messageP4 + Messages.TrackView;
+                message += messageP3 + messageP4 + response;
                 collection = null;
                 session.SetContext(Context.Index, index + 1);
                 session.SetContext(Context.MessageId, 0);
-                session.SetContext(Context.AdditionalPlaylistIds, new List<string>());
-                session.SetContext(Context.MoodsSelectedIds, new List<string>());
-                session.SetContext(Context.GenresSelectedIds, new List<string>());
-                session.SetContext(Context.MoodsAllSelected, false);
-                session.SetContext(Context.GenresAllSelected, false);
                 session.SetContext(Context.Section, CallBacks.WaitForTrackReview);
+                EmptyContextForTrack(session);
                 await CategorizeTrack(chatId);
                 break;
         }
@@ -302,7 +221,6 @@ public class SpotifyHandler(
         var trackId = (string)session.Context[Context.TrackId];
         var section = (string)session.Context[Context.Section];
         var index = (int)session.Context[Context.Index];
-        var messageId = (int)session.Context[Context.MessageId];
 
         var value = data.DataSeparated.ElementAtOrDefault(2);
         var (playlistString, selectedIdsString, allSelectedString, nextSection) = ("", "", "", "");
@@ -318,13 +236,8 @@ public class SpotifyHandler(
                         break;
                     case CallBacks.Ignore:
                         session.SetContext(Context.Section, CallBacks.WaitForTrackReview);
-                        session.SetContext(Context.MessageId, 0);
-                        session.SetContext(Context.AdditionalPlaylistIds, new List<string>());
-                        session.SetContext(Context.MoodsSelectedIds, new List<string>());
-                        session.SetContext(Context.GenresSelectedIds, new List<string>());
-                        session.SetContext(Context.MoodsAllSelected, false);
-                        session.SetContext(Context.GenresAllSelected, false);
                         session.SetContext(Context.Index, index + 1);
+                        EmptyContextForTrack(session);
                         break;
                 }
                 break;
@@ -381,178 +294,45 @@ public class SpotifyHandler(
                         playlistId = allPlaylist.FirstOrDefault(x => x.PlaylistName == "Other NonPersian Artist")?.SpotifyId;
                         break;
                     case CallBacks.NoArtist:
-                        return;
+                        break;
                 }
-                if (!selectedIds.Remove(playlistId!)) selectedIds.Add(playlistId!);
+                if(!string.IsNullOrEmpty(playlistId)) if (!selectedIds.Remove(playlistId)) selectedIds.Add(playlistId);
                 session.SetContext(Context.AdditionalPlaylistIds, selectedIds);
                 session.SetContext(Context.Section, CallBacks.ArtistsSelected);
                 break;
             }
             case CallBacks.ArtistsSelected:
             {
-                var additionals = (List<string>)session.Context[Context.AdditionalPlaylistIds];
-                var moods = (List<string>)session.Context[Context.MoodsPlaylists];
-                var genres = (List<string>)session.Context[Context.GenresPlaylists];
+                switch (value)
+                {
+                    case CallBacks.Done:
+                        var additionals = (List<string>)session.Context[Context.AdditionalPlaylistIds];
+                        var moods = (List<string>)session.Context[Context.MoodsSelectedIds];
+                        var genres = (List<string>)session.Context[Context.GenresSelectedIds];
 
-                var allPlaylistIds = additionals.Union(moods).Union(genres).ToList();
-                await spotifyService.AddTrackToCollectionsAsync(trackId, allPlaylistIds);
-                session.SetContext(Context.Section, CallBacks.Saved);
+                        var allPlaylistIds = additionals.Union(moods).Union(genres).ToList();
+                        var response = await spotifyService.AddTrackToCollections(session.CallbackData, trackId, allPlaylistIds);
+                        session.SetContext(Context.Response, response);
+                        session.SetContext(Context.Section, CallBacks.Saved);
+                        break;
+                    case CallBacks.Cancel:
+                        session.SetContext(Context.Section, CallBacks.WaitForTrackReview);
+                        EmptyContextForTrack(session);
+                        break;
+                }
                 break;
             }
         }
         await CategorizeTrack(data.ChatId);
     }
 
-
-    private async Task LoadNextTrack(UpdateData data)
+    private void EmptyContextForTrack(UserSession session)
     {
-        var track = await spotifyService.GetNextTrackAsync();
-        if (track == null)
-        {
-            await services.EditMessage(data.ChatId, data.MessageId, Messages.NoSpotifyTracks);
-            return;
-        }
-
-        var collection = new List<List<Tuple<string, string>>>
-        {
-            new()
-            {
-                new(Messages.AcceptTrack, CallBacks.AcceptTrack),
-                new(Messages.RejectTrack, CallBacks.RejectTrack)
-            }
-        };
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Spotify}|");
-        var messageId = await services.SendMessage(data.ChatId, BuildTrackMessage(track), replyMarkup: keyboard);
-
-        sessionService.SetData(data.ChatId, Actions.CategorizingSpotifyTrack, CallBacks.Spotify);
-        var session = sessionService.GetData(data.ChatId)!;
-        session.SetContext(Context.SpotifyTrack, track);
-        session.SetContext(Context.SpotifyMessageId, messageId);
-        session.SetContext(Context.SpotifyMoods, new HashSet<string>(StringComparer.Ordinal));
-        session.SetContext(Context.SpotifyGenres, new HashSet<string>(StringComparer.Ordinal));
+        session.SetContext(Context.Response, "");
+        session.SetContext(Context.MoodsAllSelected, false);
+        session.SetContext(Context.GenresAllSelected, false);
+        session.SetContext(Context.MoodsSelectedIds, new List<string>());
+        session.SetContext(Context.GenresSelectedIds, new List<string>());
+        session.SetContext(Context.AdditionalPlaylistIds, new List<string>());
     }
-
-    private async Task ShowMoods(UpdateData data)
-    {
-        if (!TryGetSession(data, out var session)) return;
-        await EditCategory(data, session, Moods, Context.SpotifyMoods, Messages.SelectSpotifyMoods, CallBacks.SpotifyMood);
-    }
-
-    private async Task HandleCategory(UpdateData data, string[][] options, string contextKey, string heading, string callback,
-        Func<UpdateData, Task> onDone)
-    {
-        if (!TryGetSession(data, out var session) || data.DataSeparated.Count < 3) return;
-
-        var selection = data.DataSeparated[2];
-        if (selection == CallBacks.Done)
-        {
-            await onDone(data);
-            return;
-        }
-
-        var selected = GetSelection(session, contextKey);
-        if (selection == CallBacks.Reset) selected.Clear();
-        else if (options.SelectMany(row => row).Contains(selection))
-        {
-            if (!selected.Add(selection)) selected.Remove(selection);
-        }
-        else return;
-
-        await EditCategory(data, session, options, contextKey, heading, callback);
-    }
-
-    private async Task ShowGenres(UpdateData data)
-    {
-        if (!TryGetSession(data, out var session)) return;
-        await EditCategory(data, session, Genres, Context.SpotifyGenres, Messages.SelectSpotifyGenres, CallBacks.SpotifyGenre);
-    }
-
-    private async Task EditCategory(UpdateData data, UserSession session, string[][] options, string contextKey, string heading, string callback)
-    {
-        var track = (SpotifyTrack)session.Context[Context.SpotifyTrack];
-        var selected = GetSelection(session, contextKey);
-        var collection = options
-            .Select(row => row.Select(option => new Tuple<string, string>(selected.Contains(option) ? $"✅ {option}" : option, option)).ToList())
-            .ToList();
-        collection.Add([new(Messages.Done, CallBacks.Done), new(Messages.Reset, CallBacks.Reset)]);
-
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Spotify}|{callback}|");
-        await services.EditMessage(data.ChatId, data.MessageId, $"{heading}\n\n{BuildTrackDetails(track)}", keyboard);
-    }
-
-    private async Task ShowPlaylistAcceptance(UpdateData data)
-    {
-        if (!TryGetSession(data, out var session)) return;
-
-        var track = (SpotifyTrack)session.Context[Context.SpotifyTrack];
-        var knownArtists = track.Artists.Where(PlaylistIds.ContainsKey).ToList();
-        var allArtistsUnknown = knownArtists.Count == 0;
-        session.SetContext(Context.SpotifyKnownArtists, knownArtists);
-
-        List<List<Tuple<string, string>>> collection = allArtistsUnknown
-            ?
-            [
-                [new(Messages.AcceptPersianPlaylists, CallBacks.PersianArtist), new(Messages.AcceptNonPersianPlaylists, CallBacks.NonPersianArtist)],
-                [new(Messages.AcceptNoArtistPlaylists, CallBacks.NoArtist), new(Messages.RejectPlaylists, CallBacks.RejectTrack)]
-            ]
-            :
-            [
-                [new(Messages.AcceptPlaylists, CallBacks.NoArtist), new(Messages.RejectPlaylists, CallBacks.RejectTrack)]
-            ];
-
-        var artistLines = string.Join('\n', track.Artists.Select(artist => $"{EscapeMarkdown(artist)} {(PlaylistIds.ContainsKey(artist) ? "✅" : "❌")}"));
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Spotify}|{CallBacks.SpotifyPlaylist}|");
-        await services.EditMessage(data.ChatId, data.MessageId, $"{Messages.AcceptSpotifyPlaylists}\n\n{BuildTrackDetails(track)}\n\nArtists:\n{artistLines}", keyboard);
-    }
-
-    private async Task FinishCategorization(UpdateData data)
-    {
-        if (!TryGetSession(data, out var session) || data.DataSeparated.Count < 3) return;
-
-        var choice = data.DataSeparated[2];
-        if (choice == CallBacks.RejectTrack)
-        {
-            sessionService.ClearSession(data.ChatId);
-            await services.EditMessage(data.ChatId, data.MessageId, Messages.TrackRejected);
-            return;
-        }
-
-        var track = (SpotifyTrack)session.Context[Context.SpotifyTrack];
-        var playlistIds = new List<string> { PlaylistIds["All Songs"] };
-        playlistIds.AddRange(GetSelection(session, Context.SpotifyMoods).Select(selection => PlaylistIds[selection]));
-        playlistIds.AddRange(GetSelection(session, Context.SpotifyGenres).Select(selection => PlaylistIds[selection]));
-
-        if (choice == CallBacks.PersianArtist) playlistIds.Add(PlaylistIds["Other Persian Artists"]);
-        else if (choice == CallBacks.NonPersianArtist) playlistIds.Add(PlaylistIds["Other NonPersian Artists"]);
-        else playlistIds.AddRange(((List<string>)session.Context[Context.SpotifyKnownArtists]).Select(artist => PlaylistIds[artist]));
-
-        await spotifyService.AddTrackToCollectionsAsync(track.Id, playlistIds);
-        sessionService.ClearSession(data.ChatId);
-        await services.EditMessage(data.ChatId, data.MessageId, $"{Messages.TrackCategorized}\n\n{BuildTrackDetails(track)}");
-    }
-
-    private bool TryGetSession(UpdateData data, out UserSession session)
-    {
-        session = sessionService.GetData(data.ChatId)!;
-        return session is { Action: Actions.CategorizingSpotifyTrack } &&
-               session.Context.TryGetValue(Context.SpotifyMessageId, out var messageId) &&
-               messageId is int id && id == data.MessageId;
-    }
-
-    private static HashSet<string> GetSelection(UserSession session, string key)
-        => (HashSet<string>)session.Context[key];
-
-    private static string BuildTrackMessage(SpotifyTrack track)
-        => $"{Messages.AcceptSpotifyTrack}\n\n{BuildTrackDetails(track)}";
-
-    private static string BuildTrackDetails(SpotifyTrack track)
-        => $"Track Id: {EscapeMarkdown(track.Id)}\nTrack Name: {EscapeMarkdown(track.Name)}\nAlbum Name: {EscapeMarkdown(track.AlbumName ?? "Unknown")}\nArtists:\n{string.Join('\n', track.Artists.Select(EscapeMarkdown))}";
-
-    private static string EscapeMarkdown(string value)
-        => value.Replace("\\", "\\\\")
-            .Replace("_", "\\_")
-            .Replace("*", "\\*")
-            .Replace("[", "\\[")
-            .Replace("`", "\\`");
-
 }
