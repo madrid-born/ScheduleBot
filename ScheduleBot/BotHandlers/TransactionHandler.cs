@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Office2010.Word;
 using QuestPDF.Fluent;
@@ -273,14 +274,18 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var savedTransactions = await tServices.GetTransactionByWalletAndUser(data.ChatId, walletId);
         for (var row = 12; !ws.Cell(row, 19).IsEmpty(); row++)
         {
-            if (savedTransactions.Any(x => x.DocumentNo == long.Parse(ws.Cell(row, 16).GetString()))) break;
+            var input = ws.Cell(row, 16).GetString();
+            var digitsOnly = Regex.Replace(input, @"[^\d]", "");
+            var documentNo = long.Parse(digitsOnly);
+
+            if (savedTransactions.Any(x => x.DocumentNo == documentNo)) break;
             transactionProcesses.Add(new TransactionProcess
             {
                 Index = ws.Cell(row, 19).GetValue<int>(),
                 Date = MainService.ConvertJalaliToGregorian(ws.Cell(row, 18).GetString()),
                 Type = ws.Cell(row, 7).GetString(),
                 Description = ws.Cell(row, 11).GetString(),
-                DocumentNo = long.Parse(ws.Cell(row, 16).GetString()),
+                DocumentNo = documentNo,
                 Deposit = ws.Cell(row, 4).GetValue<decimal>()/10,
                 Withdraw = ws.Cell(row, 3).GetValue<decimal>()/10,
                 BalanceAfter = ws.Cell(row, 2).GetValue<decimal>()/10,
@@ -582,7 +587,6 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
     
     private async Task GenerateWalletReport(long chatId, Guid walletId, List<Guid> selectedCategoryIds)
     {
-        //todo : fix for linux
         await services.SendMessage(chatId, Messages.ReportGenerating);
 
         var report = await tServices.GetReportData(walletId, selectedCategoryIds);

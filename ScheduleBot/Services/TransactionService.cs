@@ -2,6 +2,7 @@
 using System.Globalization;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -361,6 +362,11 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     public byte[] GeneratePdf(WalletReport report)
     {
         QuestPDF.Settings.License = LicenseType.Community;
+        QuestPDF.Settings.CheckIfAllTextGlyphsAreAvailable = true;
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fonts", "Vazirmatn-Regular.ttf");
+        var boldFontPath = Path.Combine(AppContext.BaseDirectory, "Fonts", "Vazirmatn-Bold.ttf");
+        FontManager.RegisterFontWithCustomName("Vazirmatn", File.OpenRead(fontPath));
+        FontManager.RegisterFontWithCustomName("Vazirmatn", File.OpenRead(boldFontPath));
         
         var document = Document.Create(container =>
         {
@@ -369,6 +375,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
                 page.Margin(40);
                 page.Size(PageSizes.A4);
                 page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontFamily("Vazirmatn", "Noto Emoji").FontSize(9));
                 page.DefaultTextStyle(x => x.FontSize(9));
                 page.Header().Element(ComposeHeader);
                 page.Content().Element(ComposeContent);
