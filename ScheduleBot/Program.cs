@@ -37,10 +37,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var telegramString = builder.Environment.IsDevelopment() ? "Development" : "Telegram";
+var telegramString = builder.Environment.IsDevelopment() ? "Development" : "Production";
 var botTokenString = builder.Configuration[$"{telegramString}:BotToken"];
-var botUrlString = builder.Configuration[$"{telegramString}:Url"];
-var adminIdString = builder.Configuration[$"{telegramString}:AdminChatId"];
 
 HttpClient httpClient;
 if (builder.Environment.IsDevelopment())
@@ -57,7 +55,7 @@ var botToken = botTokenString ?? throw new InvalidOperationException("Bot token 
 var bot = new TelegramBotClient(botToken, httpClient);
 builder.Services.AddSingleton<ITelegramBotClient>(bot);
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
-builder.Services.AddSingleton(new MainService(bot) { Url = botUrlString!, BotToken = botTokenString, AdminChatId = long.Parse(adminIdString!) });
+builder.Services.AddSingleton<MainService>();
 builder.Services.AddSingleton<UserSessionService>();
 builder.Services.AddScoped<DatabaseService>();
 builder.Services.AddScoped<MessageHandler>();
@@ -68,6 +66,12 @@ builder.Services.AddScoped<CartHandler>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<TransactionHandler>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<SpotifyHandler>();
+builder.Services.AddHttpClient<SpotifyService>(client =>
+{
+    var baseUrl = builder.Configuration["SpotifyApi:BaseUrl"];
+    if (!string.IsNullOrWhiteSpace(baseUrl)) client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+});
 builder.Services.AddHostedService<BotPollingService>();
 
 var app = builder.Build();

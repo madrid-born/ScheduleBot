@@ -4,12 +4,13 @@ public class UserSessionService
 {
     private readonly Dictionary<long, UserSession> _sessions = new();
     
-    public void SetData(long chatId, string action, string callbackData)
+    public UserSession SetData(long chatId, string action, string callbackData)
     {
         var session = new UserSession();
         session.SetAction(action);
         session.SetCallBack(callbackData);
         _sessions[chatId] = session;
+        return session;
     }
     
     public UserSession? GetData(long chatId)
