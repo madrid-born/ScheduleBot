@@ -111,7 +111,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     
     public async Task<Tuple<List<string>, List<string>, List<string>>> LoadCategoryServiceChanges(Guid walletId)
     {
-        var categories = await GetCategoriesByWalletId(walletId);
+        var categories = await GetCategoriesByWalletIdAll(walletId);
         var added = categories.Where(p => p is { TempAdded: true, TempDeleted: false }).ToList();
         var deleted = categories.Where(p => p is { TempAdded: false, TempDeleted: true }).ToList();
         var both = categories.Where(p => p is { TempAdded: true, TempDeleted: true }).ToList();
@@ -123,7 +123,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     
     public async Task<bool> SubmitCategoryServiceChanges(Guid walletId)
     {
-        var categories = await GetCategoriesByWalletId(walletId);
+        var categories = await GetCategoriesByWalletIdAll(walletId);
         var added = categories.Where(p => p is { TempAdded: true, TempDeleted: false });
         foreach (var category in added) category.TempAdded = false;
         return await _dbContext.WalletCategory.Where(p => p.TempDeleted).ExecuteDeleteAsync() + await _dbContext.SaveChangesAsync() > 0;
@@ -229,6 +229,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         
         var deposits = transactions.Where(t => t.Deposit > 0).ToList();
         var withdrawals = transactions.Where(t => t.Withdraw > 0).ToList();
+        //todo : add first and las balance
         
         var summary = new ReportSummary
         {
@@ -362,7 +363,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     public byte[] GeneratePdf(WalletReport report)
     {
         QuestPDF.Settings.License = LicenseType.Community;
-        QuestPDF.Settings.CheckIfAllTextGlyphsAreAvailable = true;
+        QuestPDF.Settings.CheckIfAllTextGlyphsAreAvailable = false;
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Fonts", "Vazirmatn-Regular.ttf");
         var boldFontPath = Path.Combine(AppContext.BaseDirectory, "Fonts", "Vazirmatn-Bold.ttf");
         FontManager.RegisterFontWithCustomName("Vazirmatn", File.OpenRead(fontPath));
