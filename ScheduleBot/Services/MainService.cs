@@ -265,6 +265,42 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
         return date;
     }
 
+    public static string GregorianToSimplified(DateTime date)
+    {
+        return $"{date.Year}{date.Month:00}{date.Day:00}";
+    }
+    
+    public static DateTime SimplifiedToGregorian(string date)
+    {
+        var year = int.Parse(date.Substring(0, 4));
+        var month = int.Parse(date.Substring(4, 2));
+        var day = int.Parse(date.Substring(6, 2));
+        return new DateTime(year, month, day);
+    }
+    
+    public static (DateTime Last, DateTime Current, DateTime Next) LoadJalaliFirstOfMonths(DateTime date)
+    {
+        var pc = new PersianCalendar();
+        var (year, month, _) = LoadJalaliDateData(date);
+
+        var current  = First(year, month);
+        var previous = month == 1  ? First(year - 1, 12) : First(year, month - 1);
+        var next     = month == 12 ? First(year + 1, 1)  : First(year, month + 1);
+
+        return (previous, current, next);
+
+        DateTime First(int y, int m) => pc.ToDateTime(y, m, 1, 0, 0, 0, 0);
+    }
+
+    public static Tuple<int, int, int> LoadJalaliDateData(DateTime date)
+    {
+        var pc = new PersianCalendar();
+        var jalaliYear = pc.GetYear(date);
+        var jalaliMonth = pc.GetMonth(date);
+        var jalaliDay = pc.GetDayOfMonth(date);
+        return new Tuple<int, int, int>(jalaliYear, jalaliMonth, jalaliDay);
+    }
+    
     public static DateTime ConvertJalaliToGregorian(string date)
     {
         var pc = new PersianCalendar();
@@ -285,23 +321,18 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
     
     public static string ConvertGregorianToJalali(DateTime date)
     {
-        var pc = new PersianCalendar();
-
-        var year = pc.GetYear(date);
-        var month = pc.GetMonth(date);
-        var day = pc.GetDayOfMonth(date);
-
-        return $"{year:D4}/{month:D2}/{day:D2}";
+        var (year, month, day) = LoadJalaliDateData(date);
+        return $"{year:D4}/{month:D2:00}/{day:D2:00}";
     }
     
     public static string ConvertGregorianToJalaliAndGregorian(DateTime date)
     {
-        return $"{date.Year}/{date.Month}/{date.Day} - {ConvertGregorianToJalali(date)}";
+        return $"{date.Year}/{date.Month:00}/{date.Day:00} - {ConvertGregorianToJalali(date)}";
     }
     
     public static string ConvertGregorianToJalaliAndGregorianWithTime(DateTime date)
     {
-        return $"{date.Hour}:{date.Minute}:{date.Second}\n{ConvertGregorianToJalaliAndGregorian(date)}";
+        return $"{date.Hour:00}:{date.Minute:00}:{date.Second:00}\n{ConvertGregorianToJalaliAndGregorian(date)}";
     }
     
     public static string TruncateString(string? text, int maxLength)

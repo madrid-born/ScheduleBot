@@ -514,17 +514,26 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         session.SetContext(Context.ReportSelectedCategories, selectedIds);
         session.SetContext(Context.ReportAllSelected, false);
         session.SetContext(Context.StartDate, DateTime.MinValue);
-        session.SetContext(Context.EndDate, DateTime.MinValue);
-        
-        await ShowCategorySelection(data.ChatId, walletId, selectedIds, false, 0);
+        session.SetContext(Context.EndDate, DateTime.MaxValue);
+        session.SetContext(Context.ReportAllSelected, false);
+        session.SetContext(Context.ReportMessageId, 0);
+
+        await AskDateRange(data);
     }
 
-    private async Task AskDateRange(UpdateData data, Guid walletId)
+    private async Task AskDateRange(UpdateData data)
     {
-        //todo : implement
-        // var collection = services.LoadCollectionMultiSelect(categories, selectedIds, allSelected, category => category.Id, category => category.Name!);
-        // var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.GenerateReport}|");
-        // var message = string.Format(Messages.ReportCategorySelection, selectedIds.Count , categories.Count(c => !c.TempDeleted));
+        var (previous, current, next) = MainService.LoadJalaliFirstOfMonths(DateTime.Now);
+        var collection = new List<List<Tuple<string, string>>>
+        {
+            new() { new (Messages.ThisMonth,    $"{MainService.GregorianToSimplified(current)}|{MainService.GregorianToSimplified(next)}"), },
+            new() { new (Messages.LastMonth,    $"{MainService.GregorianToSimplified(previous)}|{MainService.GregorianToSimplified(current)}"), },
+            new() { new (Messages.AllTime,      $""), },
+            new() { new (Messages.CustomPeriod, $"{CallBacks.CustomPeriod}"), }
+        };
+        
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.GenerateReport}|{CallBacks.SelectDate}|");
+        await services.SendMessage(data.ChatId, Messages.SelectDate, replyMarkup: keyboard);
     }
 
     private async Task ShowCategorySelection(long chatId, Guid walletId, List<Guid> selectedIds, bool allSelected, int messageId = 0)
@@ -553,8 +562,6 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
 
     private async Task HandleReportCallback(UpdateData data, string action)
     {
-        var value = data.DataSeparated.ElementAtOrDefault(3)!;
-        
         var session = sessionService.GetData(data.ChatId);
         if (session == null) return;
         
@@ -567,8 +574,23 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         
         switch (action)
         {
+            case CallBacks.SelectDate:
+                var start = data.DataSeparated.ElementAtOrDefault(3);
+                var end = data.DataSeparated.ElementAtOrDefault(4);
+                if (start == CallBacks.CustomPeriod)
+                {
+                    session.SetCallBack(Context.CustomStart);
+                    await AskCustomPeriod(data, true);
+                }
+                else
+                {
+                    if (start != null) session.SetContext(Context.StartDate, MainService.SimplifiedToGregorian(start));
+                    if (end != null) session.SetContext(Context.EndDate, MainService.SimplifiedToGregorian(end));
+                }
+                await ShowCategorySelection(data.ChatId, walletId, selectedIds, allSelected, messageId);
+                break;
             case CallBacks.MultipleSelectToggle:
-                var categoryId = Guid.Parse(value);
+                var categoryId = Guid.Parse(data.DataSeparated.ElementAtOrDefault(3)!);
                 if (!selectedIds.Remove(categoryId)) selectedIds.Add(categoryId);
                 session.SetContext(Context.ReportSelectedCategories, selectedIds);
                 await ShowCategorySelection(data.ChatId, walletId, selectedIds, allSelected, messageId);
@@ -591,9 +613,45 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 await GenerateWalletReport(data.ChatId, walletId, selectedIds, startDate, endDate);
                 break;
             case CallBacks.Cancel:
+                await bot.DeleteMessage(data.ChatId, messageId);
                 sessionService.ClearSession(data.ChatId);
                 await services.SendMessage(data.ChatId, Messages.ReportCancelled);
                 break;
+        }
+    }
+
+    public async Task AskCustomPeriod(UpdateData data, bool isStart)
+    {
+        await services.SendMessage(data.ChatId, string.Format(Messages.SendCustomDate, isStart ? Messages.CustomStart : Messages.CustomEnd));
+    }
+    
+    public async Task SetCustomPeriod(UpdateData data, bool isStart)
+    {
+        var date = MainService.DateValidation(data.MessageText!);
+        if (date == null)
+        {
+            await services.SendMessage(data.ChatId, Messages.InvalidDate);
+            await AskCustomPeriod(data, isStart);
+            return;
+        }
+
+        var session = sessionService.GetData(data.ChatId);
+        if (session == null) return;
+        
+        var walletId = (Guid)session.Context[Context.ReportWalletId];
+        var selectedIds = (List<Guid>)session.Context[Context.ReportSelectedCategories];
+        var allSelected = (bool)session.Context[Context.ReportAllSelected];
+        var messageId = (int)session.Context[Context.ReportMessageId];
+
+        if (isStart)
+        {
+            session.SetContext(Context.StartDate, date);
+            await AskCustomPeriod(data, false);
+        }
+        else
+        {
+            session.SetContext(Context.EndDate, date);
+            await ShowCategorySelection(data.ChatId, walletId, selectedIds, allSelected, messageId);
         }
     }
     

@@ -338,7 +338,17 @@ public class MessageHandler(
                 await transactionHandler.SetTransactionTitle(data, session.CallbackData);
                 flag = true;
                 break;
-            
+            case Actions.BuildingReport:
+                switch (session.CallbackData)
+                {
+                    case Context.CustomStart:
+                        await transactionHandler.SetCustomPeriod(data, true);
+                        break;
+                    case Context.CustomEnd:
+                        await transactionHandler.SetCustomPeriod(data, false);
+                        break;
+                }
+                break;
             case Actions.AwaitingPlaylistId:
                 await spotifyHandler.CategorizePlaylist(data, data.MessageText!);
                 flag = true;

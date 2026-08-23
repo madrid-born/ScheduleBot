@@ -218,6 +218,8 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             .OrderBy(t => t.Date)
             .ToListAsync();
         
+        if (transactions.Count == 0) return new WalletReport();
+
         var transactionData = await query
             .GroupBy(t => t.ConsumerId)
             .Select(g => new
@@ -242,7 +244,6 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             })
             .ToList();
     
-        if (transactions.Count == 0) return new WalletReport();
         var userMap = userList.ToDictionary(u => u.Id, u => u);
     
         var transactionsByCategory = transactions
@@ -272,16 +273,16 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         #region balanceReport
         
         var balanceReport = (from user in userTransactionRange
-        let first = user.FirstTransaction
-        let last = user.LastTransaction
-        select new BalanceReport
-        {
-            ConsumerName = user.UserName!,
-            TransactionCount = user.TransactionCount,
-            FirstBalance = first!.BalanceAfter + first.Withdraw - first.Deposit,
-            LastBalance = last!.BalanceAfter,
-            Overall = last!.BalanceAfter - (first!.BalanceAfter + first.Withdraw - first.Deposit)
-        }).ToList();
+            let first = user.FirstTransaction
+            let last = user.LastTransaction
+            select new BalanceReport
+            {
+                ConsumerName = user.UserName!,
+                TransactionCount = user.TransactionCount,
+                FirstBalance = first!.BalanceAfter + first.Withdraw - first.Deposit,
+                LastBalance = last!.BalanceAfter,
+                Overall = last!.BalanceAfter - (first!.BalanceAfter + first.Withdraw - first.Deposit)
+            }).ToList();
 
         var br = balanceReport.ToList();
         balanceReport.Add(new BalanceReport

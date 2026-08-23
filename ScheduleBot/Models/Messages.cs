@@ -47,7 +47,9 @@ public static class Messages
     public const string SomethingWentWrong = "something went wrong.";
     public const string InvalidDate = "Invalid date format. Please use YYYY-MM-DD";
     public const string InvalidInteger = "Invalid Integer format. Please use a Natural Number";
-    
+    public const string EnterDate = "Please enter the ";
+    public const string EnterDateDetail = " :\nBoth Jalali and Gregorian dates would work\nBut remember to enter in this format (YYYY-MM-DD) like 1405-03-07 or 2026-06-05";
+
     public const string ScrollerAction = "You can type new items to add 🆕\nAnd click on item to remove 🗑\nAnd make sure to press done to submit or cancel to decline your changes ✅ ❌";
     public const string ScrollerActionChanges = "\nAdded:\n\n{0}\n\n\nDeleted:\n{1}\n\n\nAdded then deleted:\n{2}\n\n";
     public const string ScrollerActionSubmitted = "The following changes had been submitted to '{0}' {3} by {1}\n{2}\n";
@@ -85,7 +87,7 @@ public static class Messages
     public const string EditNotify = "Edit Notification method";
 
     public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
-    public const string SetupTracker = "Please enter the start date of your last period (YYYY-MM-DD):\nBoth Jalali and Gregorian dates would work\nBut remember to enter like 1405-03-07 or 2026-06-05";
+    public const string SetupTracker = EnterDate + "date of start of your last period" + EnterDateDetail;
     public const string AvailableCycle = "You already have a cycle tracker set up. Use Edit Period to make changes.";
     public const string LastStartChanged = "Last start date was changed successfuly.";
     public const string AskForCycleLength = "What is your average cycle length (days between end of one period till start of the new one)?";
@@ -231,6 +233,14 @@ public static class Messages
     public const string BluAsk6 = "\nClick to save";
     public const string BluView = "\nTransaction had been saved ✅";
     
+    public const string ThisMonth = "This Month";
+    public const string LastMonth = "Last Month";
+    public const string AllTime = "All Time";
+    public const string CustomPeriod = "Custom Period";
+    public const string SendCustomDate = EnterDate + "{0}" + EnterDateDetail;
+    public const string CustomStart = "start of custom period";
+    public const string CustomEnd = "end of custom period";
+    public const string SelectDate = "Select the date you want to take report of";
     public const string NoCategoryInWallet = "No categories found in this wallet. Please add categories first.";
     public const string ReportCancelled = "Report generation cancelled.";
     public const string ReportCategorySelection = "Select Categories for Report\n\nSelect which categories to include in the report. Click a category to toggle it on/off.\n\nSelected: {0}/{1} categories";
@@ -267,7 +277,6 @@ public static class Messages
     public const string AcceptNoArtistPlaylists = "None";
 
     #endregion
-
 }
 
 public static class CallBacks
@@ -368,9 +377,8 @@ public static class CallBacks
     public const string Saved = "Saved";
     
     public const string GenerateReport = "GR";
-    public const string ReportContinue = "RD";
-    public const string ReportGenerate = "RG";
-
+    public const string CustomPeriod = "CP";
+    public const string SelectDate = "SD";
         
     #endregion
     
@@ -393,6 +401,7 @@ public static class CallBacks
     public const string MoodsSelection = "MSN";
     public const string GenreSelection = "GSN";
     #endregion
+
 }
 
 public static class Actions
@@ -416,6 +425,8 @@ public static class Context
     public const string Section = "Section";
     public const string MessageId = "MessageId";
 
+    public const string CustomStart = "CustomStart";
+    public const string CustomEnd = "CustomEnd";
     public const string ReportWalletId = "ReportWalletId";
     public const string ReportSelectedCategories = "ReportSelectedCategories";
     public const string ReportAllSelected = "ReportAllSelected";
