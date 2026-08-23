@@ -216,18 +216,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             .OrderBy(t => t.Date)
             .ToListAsync();
         
-        
         var userTransactionRange = await query
-            .GroupBy(t => t.ConsumerId)
-            .Select(g => new
-            {
-                ConsumerId = g.Key,
-                FirstTransaction = g.OrderBy(t => t.Date).FirstOrDefault(),
-                LastTransaction = g.OrderByDescending(t => t.Date).FirstOrDefault(),
-                TransactionCount = g.Count()
-            })
-            .ToListAsync();
-        var userTransactionRange2 = await query
             .GroupBy(t => t.ConsumerId)
             .Select(g => new
             {
@@ -269,6 +258,21 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             AverageWithdrawal = withdrawals.Any() ? withdrawals.Average(t => t.Withdraw) : 0
         };
         
+        #endregion
+
+        #region MyRegion
+
+
+        var balanceReport = userTransactionRange.Select(user => new BalanceReport
+            {
+                CosumerId = user.ConsumerId,
+                // ConsumerName = user.,
+                TransactionCount = user.TransactionCount,
+                FirstBalance = user.BeginningBalance,
+                LastBalance = user.EndingBalance
+            })
+            .ToList();
+
         #endregion
 
         #region BuildCategoryReports
@@ -380,6 +384,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             FromDate = transactions.Count != 0 ? transactions.Min(t => t.Date) : null,
             ToDate = transactions.Count != 0 ? transactions.Max(t => t.Date) : null,
             Summary = summary,
+            BalanceReports = balanceReport,
             CategoryReports = categoryReports,
             MonthlyReports = monthlyReports,
             UserReports = userReports

@@ -69,6 +69,7 @@ public class WalletReport
     public int TotalTransactions { get; set; }
     public ReportSummary Summary { get; set; }
     public List<CategoryReport> CategoryReports { get; set; }
+    public List<BalanceReport> BalanceReports { get; set; }
     public List<MonthlyReport> MonthlyReports { get; set; }
     public List<UserReport> UserReports { get; set; }
     public IEnumerable<TransactionRecord> Transactions { get; set; }
@@ -94,6 +95,15 @@ public class CategoryReport
     public decimal TotalWithdrawals { get; set; }
     public decimal NetCashFlow { get; set; }
     public decimal PercentageOfTotalWithdrawals { get; set; }
+}
+
+public class BalanceReport
+{
+    public Guid CosumerId { get; set; }
+    public string ConsumerName { get; set; }
+    public int TransactionCount { get; set; }
+    public decimal FirstBalance { get; set; }
+    public decimal LastBalance { get; set; }
 }
 
 public class MonthlyReport
