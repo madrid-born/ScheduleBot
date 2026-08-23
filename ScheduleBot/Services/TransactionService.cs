@@ -193,7 +193,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         return await _dbContext.WalletTransactions.Where(c => c.ConsumerId == user!.Id && c.WalletId == walletId).ToListAsync();
     }
     
-    public async Task<WalletReport> GetReportData(Guid walletId, List<Guid> categoryIds)
+    public async Task<WalletReport> GetReportData(Guid walletId, List<Guid> categoryIds, DateTime? startDate = null, DateTime? endDate = null)
     {
         #region LoadDatas
 
@@ -205,10 +205,12 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
     
         var usersWithAccess = await GetUsersWithAccessByWalletId(walletId);
         var userList = usersWithAccess.ToList();
-    
+
         var query = _dbContext.WalletTransactions
             .AsNoTracking()
-            .Where(t => t.WalletId == walletId);
+            .Where(t => t.WalletId == walletId)
+            .Where(t => t.Date >= (startDate ?? DateTime.MinValue))
+            .Where(t => t.Date <= (endDate ?? DateTime.MaxValue));
     
         if (categoryIds.Count != 0) query = query.Where(t => categoryIds.Contains(t.CategoryId));
     
@@ -216,7 +218,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             .OrderBy(t => t.Date)
             .ToListAsync();
         
-        var userTransactionRange = await query
+        var transactionData = await query
             .GroupBy(t => t.ConsumerId)
             .Select(g => new
             {
@@ -224,13 +226,21 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
                 FirstTransaction = g.OrderBy(t => t.Date).FirstOrDefault(),
                 LastTransaction = g.OrderByDescending(t => t.Date).FirstOrDefault(),
                 TransactionCount = g.Count(),
-                // Beginning balance: BalanceAfter of first transaction 
-                // (or calculate from first transaction)
-                BeginningBalance = g.OrderBy(t => t.Date).FirstOrDefault().BalanceAfter,
-                // Ending balance: BalanceAfter of last transaction
-                EndingBalance = g.OrderByDescending(t => t.Date).FirstOrDefault().BalanceAfter
             })
             .ToListAsync();
+        var userIds = transactionData.Select(x => x.ConsumerId).ToList();
+        var users = await _dbContext.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Name);
+        var userTransactionRange = transactionData
+            .Select(t => new
+            {
+                t.FirstTransaction,
+                t.LastTransaction,
+                t.TransactionCount,
+                UserName = users.TryGetValue(t.ConsumerId, out var name) ? name : null
+            })
+            .ToList();
     
         if (transactions.Count == 0) return new WalletReport();
         var userMap = userList.ToDictionary(u => u.Id, u => u);
@@ -245,7 +255,6 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         
         var deposits = transactions.Where(t => t.Deposit > 0).ToList();
         var withdrawals = transactions.Where(t => t.Withdraw > 0).ToList();
-        //todo : add first and las balance
         
         var summary = new ReportSummary
         {
@@ -260,19 +269,30 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         
         #endregion
 
-        #region MyRegion
+        #region balanceReport
+        
+        var balanceReport = (from user in userTransactionRange
+        let first = user.FirstTransaction
+        let last = user.LastTransaction
+        select new BalanceReport
+        {
+            ConsumerName = user.UserName!,
+            TransactionCount = user.TransactionCount,
+            FirstBalance = first!.BalanceAfter + first.Withdraw - first.Deposit,
+            LastBalance = last!.BalanceAfter,
+            Overall = last!.BalanceAfter - (first!.BalanceAfter + first.Withdraw - first.Deposit)
+        }).ToList();
 
-
-        var balanceReport = userTransactionRange.Select(user => new BalanceReport
-            {
-                CosumerId = user.ConsumerId,
-                // ConsumerName = user.,
-                TransactionCount = user.TransactionCount,
-                FirstBalance = user.BeginningBalance,
-                LastBalance = user.EndingBalance
-            })
-            .ToList();
-
+        var br = balanceReport.ToList();
+        balanceReport.Add(new BalanceReport
+        {
+            ConsumerName = "All",
+            TransactionCount = br.Sum(x => x.TransactionCount),
+            FirstBalance = br.Sum(x => x.FirstBalance),
+            LastBalance = br.Sum(x => x.LastBalance),
+            Overall = br.Sum(x => x.Overall),
+        });
+        
         #endregion
 
         #region BuildCategoryReports
@@ -381,8 +401,8 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             GeneratedAt = DateTime.Now,
             Transactions = transactions,
             TotalTransactions = transactions.Count,
-            FromDate = transactions.Count != 0 ? transactions.Min(t => t.Date) : null,
-            ToDate = transactions.Count != 0 ? transactions.Max(t => t.Date) : null,
+            FromDate = startDate ?? (transactions.Count != 0 ? transactions.Min(t => t.Date) : null),
+            ToDate = endDate ?? (transactions.Count != 0 ? transactions.Max(t => t.Date) : null),
             Summary = summary,
             BalanceReports = balanceReport,
             CategoryReports = categoryReports,
@@ -455,6 +475,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
                     {
                         col.Spacing(15);
                         col.Item().Element(ComposeFinancialSummary);
+                        if (report.BalanceReports.Any()) col.Item().Element(ComposeBalanceReport);
                         if (report.CategoryReports.Any()) col.Item().Element(ComposeCategoryAnalysis);
                         if (report.MonthlyReports.Any()) col.Item().Element(ComposeMonthlySummary);
                         if (report.UserReports.Any()) col.Item().Element(ComposeUserActivity);
@@ -501,6 +522,61 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
                                 table.Cell().Padding(3).Text($"{amount:N0}").AlignRight();
                                 table.Cell().Padding(3).Text($"{count}").AlignRight();
                                 table.Cell().Padding(3).Text($"{avg:N0}").AlignRight();
+                            }
+                        });
+                    });
+                }
+                
+                void ComposeBalanceReport(IContainer innerContainer)
+                {
+                    innerContainer.Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten4).Padding(10).Column(col =>
+                    {
+                        col.Spacing(8);
+                        col.Item().Text("👥 BALANCE REPORT").FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                            });
+                            
+                            table.Header(header =>
+                            {
+                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Consumer").Bold().FontSize(10);
+                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Transactions").Bold().AlignRight().FontSize(10);
+                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("First Balance").Bold().AlignRight().FontSize(10);
+                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Last Balance").Bold().AlignRight().FontSize(10);
+                                header.Cell().Background(Colors.Blue.Lighten4).Padding(5).Text("Overall").Bold().AlignRight().FontSize(10);
+                            });
+
+                            foreach (var item in report.BalanceReports.Where(x => x.ConsumerName != "All"))
+                            {
+                                AddRow(item.ConsumerName, item.TransactionCount, item.FirstBalance, item.LastBalance, item.Overall);
+                            }
+
+                            var allItem = report.BalanceReports.FirstOrDefault(x => x.ConsumerName == "All");
+                            if (allItem != null)
+                            {
+                                table.Cell().Padding(3).Text("All").Bold();
+                                table.Cell().Padding(3).Text($"{allItem.TransactionCount}").AlignRight().Bold();
+                                table.Cell().Padding(3).Text($"{allItem.FirstBalance:N0}").AlignRight().Bold();
+                                table.Cell().Padding(3).Text($"{allItem.LastBalance:N0}").AlignRight().Bold();
+                                table.Cell().Padding(3).Text($"{allItem.Overall:N0}").AlignRight()
+                                    .FontColor(allItem.Overall >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2).Bold();
+                            }
+
+                            void AddRow(string name, int count, decimal firstBal, decimal lastBal, decimal overall)
+                            {
+                                table.Cell().Padding(3).Text(name);
+                                table.Cell().Padding(3).Text($"{count}").AlignRight();
+                                table.Cell().Padding(3).Text($"{firstBal:N0}").AlignRight();
+                                table.Cell().Padding(3).Text($"{lastBal:N0}").AlignRight();
+                                table.Cell().Padding(3).Text($"{overall:N0}").AlignRight()
+                                    .FontColor(overall >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2);
                             }
                         });
                     });

@@ -420,6 +420,8 @@ public static class Context
     public const string ReportSelectedCategories = "ReportSelectedCategories";
     public const string ReportAllSelected = "ReportAllSelected";
     public const string ReportMessageId = "ReportMessageId";
+    public const string StartDate = "StartDate";
+    public const string EndDate = "EndDate";
 
     public const string Response = "Response";
     public const string TrackId = "TrackId";

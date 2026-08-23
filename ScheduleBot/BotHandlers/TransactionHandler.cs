@@ -513,8 +513,18 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         session.SetContext(Context.ReportWalletId, walletId);
         session.SetContext(Context.ReportSelectedCategories, selectedIds);
         session.SetContext(Context.ReportAllSelected, false);
+        session.SetContext(Context.StartDate, DateTime.MinValue);
+        session.SetContext(Context.EndDate, DateTime.MinValue);
         
         await ShowCategorySelection(data.ChatId, walletId, selectedIds, false, 0);
+    }
+
+    private async Task AskDateRange(UpdateData data, Guid walletId)
+    {
+        //todo : implement
+        // var collection = services.LoadCollectionMultiSelect(categories, selectedIds, allSelected, category => category.Id, category => category.Name!);
+        // var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.Transaction}|{CallBacks.GenerateReport}|");
+        // var message = string.Format(Messages.ReportCategorySelection, selectedIds.Count , categories.Count(c => !c.TempDeleted));
     }
 
     private async Task ShowCategorySelection(long chatId, Guid walletId, List<Guid> selectedIds, bool allSelected, int messageId = 0)
@@ -552,6 +562,8 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var selectedIds = (List<Guid>)session.Context[Context.ReportSelectedCategories];
         var allSelected = (bool)session.Context[Context.ReportAllSelected];
         var messageId = (int)session.Context[Context.ReportMessageId];
+        var startDate = (DateTime?)session.Context[Context.StartDate];
+        var endDate = (DateTime?)session.Context[Context.EndDate];
         
         switch (action)
         {
@@ -576,7 +588,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 break;
             case CallBacks.Done:
                 await bot.DeleteMessage(data.ChatId, messageId);
-                await GenerateWalletReport(data.ChatId, walletId, selectedIds);
+                await GenerateWalletReport(data.ChatId, walletId, selectedIds, startDate, endDate);
                 break;
             case CallBacks.Cancel:
                 sessionService.ClearSession(data.ChatId);
@@ -585,12 +597,11 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         }
     }
     
-    private async Task GenerateWalletReport(long chatId, Guid walletId, List<Guid> selectedCategoryIds)
+    private async Task GenerateWalletReport(long chatId, Guid walletId, List<Guid> selectedCategoryIds, DateTime? startDate = null, DateTime? endDate = null)
     {
         await services.SendMessage(chatId, Messages.ReportGenerating);
 
-        var report = await tServices.GetReportData(walletId, selectedCategoryIds);
-    
+        var report = await tServices.GetReportData(walletId, selectedCategoryIds, startDate, endDate);
         var pdfBytes = tServices.GeneratePdf(report);
         using var stream = new MemoryStream(pdfBytes);
         await bot.SendDocument(

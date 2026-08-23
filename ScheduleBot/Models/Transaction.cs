@@ -99,11 +99,11 @@ public class CategoryReport
 
 public class BalanceReport
 {
-    public Guid CosumerId { get; set; }
     public string ConsumerName { get; set; }
     public int TransactionCount { get; set; }
     public decimal FirstBalance { get; set; }
     public decimal LastBalance { get; set; }
+    public decimal Overall { get; set; }
 }
 
 public class MonthlyReport
