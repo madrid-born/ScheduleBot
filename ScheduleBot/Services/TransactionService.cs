@@ -215,6 +215,33 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         var transactions = await query
             .OrderBy(t => t.Date)
             .ToListAsync();
+        
+        
+        var userTransactionRange = await query
+            .GroupBy(t => t.ConsumerId)
+            .Select(g => new
+            {
+                ConsumerId = g.Key,
+                FirstTransaction = g.OrderBy(t => t.Date).FirstOrDefault(),
+                LastTransaction = g.OrderByDescending(t => t.Date).FirstOrDefault(),
+                TransactionCount = g.Count()
+            })
+            .ToListAsync();
+        var userTransactionRange2 = await query
+            .GroupBy(t => t.ConsumerId)
+            .Select(g => new
+            {
+                ConsumerId = g.Key,
+                FirstTransaction = g.OrderBy(t => t.Date).FirstOrDefault(),
+                LastTransaction = g.OrderByDescending(t => t.Date).FirstOrDefault(),
+                TransactionCount = g.Count(),
+                // Beginning balance: BalanceAfter of first transaction 
+                // (or calculate from first transaction)
+                BeginningBalance = g.OrderBy(t => t.Date).FirstOrDefault().BalanceAfter,
+                // Ending balance: BalanceAfter of last transaction
+                EndingBalance = g.OrderByDescending(t => t.Date).FirstOrDefault().BalanceAfter
+            })
+            .ToListAsync();
     
         if (transactions.Count == 0) return new WalletReport();
         var userMap = userList.ToDictionary(u => u.Id, u => u);
