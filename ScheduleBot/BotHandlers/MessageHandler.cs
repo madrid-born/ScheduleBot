@@ -343,9 +343,11 @@ public class MessageHandler(
                 {
                     case Context.CustomStart:
                         await transactionHandler.SetCustomPeriod(data, true);
+                        flag = true;
                         break;
                     case Context.CustomEnd:
                         await transactionHandler.SetCustomPeriod(data, false);
+                        flag = true;
                         break;
                 }
                 break;

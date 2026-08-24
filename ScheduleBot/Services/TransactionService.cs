@@ -218,7 +218,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
             .OrderBy(t => t.Date)
             .ToListAsync();
         
-        if (transactions.Count == 0) return new WalletReport();
+        if (transactions.Count == 0) throw new Exception("No Transaction Available for this period");
 
         var transactionData = await query
             .GroupBy(t => t.ConsumerId)
