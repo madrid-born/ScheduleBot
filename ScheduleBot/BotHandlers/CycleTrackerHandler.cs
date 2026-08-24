@@ -318,10 +318,11 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     
     private async Task Notify(long chatId, bool isStart)
     {
+        var owner = await ctServices.GetUserByTelId(chatId);
         var users = await ctServices.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, user.FullName), true);
+            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, owner!.FullName), true);
         }
     }
     
@@ -359,7 +360,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     
     #region General
     
-    private readonly TimeSpan _notificationHour = new(12, 30, 0);
+    private TimeSpan _notificationHour = new(12, 30, 0);
     
     private async Task LoadCycleList(long chatId, string callBack)
     {
@@ -374,6 +375,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
     public async Task CheckAndSendNotifications(bool pass = false)
     {
         var now = DateTime.UtcNow;
+        // _notificationHour = new TimeSpan(now.Hour, now.Minute, now.Second);
         if (!pass && (now.TimeOfDay.Hours != _notificationHour.Hours || now.TimeOfDay.Minutes != _notificationHour.Minutes)) return;
         var allCycleNotifies = await ctServices.GetAllCycleNotifies();
         
@@ -394,7 +396,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var today = DateTime.Now;
         var daysSinceLastStart = (today - cycle.LastStart!.Value).Days;
         var daysUntilNext = cycle.CycleLength - daysSinceLastStart;
-        var isInPeriod = today >= cycle.LastStart.Value && today <= cycle.LastEnd!.Value;
+        var isInPeriod = cycle.LastEnd == null; // today >= cycle.LastStart.Value && today <= cycle.LastEnd!.Value;
         var daysBeforePeriod = daysUntilNext <= 3;
         
         return mode switch
