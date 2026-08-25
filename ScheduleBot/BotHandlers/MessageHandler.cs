@@ -119,6 +119,9 @@ public class MessageHandler(
 
         switch (data.DataSeparated[0])
         {
+            case CallBacks.MainSection:
+                await services.HandleCallBack(data);
+                break;
             case CallBacks.Register:
                 await userHandler.HandleCallBack(data);
                 break;
@@ -208,6 +211,11 @@ public class MessageHandler(
         var flag = false;
         var text = data.MessageText!;
         if (text[..1] != "/") return flag;
+        if (text.StartsWith("/Test") && data.ChatId == services.AdminChatId)
+        {
+            await services.SendDatePicker(data.ChatId);
+            flag = true;
+        }
         if (text.StartsWith(Messages.Start))
         {
             var parts = data.MessageText!.Split(" ").ToList();

@@ -55,7 +55,10 @@ public static class Messages
     public const string ScrollerActionSubmitted = "The following changes had been submitted to '{0}' {3} by {1}\n{2}\n";
     public const string ScrollerActionAborted = "The following changes had been declined for '{0}' {2} \n{1}\n";
 
-    
+    public const string SelectDatePicker = "Select Date";
+    public const string SelectGregorianCalender = "Load Gregorian calender";
+    public const string SelectJalaliCalender = "Load Jalali calender";
+
     #endregion
     
     #region Register
@@ -298,8 +301,14 @@ public static class CallBacks
     public const string MultipleSelectToggle = "MST";
     public const string MultipleSelectAll = "MSA";
     public const string MultipleDeselectAll = "MDA";
-
-
+    public const string DatePicker = "DP";
+    public const string SelectGregorianCalender = "SGC";
+    public const string SelectJalaliCalender = "SJC";
+    public const string SelectYear = "DPSY";
+    public const string SelectMonth = "DPSM";
+    public const string SelectDay = "DPSD";
+    public const string Jalali = "J";
+    public const string Gregorian = "G";
 
     #endregion
     

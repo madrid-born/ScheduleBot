@@ -7,7 +7,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.Services;
 
-public class MainService(ITelegramBotClient bot, IConfiguration configuration, IWebHostEnvironment environment)
+public class MainService(ITelegramBotClient bot, IConfiguration configuration, IWebHostEnvironment environment, UserSessionService sessionService)
 {
 
     #region Statics
@@ -20,6 +20,18 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
     #endregion
     
     #region BotServices
+
+    #region MessageHandler
+    
+    public async Task HandleCallBack(UpdateData data)
+    {
+        switch (data.DataSeparated[1])
+        {
+            case CallBacks.DatePicker:
+                await ProcessDatePicker(data);
+                break;
+        }
+    }
     
     public async Task<int> SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null, string? imageUrl = null, ParseMode parseMode = ParseMode.Markdown)
     {
@@ -46,6 +58,10 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
     {
         await bot.DeleteMessage(chatId, messageId);
     }
+    
+    #endregion
+
+    #region KeyboardSection
     
     public ReplyKeyboardMarkup GetMainKeyboard(bool isAdmin = false)
     {
@@ -242,6 +258,92 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
 
     #endregion
 
+    #region DatePicker
+
+    public async Task SendDatePicker(long chatId, string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool isFirstTime = false)
+    {
+        var fixedDate = passedDate ?? DateTime.Now;
+
+        if (isFirstTime)
+        {
+            var session = sessionService.GetData(chatId) ?? sessionService.SetData(chatId);
+            session.ClearDatePicker();
+            session.SetDatePicker(new DatePicker
+            {
+                ChatId = chatId,
+                IsJalali = isJalali,
+                Message = message,
+                FixedDate = fixedDate
+            });
+        }
+        else
+        {
+            var session = sessionService.GetData(chatId);
+            var datePickerData = session?.DatePickerSetup;
+            if (datePickerData == null) return;
+            chatId = datePickerData.ChatId;
+            isJalali = datePickerData.IsJalali;
+            message = datePickerData.Message;
+            fixedDate = datePickerData.FixedDate;
+        }
+
+        Tuple<string, string> switchCalenderTuple;
+        int year, month, day;
+        string dateTypeCallback;
+        if (isJalali)
+        {
+            dateTypeCallback = CallBacks.Jalali;
+            (year, month, day) = LoadJalaliDateData(fixedDate);
+            switchCalenderTuple = new Tuple<string, string>(Messages.SelectGregorianCalender, CallBacks.SelectGregorianCalender);
+        }
+        else
+        {
+            dateTypeCallback = CallBacks.Gregorian;
+            (year, month, day) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
+            switchCalenderTuple = new Tuple<string, string>(Messages.SelectJalaliCalender, CallBacks.SelectJalaliCalender);
+        }
+
+        var simplified = GregorianToSimplified(fixedDate);
+        var collection = new List<List<Tuple<string, string>>>
+        {
+            new()
+            { 
+                new(year.ToString(), $"{CallBacks.SelectYear}|{dateTypeCallback}|{year.ToString()}"),
+                new(month.ToString(), $"{CallBacks.SelectMonth}|{dateTypeCallback}|{month.ToString()}"),
+                new(day.ToString(), $"{CallBacks.SelectDay}|{dateTypeCallback}|{day.ToString()}"),
+            },
+            new() { switchCalenderTuple, new(Messages.Done, $"{CallBacks.Done}|{simplified}") }
+        };
+        
+        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|");
+        await SendMessage(chatId, message, replyMarkup: keyboard);
+    }
+
+    private async Task ProcessDatePicker(UpdateData data)
+    {
+        switch (data.DataSeparated[2])
+        {
+            case CallBacks.SelectGregorianCalender:
+                //todo : here
+                // SendDatePicker()
+                break;
+            case CallBacks.SelectJalaliCalender:
+                break;
+            case CallBacks.SelectYear:
+                break;
+            case CallBacks.SelectMonth:
+                break;
+            case CallBacks.SelectDay:
+                break;
+            case CallBacks.Done:
+                break;
+        }
+    }
+
+    #endregion
+
+    #endregion
+
     #region StaticMethods
 
     public static DateTime? DateValidation(string dataMessageText)
@@ -341,5 +443,5 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
         return text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength - 3), "...");
     }
 
-    #endregion
+    #endregion 
 }

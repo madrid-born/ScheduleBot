@@ -25,3 +25,11 @@ public class ImportedFile(string fileAddress)
 {
     public string? FileAddress { get; set; } = fileAddress;
 }
+
+public class DatePicker
+{
+    public long ChatId { get; set; }
+    public bool IsJalali { get; set; }
+    public string Message { get; set; }
+    public DateTime FixedDate { get; set; }
+}
