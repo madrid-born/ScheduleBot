@@ -58,6 +58,11 @@ public static class Messages
     public const string SelectDatePicker = "Select Date";
     public const string SelectGregorianCalender = "Load Gregorian calender";
     public const string SelectJalaliCalender = "Load Jalali calender";
+    public const string LevelUp = "Level Up";
+    public const string SelectYear = "Select The year you want to set for the wanted date";
+    public const string SelectMonth = "Select The month you want to set for the wanted date";
+    public const string SelectDay = "Select The day you want to set for the wanted date";
+    public const string DateNotValid = "This date is nt valid";
 
     #endregion
     
@@ -302,6 +307,7 @@ public static class CallBacks
     public const string MultipleSelectAll = "MSA";
     public const string MultipleDeselectAll = "MDA";
     public const string DatePicker = "DP";
+    public const string DatePickerMianMenu = "DPMM";
     public const string SelectGregorianCalender = "SGC";
     public const string SelectJalaliCalender = "SJC";
     public const string SelectYear = "DPSY";
@@ -309,6 +315,7 @@ public static class CallBacks
     public const string SelectDay = "DPSD";
     public const string Jalali = "J";
     public const string Gregorian = "G";
+    public const string LevelUp = "LU";
 
     #endregion
     

@@ -91,7 +91,7 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
         }
         if (normalCollection != null)
         {
-            var keyboard = normalCollection!
+            var keyboard = normalCollection
                 .Select(row => row
                     .Select(text => new KeyboardButton(symbol + text))
                     .ToArray())
@@ -268,20 +268,13 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
         {
             var session = sessionService.GetData(chatId) ?? sessionService.SetData(chatId);
             session.ClearDatePicker();
-            session.SetDatePicker(new DatePicker
-            {
-                ChatId = chatId,
-                IsJalali = isJalali,
-                Message = message,
-                FixedDate = fixedDate
-            });
+            session.SetDatePicker(chatId, isJalali, message, fixedDate);
         }
         else
         {
             var session = sessionService.GetData(chatId);
             var datePickerData = session?.DatePickerSetup;
             if (datePickerData == null) return;
-            chatId = datePickerData.ChatId;
             isJalali = datePickerData.IsJalali;
             message = datePickerData.Message;
             fixedDate = datePickerData.FixedDate;
@@ -289,55 +282,176 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
 
         Tuple<string, string> switchCalenderTuple;
         int year, month, day;
-        string dateTypeCallback;
         if (isJalali)
         {
-            dateTypeCallback = CallBacks.Jalali;
             (year, month, day) = LoadJalaliDateData(fixedDate);
             switchCalenderTuple = new Tuple<string, string>(Messages.SelectGregorianCalender, CallBacks.SelectGregorianCalender);
         }
         else
         {
-            dateTypeCallback = CallBacks.Gregorian;
             (year, month, day) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
             switchCalenderTuple = new Tuple<string, string>(Messages.SelectJalaliCalender, CallBacks.SelectJalaliCalender);
         }
 
-        var simplified = GregorianToSimplified(fixedDate);
+        GregorianToSimplified(fixedDate);
         var collection = new List<List<Tuple<string, string>>>
         {
             new()
             { 
-                new(year.ToString(), $"{CallBacks.SelectYear}|{dateTypeCallback}|{year.ToString()}"),
-                new(month.ToString(), $"{CallBacks.SelectMonth}|{dateTypeCallback}|{month.ToString()}"),
-                new(day.ToString(), $"{CallBacks.SelectDay}|{dateTypeCallback}|{day.ToString()}"),
+                new(year.ToString(), CallBacks.SelectYear),
+                new(month.ToString(), CallBacks.SelectMonth),
+                new(day.ToString(), CallBacks.SelectDay),
             },
-            new() { switchCalenderTuple, new(Messages.Done, $"{CallBacks.Done}|{simplified}") }
+            new() { switchCalenderTuple, new(Messages.Done, $"{CallBacks.Done}") }
         };
         
-        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|");
+        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{CallBacks.DatePickerMianMenu}|");
         await SendMessage(chatId, message, replyMarkup: keyboard);
     }
 
     private async Task ProcessDatePicker(UpdateData data)
     {
+        var session = sessionService.GetData(data.ChatId);
+        if (session == null) return;
+        
         switch (data.DataSeparated[2])
         {
-            case CallBacks.SelectGregorianCalender:
-                //todo : here
-                // SendDatePicker()
+            case CallBacks.DatePickerMianMenu:
+            {
+                switch (data.DataSeparated[3])
+                {
+                    case CallBacks.SelectGregorianCalender:
+                        session.SetDatePicker(isJalali: false);
+                        await SendDatePicker(data.ChatId);
+                        break;
+                    case CallBacks.SelectJalaliCalender:
+                        session.SetDatePicker(isJalali: true);
+                        await SendDatePicker(data.ChatId);
+                        break;
+                    case CallBacks.SelectYear:
+                    case CallBacks.SelectMonth:
+                    case CallBacks.SelectDay:
+                        await SendDateSelector(data.ChatId, session, data.DataSeparated[3]);
+                        break;
+                    case CallBacks.Done:
+                        break;
+                }
                 break;
-            case CallBacks.SelectJalaliCalender:
-                break;
+            }
             case CallBacks.SelectYear:
-                break;
             case CallBacks.SelectMonth:
-                break;
             case CallBacks.SelectDay:
+            {
+                await SetDateSelector(data.ChatId, session, data.DataSeparated[2], data.DataSeparated[3]);
                 break;
-            case CallBacks.Done:
-                break;
+            }
         }
+    }
+
+    private async Task SetDateSelector(long chatId, UserSession session, string callback, string value)
+    {
+        if (session.DatePickerSetup == null)
+        {
+            return;
+        }
+        int year, month, day;
+        var fixedDate = session.DatePickerSetup.FixedDate;
+        if (session.DatePickerSetup.IsJalali) (year, month, day) = LoadJalaliDateData(fixedDate);
+        else (year, month, day) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
+        year = year / 10 * 10;
+        switch (callback)
+        {
+            case CallBacks.SelectYear:
+            {
+                if (value == CallBacks.LevelUp)
+                {
+                    var yearLevelTimes10 = session.DatePickerSetup.YearLevel ?? year;
+                    session.SetDatePicker(yearLevel: yearLevelTimes10 / 10);
+                    await SendDateSelector(chatId, session, callback);
+                    return;
+                }
+                
+                if (session.DatePickerSetup.YearLevel is < 1000)
+                {
+                    session.SetDatePicker(yearLevel: int.Parse(value));
+                    await SendDateSelector(chatId, session, callback);
+                    return;
+                }
+
+                session.SetDatePicker(yearLevel: null);
+                year = int.Parse(value);
+                break;
+            }
+            case CallBacks.SelectMonth:
+            {
+                month = int.Parse(value);
+                break;
+            }
+            case CallBacks.SelectDay:
+            {
+                day = int.Parse(value);
+                break;
+            }
+        }
+        
+        try
+        {
+            fixedDate = session.DatePickerSetup.IsJalali
+                ? ConvertJalaliToGregorianWithData(year, month, day)
+                : new DateTime(year, month, day);
+            session.SetDatePicker(fixedDate: fixedDate);
+            await SendDatePicker(chatId);
+
+        }
+        catch (Exception e)
+        {
+            await SendMessage(chatId, Messages.DateNotValid);
+            await SendDateSelector(chatId, session, callback);
+        }
+    }
+    
+    private async Task SendDateSelector(long chatId, UserSession session, string callback)
+    {
+        int year;
+        if (session.DatePickerSetup == null) return;
+        
+        var fixedDate = session.DatePickerSetup.FixedDate;
+        if (session.DatePickerSetup.IsJalali) (year, _, _) = LoadJalaliDateData(fixedDate);
+        else (year, _, _) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
+        
+        var yearLevel = session.DatePickerSetup.YearLevel;
+        var collection = new List<List<Tuple<string, string>>>();
+        var message = "";
+        switch (callback)
+        {
+            case CallBacks.SelectYear:
+            {
+                message = Messages.SelectYear;
+                var numbers = Enumerable.Range(0, 10).ToList();
+                var yearValue = (yearLevel ?? year) / 10 * 10;
+                numbers = numbers.Select(num => (yearValue + num) * (int)Math.Pow(10, 4 - yearValue.ToString().Length)).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:2);
+                collection.Insert(0, [new(Messages.LevelUp, $"|{CallBacks.LevelUp}")]);
+                break;
+            }
+            case CallBacks.SelectMonth:
+            {
+                message = Messages.SelectMonth;
+                var numbers = Enumerable.Range(1, 12).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:3);
+                break;
+            }
+            case CallBacks.SelectDay:
+            {
+                message = Messages.SelectDay;
+                var numbers = Enumerable.Range(1, 31).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:6);
+                break;
+            }
+        }
+        
+        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{callback}");
+        await SendMessage(chatId, message, replyMarkup: keyboard);
     }
 
     #endregion
@@ -418,7 +532,13 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
             minute = int.Parse(date.Substring(14, 2));
             second = int.Parse(date.Substring(17, 2));
         }
-        return pc.ToDateTime(year, month, day, hour, minute, second, 0);
+        return ConvertJalaliToGregorianWithData(year, month, day, hour, minute, second);
+    }
+
+    public static DateTime ConvertJalaliToGregorianWithData(int year = 0, int month = 0, int day = 0, int hour = 0, int minute = 0, int second = 0, int millisecond = 0)
+    {
+        var pc = new PersianCalendar();
+        return pc.ToDateTime(year, month, day, hour, minute, second, millisecond);
     }
     
     public static string ConvertGregorianToJalali(DateTime date)

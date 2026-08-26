@@ -213,7 +213,7 @@ public class MessageHandler(
         if (text[..1] != "/") return flag;
         if (text.StartsWith("/Test") && data.ChatId == services.AdminChatId)
         {
-            await services.SendDatePicker(data.ChatId);
+            await services.SendDatePicker(data.ChatId, isFirstTime: true);
             flag = true;
         }
         if (text.StartsWith(Messages.Start))

@@ -53,15 +53,14 @@ public class UserSession
         Timestamp = DateTime.Now;
     }
 
-    public void SetDatePicker(DatePicker value)
+    public void SetDatePicker(long? chatId = null, bool? isJalali = null ,string? message = null,DateTime? fixedDate = null, int? yearLevel = null)
     {
-        DatePickerSetup = new DatePicker
-        {
-            ChatId = value.ChatId,
-            IsJalali = value.IsJalali,
-            Message = value.Message,
-            FixedDate = value.FixedDate
-        };
+        DatePickerSetup ??= new DatePicker();
+        if (chatId != null) DatePickerSetup.ChatId = (long) chatId;
+        if (isJalali != null) DatePickerSetup.IsJalali = (bool) isJalali;
+        if (message != null) DatePickerSetup.Message = message;
+        if (fixedDate != null) DatePickerSetup.FixedDate = (DateTime) fixedDate;
+        if (yearLevel != null) DatePickerSetup.YearLevel = (int) yearLevel;
         Timestamp = DateTime.Now;
     }
 

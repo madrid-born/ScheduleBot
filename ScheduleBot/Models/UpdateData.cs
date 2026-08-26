@@ -32,4 +32,5 @@ public class DatePicker
     public bool IsJalali { get; set; }
     public string Message { get; set; }
     public DateTime FixedDate { get; set; }
+    public int? YearLevel { get; set; }
 }
