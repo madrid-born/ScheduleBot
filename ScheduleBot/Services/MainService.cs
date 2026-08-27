@@ -35,7 +35,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         }
     }
     
-    public async Task<int> SendMessage(long chatId, string message, bool addMainKeyboard = false, ReplyMarkup? replyMarkup = null, string? imageUrl = null, ParseMode parseMode = ParseMode.Markdown)
+    public async Task<int> SendMessage(long chatId, string message, ReplyMarkup? replyMarkup = null, string? imageUrl = null, ParseMode parseMode = ParseMode.Markdown)
     {
         message = message.Replace("_", "-");
         if (imageUrl != null)

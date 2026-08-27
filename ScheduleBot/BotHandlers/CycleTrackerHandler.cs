@@ -120,7 +120,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var existing = await ctServices.GetCycleByTelId(data.ChatId);
         if (existing != null)
         {
-            await services.SendMessage(data.ChatId, Messages.AvailableCycle, true);
+            await services.SendMessage(data.ChatId, Messages.AvailableCycle);
             return;
         }
         
@@ -197,7 +197,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         else
             await services.SendMessage(chatId, Messages.SetupComplete);
         
-        await services.SendMessage(chatId, message, true);
+        await services.SendMessage(chatId, message);
     }
     
     #endregion
@@ -247,8 +247,8 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var receiver = await ctServices.GetUserById(Guid.Parse(data.DataSeparated[2]));
         await ctServices.RemoveReceiverFromCycle(cycleId, receiver!.Id);
         
-        await services.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowerForReceiver, owner!.Name), true);
-        await services.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowerForOwner, receiver.Name), true);
+        await services.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowerForReceiver, owner!.Name));
+        await services.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowerForOwner, receiver.Name));
     }
     
     private async Task RemoveFollowing(UpdateData data)
@@ -258,8 +258,8 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var receiver = await ctServices.GetUserByTelId(data.ChatId);
         await ctServices.RemoveReceiverFromCycle(cycleId, receiver!.Id);
         
-        await services.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowingForReceiver, owner!.Name), true);
-        await services.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowingForOwner, receiver.Name), true);
+        await services.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowingForReceiver, owner!.Name));
+        await services.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowingForOwner, receiver.Name));
     }
     
     #endregion
@@ -285,11 +285,11 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
 
         if (owner!.Id == receiver!.Id)
         {
-            await services.SendMessage(owner.ChatId, string.Format(Messages.StatusForOwner, date, message), true);
+            await services.SendMessage(owner.ChatId, string.Format(Messages.StatusForOwner, date, message));
             await AskReport(owner.ChatId, cycle!.LastEnd != null);
         }
         else
-            await services.SendMessage(receiver.ChatId, string.Format(Messages.StatusForReceiver, date, owner.Name, message), true);
+            await services.SendMessage(receiver.ChatId, string.Format(Messages.StatusForReceiver, date, owner.Name, message));
     }
 
     private async Task AskReport(long chatId, bool isStart)
@@ -307,11 +307,11 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             case CallBacks.Yes:
                 if (isStart) await ctServices.SetNewStartByTelId(data.ChatId, DateTime.Now);
                 else await ctServices.SetNewEndByTelId(data.ChatId);
-                await services.SendMessage(data.ChatId, Messages.SavedData, true);
+                await services.SendMessage(data.ChatId, Messages.SavedData);
                 await Notify(data.ChatId, isStart);
                 break;
             case CallBacks.No:
-                await services.SendMessage(data.ChatId, Messages.HopeTomorrow, true);
+                await services.SendMessage(data.ChatId, Messages.HopeTomorrow);
                 break;
         }
     }
@@ -322,7 +322,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var users = await ctServices.GetFollowersByChatId(chatId);
         foreach (var user in users.Where(user => user.ChatId != chatId))
         {
-            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, owner!.FullName), true);
+            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, owner!.FullName));
         }
     }
     
@@ -335,7 +335,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         var result = (await ctServices.GetCycleByTelId(data.ChatId))!.Id;
         var link = $"{services.Url}?start={CallBacks.Cycle}_{CallBacks.JoinToCycle}_{result}";
         var keyboard =  InlineKeyboardButton.WithUrl("Direct join to the cycle notification", link);
-        await services.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), true, replyMarkup: keyboard);
+        await services.SendMessage(data.ChatId, string.Format(Messages.ShareCycleId, result), replyMarkup: keyboard);
     }
     
     private async Task JoinToCyclePressed(UpdateData data)
@@ -352,7 +352,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         }
         else
         {
-            await services.SendMessage(data.ChatId, Messages.CycleIdIsWrong, true);
+            await services.SendMessage(data.ChatId, Messages.CycleIdIsWrong);
         }
     }
     

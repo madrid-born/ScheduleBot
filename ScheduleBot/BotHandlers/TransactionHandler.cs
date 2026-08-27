@@ -142,9 +142,9 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         var idAvailable = Guid.TryParse(data.MessageText, out var walletId);
         var wallet = await tServices.GetWalletByWalletId(walletId);
         if (idAvailable && await tServices.InviteAccept(data.ChatId, walletId))
-            await services.SendMessage(data.ChatId, string.Format(Messages.WalletJoined, wallet!.Name), true);
+            await services.SendMessage(data.ChatId, string.Format(Messages.WalletJoined, wallet!.Name));
         else
-            await services.SendMessage(data.ChatId, Messages.CycleIdIsWrong, true);
+            await services.SendMessage(data.ChatId, Messages.CycleIdIsWrong);
     }
     
     #endregion
