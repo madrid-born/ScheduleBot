@@ -18,6 +18,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     public string BotToken => configuration[$"{Dop}:BotToken"]!;
     public long AdminChatId => long.Parse(configuration["Telegram:AdminChatId"]!);
     private TransactionHandler TransactionHandler => serviceProvider.GetRequiredService<TransactionHandler>();
+    private CycleTrackerHandler CycleTrackerHandler => serviceProvider.GetRequiredService<CycleTrackerHandler>();
     
     #endregion
     
@@ -35,11 +36,16 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         }
     }
     
-    public async Task<int> SendMessage(long chatId, string message, ReplyMarkup? replyMarkup = null, string? imageUrl = null, ParseMode parseMode = ParseMode.Markdown)
+    public async Task<int> SendMessage(long chatId, string message, ReplyMarkup? replyMarkup = null, string? imageUrl = null, InputFileStream? document = null, ParseMode parseMode = ParseMode.Markdown)
     {
         message = message.Replace("_", "-");
+        
         if (imageUrl != null)
             return (await bot.SendPhoto(chatId, photo: new InputFileUrl(imageUrl), caption: message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
+        
+        if (document != null)
+            return (await bot.SendDocument(chatId, document, caption: message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
+        
         return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
     }
     
@@ -462,6 +468,10 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
         switch (method)
         {
+            case DatePickerMethods.PeriodDateCycleTracker:
+                await CycleTrackerHandler.SaveLastPeriodStart(chatId, fixedDate);
+                break;
+            
             case DatePickerMethods.CustomStartTransactionReport:
                 await TransactionHandler.SetCustomPeriod(chatId, fixedDate, true);
                 break;

@@ -1,20 +1,13 @@
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
-using DocumentFormat.OpenXml.Office2010.Word;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using ScheduleBot.Models;
 using ScheduleBot.Services;
-using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
-using Document = QuestPDF.Fluent.Document;
 
 namespace ScheduleBot.BotHandlers;
 
-public class TransactionHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, IConfiguration configuration,
-    UserSessionService sessionService, MainService services, TransactionService tServices, ILogger<CycleTrackerHandler> logger)
+public class TransactionHandler(UserSessionService sessionService, MainService services, TransactionService tServices)
 {
     #region Handel
 
@@ -211,7 +204,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 var message = string.Format(Messages.ScrollerActionSubmitted, wallet.Name, changer!.FullName, changes, CallBacks.Transaction);
                 var usersWithAccess = await tServices.GetUsersWithAccessByWalletId(walletId);
                 sessionService.ClearSession(data.ChatId);
-                await bot.DeleteMessage(data.ChatId, messageId);
+                await services.DeleteMessage(data.ChatId, messageId);
                 foreach (var user in usersWithAccess) await services.SendMessage(user.ChatId, message);
                 break;
             }
@@ -222,7 +215,7 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 if (!canceled) throw new Exception();
                 var message = string.Format(Messages.ScrollerActionAborted, wallet.Name, changes, CallBacks.Transaction);
                 sessionService.ClearSession(data.ChatId);
-                await bot.DeleteMessage(data.ChatId, messageId);
+                await services.DeleteMessage(data.ChatId, messageId);
                 await services.SendMessage(data.ChatId, message);
                 break;
             }
@@ -485,15 +478,11 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         transactions.InsertRange(index, splitTransactions);
     }
 
-    public async Task SetTransactionTitle(UpdateData data, string callbackData)
+    public async Task SetTransactionTitle(UpdateData data)
     {
         var transactionTitle = data.MessageText!;
         var session = sessionService.GetData(data.ChatId);
         if (session == null) return;
-        if (callbackData != CallBacks.CategorySelected)
-        {
-            return;
-        }
         var transactionProcesses = (List<TransactionProcess>)session.Context[Context.Tps];
         var transactionProcess = transactionProcesses[(int)session.Context[Context.Index]];
         transactionProcess.Title = transactionTitle;
@@ -612,11 +601,11 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
                 await ShowCategorySelection(data.ChatId);
                 break;
             case CallBacks.Done:
-                await bot.DeleteMessage(data.ChatId, messageId);
+                await services.DeleteMessage(data.ChatId, messageId);
                 await GenerateWalletReport(data.ChatId);
                 break;
             case CallBacks.Cancel:
-                await bot.DeleteMessage(data.ChatId, messageId);
+                await services.DeleteMessage(data.ChatId, messageId);
                 sessionService.ClearSession(data.ChatId);
                 await services.SendMessage(data.ChatId, Messages.ReportCancelled);
                 break;
@@ -661,22 +650,17 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         await services.SendMessage(chatId, Messages.ReportGenerating);
 
         var report = await tServices.GetReportData(walletId, selectedCategoryIds, startDate, endDate);
+        
         var pdfBytes = tServices.GeneratePdf(report);
         using var stream = new MemoryStream(pdfBytes);
-        await bot.SendDocument(
-            chatId: chatId,
-            document: new InputFileStream(stream, string.Format(Files.PdfWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")),
-            caption: string.Format(Messages.ReportReady, report.WalletName, $"{report.GeneratedAt:yyyy/MM/dd HH:mm}", report.Transactions.Count())
-        );
+        await services.SendMessage(chatId, string.Format(Messages.ReportReady, report.WalletName, $"{report.GeneratedAt:yyyy/MM/dd HH:mm}", report.Transactions.Count()),
+            document: new InputFileStream(stream, string.Format(Files.PdfWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")));
         
         var excelBytes = tServices.GenerateExcel(report);
         using var excelStream = new MemoryStream(excelBytes);
-        await bot.SendDocument(
-            chatId: chatId,
-            document: new InputFileStream(excelStream, string.Format(Files.ExcelWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")),
-            caption: Messages.ExcelCaption
-        );
-
+        await services.SendMessage(chatId, Messages.ExcelCaption,
+            document: new InputFileStream(excelStream, string.Format(Files.ExcelWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")));
+        
         sessionService.ClearSession(chatId);
     }
     

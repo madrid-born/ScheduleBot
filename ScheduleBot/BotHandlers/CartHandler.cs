@@ -1,13 +1,10 @@
 ﻿using ScheduleBot.Models;
 using ScheduleBot.Services;
-using Telegram.Bot;
-using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, IConfiguration configuration,
-    UserSessionService sessionService, MainService services, CartService cServices, ILogger<CycleTrackerHandler> logger)
+public class CartHandler(UserSessionService sessionService, MainService services, CartService cServices)
 {
     
     #region Handel
@@ -58,6 +55,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                         await HandleSection(data, false);
                         break;
                     case CallBacks.CreateCart:
+                        sessionService.SetData(data.ChatId, action: Actions.SetUpCart, callbackData: SessionCallBacks.AskCartName);
                         await services.SendMessage(data.ChatId, Messages.AskCartName, replyMarkup: new ForceReplyMarkup());
                         break;
                     case CallBacks.JoinToCart:
@@ -159,6 +157,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
         var cartName = data.MessageText!;
         var cartId = await cServices.CreateNewCart(data.ChatId, cartName);
         await services.SendMessage(data.ChatId, string.Format(Messages.CartCreated, cartName, cartId));
+        sessionService.ClearSession(data.ChatId);
     }
 
     private async Task DeleteCart(UpdateData data, Guid cartId)
@@ -283,7 +282,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                 var message = string.Format(Messages.ScrollerActionSubmitted, cart.Name, changer!.FullName, changes, CallBacks.Cart);
                 var usersWithAccess = await cServices.GetUsersWithAccessByCartId(cartId);
                 sessionService.ClearSession(data.ChatId);
-                await bot.DeleteMessage(data.ChatId, messageId);
+                await services.DeleteMessage(data.ChatId, messageId);
                 foreach (var user in usersWithAccess) await services.SendMessage(user.ChatId, message);
                 break;
             }
@@ -294,7 +293,7 @@ public class CartHandler(ITelegramBotClient bot, IServiceProvider serviceProvide
                 if (!canceled) throw new Exception();
                 var message = string.Format(Messages.ScrollerActionAborted, cart.Name, changes, CallBacks.Cart);
                 sessionService.ClearSession(data.ChatId);
-                await bot.DeleteMessage(data.ChatId, messageId);
+                await services.DeleteMessage(data.ChatId, messageId);
                 await services.SendMessage(data.ChatId, message);
                 break;
             }

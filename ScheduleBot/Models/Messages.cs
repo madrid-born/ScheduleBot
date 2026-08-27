@@ -97,7 +97,7 @@ public static class Messages
     public const string LoadPeriodTracker = "Welcome to the period tracker section.\nWhat do you want to do?";
     public const string SetupTracker = EnterDate + "date of start of your last period" + EnterDateDetail;
     public const string AvailableCycle = "You already have a cycle tracker set up. Use Edit Period to make changes.";
-    public const string LastStartChanged = "Last start date was changed successfuly.";
+    public const string LastStartChanged = "Last start date changed successfuly.";
     public const string AskForCycleLength = "What is your average cycle length (days between end of one period till start of the new one)?";
     public const string CycleLengthChanged = "Cycle Length was changed successfuly.";
     public const string AskForPeriodLength = "How many days does your period typically last?";
@@ -422,15 +422,32 @@ public static class CallBacks
 
 public static class Actions
 {
+    public const string Register = "Register";
+    
+    public const string SetUpPeriod = "SetUpPeriod";
+
+    public const string SetUpCart = "SetUpCart";
+    
     public const string AwaitingProductActions = "AwaitingProductActions";
     public const string AwaitingCategoryName = "AwaitingCategoryName";
     public const string AwaitingBluFile = "AwaitingBluFile";
     public const string AwaitingBluReview = "AwaitingBluReview";
     public const string BuildingReport = "BuildingReport";
-    
+
     public const string LoadSpotify = "AwaitingPlaylistId";
     public const string AwaitingPlaylistId = "AwaitingPlaylistId";
     public const string AwaitingTrackReview = "CategorizePlaylist";
+}
+
+public static class SessionCallBacks
+{
+    public const string AskForName = "AskForName";
+    public const string AskForEmail = "AskForEmail";
+    
+    public const string AskForCycleLength = "AskForCycleLength";
+    public const string AskForPeriodLength = "AskForPeriodLength";
+    
+    public const string AskCartName = "AskCartName";
 }
 
 public static class Context
@@ -463,6 +480,8 @@ public static class Context
 
 public static class DatePickerMethods
 {
+    public const string PeriodDateCycleTracker = "PeriodDateCycleTracker";
+    
     public const string CustomStartTransactionReport = "CustomStartTransactionReport";
     public const string CustomEndTransactionReport = "CustomEndTransactionReport";
 }

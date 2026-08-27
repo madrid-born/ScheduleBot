@@ -5,7 +5,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService services, IConfiguration configuration)
+public class UserHandler(MainService services, UserSessionService sessionService, DatabaseService databaseService)
 {
     public async Task HandleCallBack(UpdateData data)
     {
@@ -26,7 +26,7 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
     public async Task<bool> CheckUserStatusAsync(UpdateData data)
     {
         var chatId = data.ChatId;
-        var user = await db.GetUserByTelId(chatId);
+        var user = await databaseService.GetUserByTelId(chatId);
         
         if (user == null)
         {
@@ -38,15 +38,20 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
                 }
             }
             catch (Exception e) { /*ignored*/ }
+
+            var collection = new List<List<Tuple<string, string>>>
+            {
+                new() { new(Messages.Yes, $"{CallBacks.AskToRegister}") }
+            };
             
-            var keyboard = new InlineKeyboardMarkup([[InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}|{CallBacks.AskToRegister}")]]);
-            await bot.SendMessage(chatId, Messages.NotDefinedUser, replyMarkup: keyboard);
+            var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Register}|");
+            await services.SendMessage(chatId, Messages.NotDefinedUser, replyMarkup: keyboard);
             return false;
         }
         
         if (!user.IsAccepted && !string.IsNullOrEmpty(user.Email))
         {
-            await bot.SendMessage(chatId, Messages.AdminApprovalPending);
+            await services.SendMessage(chatId, Messages.AdminApprovalPending);
             return false;
         }
         
@@ -55,37 +60,48 @@ public class UserHandler(ITelegramBotClient bot, DatabaseService db, MainService
 
     public async Task AskForName(UpdateData data)
     {
-        await db.InsertEmptyUser(data.ChatId, data.Username);
-        await bot.SendMessage(data.ChatId, Messages.EnterYourName, replyMarkup: new ForceReplyMarkup());
+        await databaseService.InsertEmptyUser(data.ChatId, data.Username);
+        sessionService.SetData(data.ChatId, Actions.Register, callbackData: SessionCallBacks.AskForName);
+        await services.SendMessage(data.ChatId, Messages.EnterYourName, replyMarkup: new ForceReplyMarkup());
     }
 
     public async Task AskForEmail(UpdateData data)
-    {
-        await db.InsertUserName(data.ChatId, data.MessageText);
-        await bot.SendMessage(data.ChatId, Messages.EnterYourEmail, replyMarkup: new ForceReplyMarkup());
+    {        
+        var session = sessionService.GetData(data.ChatId);
+        if (session == null) return;
+        session.SetCallBack(SessionCallBacks.AskForEmail);
+        await databaseService.InsertUserName(data.ChatId, data.MessageText);
+        await services.SendMessage(data.ChatId, Messages.EnterYourEmail, replyMarkup: new ForceReplyMarkup());
     }
 
     public async Task RegisterUser(UpdateData data)
     {
-        var user = await db.InsertUserEmail(data.ChatId, data.MessageText);
+        var user = await databaseService.InsertUserEmail(data.ChatId, data.MessageText);
         
         var adminMessage = string.Format(Messages.AdminMessageTemplate, user.Id, user.ChatId, user.Name, user.Email, "[@"+user.Username+"]");
-        var keyboard = new InlineKeyboardMarkup
-        ([[
-            InlineKeyboardButton.WithCallbackData(Messages.Yes, $"{CallBacks.Register}|{CallBacks.AcceptRegister}|{user.ChatId}"),
-            InlineKeyboardButton.WithCallbackData(Messages.No, $"{CallBacks.Register}|{CallBacks.RejectRegister}|{user.ChatId}"),
-        ]]);
-        await bot.SendMessage(services.AdminChatId, adminMessage, replyMarkup: keyboard);
-        await bot.SendMessage(data.ChatId, Messages.RegistrationSuccessful);
+        
+        var collection = new List<List<Tuple<string, string>>>
+        {
+            new()
+            {
+                new(Messages.Yes, $"{CallBacks.AcceptRegister}|{user.ChatId}"),
+                new(Messages.No, $"{CallBacks.RejectRegister}|{user.ChatId}"),
+            }
+        };
+        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Register}|");
+
+        
+        await services.SendMessage(services.AdminChatId, adminMessage, replyMarkup: keyboard);
+        await services.SendMessage(data.ChatId, Messages.RegistrationSuccessful);
+        sessionService.ClearSession(data.ChatId);
     }
     
     private async Task AdminApproval(UpdateData data, bool accept)
     {
         var chatId = long.Parse(data.DataSeparated[2]);
         var status = accept ? Messages.Approved : Messages.Rejected ;
-        await db.UpdateUserAcceptance(chatId, accept);
-        await bot.SendMessage(services.AdminChatId, string.Format(Messages.AdminAcceptanceTemplate, chatId ,status));
-        await bot.SendMessage(chatId, string.Format(Messages.UserAcceptanceTemplate, status),
-            replyMarkup: accept ? services.GetMainKeyboard() : null);
+        await databaseService.UpdateUserAcceptance(chatId, accept);
+        await services.SendMessage(services.AdminChatId, string.Format(Messages.AdminAcceptanceTemplate, chatId ,status));
+        await services.SendMessage(chatId, string.Format(Messages.UserAcceptanceTemplate, status));
     }
 }

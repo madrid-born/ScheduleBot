@@ -8,7 +8,6 @@ namespace ScheduleBot.BotHandlers;
 
 public class MessageHandler(
     ITelegramBotClient bot,
-    DatabaseService db,
     UserHandler userHandler,
     CycleTrackerHandler cycleTrackerHandler,
     UserSessionService sessionService,
@@ -115,7 +114,7 @@ public class MessageHandler(
 
     private async Task HandleCallbackAsync(UpdateData data)
     {
-        if (data.DeleteCallback) await bot.DeleteMessage(data.ChatId, data.MessageId);
+        if (data.DeleteCallback) await services.DeleteMessage(data.ChatId, data.MessageId);
 
         switch (data.DataSeparated[0])
         {
@@ -162,41 +161,15 @@ public class MessageHandler(
         if (!data.IsReplied) return flag;
         switch (data.RepliedMessage)
         {
-            // Register
-            case Messages.EnterYourName:
-                await userHandler.AskForEmail(data);
-                flag = true;
-                break;
-            case Messages.EnterYourEmail:
-                await userHandler.RegisterUser(data); 
-                flag = true;
-                break;
-            // Cycle Tracker
-            case Messages.SetupTracker:
-                await cycleTrackerHandler.SaveLastPeriodStart(data);
-                flag = true;
-                break;
-            case Messages.AskForCycleLength:
-                await cycleTrackerHandler.SaveCycleLength(data); 
-                flag = true;
-                break;
-            case Messages.AskForPeriodLength:
-                await cycleTrackerHandler.SavePeriodLength(data);
-                flag = true;
-                break;
-            case Messages.AskForCycleId:
-                await cycleTrackerHandler.JoinToCycleById(data);
-                flag = true;
-                break;
             // cart
-            case Messages.AskCartName:
-                await cartHandler.CreateCart(data);
-                flag = true;
-                break;
-            case Messages.AskCartId:
-                await cartHandler.JoinToCart(data);
-                flag = true;
-                break;
+            // case Messages.AskCartName:
+            //     await cartHandler.CreateCart(data);
+            //     flag = true;
+            //     break;
+            // case Messages.AskCartId:
+            //     await cartHandler.JoinToCart(data);
+            //     flag = true;
+            //     break;
             //Transaction
             case Messages.AskWalletName:
                 await transactionHandler.CreateWallet(data);
@@ -334,6 +307,41 @@ public class MessageHandler(
         }
         switch (session.Action)
         {
+            case Actions.Register:
+                switch (session.CallbackData)
+                {
+                    case SessionCallBacks.AskForName:
+                        await userHandler.AskForEmail(data);
+                        flag = true;
+                        break;
+                    case SessionCallBacks.AskForEmail:
+                        await userHandler.RegisterUser(data); 
+                        flag = true;
+                        break;
+                }
+                break;
+            case Actions.SetUpPeriod:
+                switch (session.CallbackData)
+                {
+                    case SessionCallBacks.AskForCycleLength:
+                        await cycleTrackerHandler.SaveCycleLength(data); 
+                        flag = true;
+                        break;
+                    case SessionCallBacks.AskForPeriodLength:
+                        await cycleTrackerHandler.SavePeriodLength(data);
+                        flag = true;
+                        break;
+                }
+                break;
+            case Actions.SetUpCart:
+                switch (session.CallbackData)
+                {
+                    case SessionCallBacks.AskCartName:
+                        await cartHandler.CreateCart(data);
+                        flag = true;
+                        break;
+                }
+                break;
             case Actions.AwaitingProductActions:
                 await cartHandler.AddProductToCart(data, session.CallbackData);
                 flag = true;
@@ -343,22 +351,14 @@ public class MessageHandler(
                 flag = true;
                 break;
             case Actions.AwaitingBluReview:
-                await transactionHandler.SetTransactionTitle(data, session.CallbackData);
-                flag = true;
+                switch (session.CallbackData)
+                {
+                    case CallBacks.CategorySelected:
+                        await transactionHandler.SetTransactionTitle(data);
+                        flag = true;
+                        break;
+                }
                 break;
-            // case Actions.BuildingReport:
-            //     switch (session.CallbackData)
-            //     {
-            //         case Context.CustomStart:
-            //             await transactionHandler.SetCustomPeriod(data, true);
-            //             flag = true;
-            //             break;
-            //         case Context.CustomEnd:
-            //             await transactionHandler.SetCustomPeriod(data, false);
-            //             flag = true;
-            //             break;
-            //     }
-            //     break;
             case Actions.AwaitingPlaylistId:
                 await spotifyHandler.CategorizePlaylist(data, data.MessageText!);
                 flag = true;

@@ -6,8 +6,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider serviceProvider, IConfiguration configuration,
-    MainService services, CycleTrackerService ctServices, ILogger<CycleTrackerHandler> logger)
+public class CycleTrackerHandler(MainService services, UserSessionService sessionService, CycleTrackerService ctServices)
 {
     
     #region Handel
@@ -123,27 +122,31 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             await services.SendMessage(data.ChatId, Messages.AvailableCycle);
             return;
         }
-        
-        await services.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
+        sessionService.SetData(data.ChatId, Actions.SetUpPeriod);
+        await services.SendDatePicker(data.ChatId, DatePickerMethods.PeriodDateCycleTracker);
+
+        // await services.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
     }
     
-    public async Task SaveLastPeriodStart(UpdateData data)
+    public async Task SaveLastPeriodStart(long chatId, DateTime date)
     {
-        var date = MainService.DateValidation(data.MessageText!);
-        if (date == null)
-        {
-            await services.SendMessage(data.ChatId, Messages.InvalidDate);
-            await services.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
-            return;
-        }
+        var session = sessionService.GetData(chatId);
+        if (session == null) return;
 
-        var exists = await ctServices.SetLastStartDate(data.ChatId, (DateTime)date);
-        if (exists) await services.SendMessage(data.ChatId, Messages.LastStartChanged);
-        else await services.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+        var exists = await ctServices.SetLastStartDate(chatId, date);
+        if (exists) await services.SendMessage(chatId, Messages.LastStartChanged);
+        else
+        {
+            session.SetCallBack(SessionCallBacks.AskForCycleLength);
+            await services.SendMessage(chatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+        }
     }
     
     public async Task SaveCycleLength(UpdateData data)
     {
+        var session = sessionService.GetData(data.ChatId);
+        if (session == null) return;
+
         if (!int.TryParse(data.MessageText, out var length))
         {
             await services.SendMessage(data.ChatId, Messages.InvalidInteger);
@@ -153,7 +156,11 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
         
         var exists = await ctServices.SetCycleLength(data.ChatId, length);
         if (exists) await services.SendMessage(data.ChatId, Messages.CycleLengthChanged);
-        else await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
+        else
+        {
+            session.SetCallBack(SessionCallBacks.AskForCycleLength);
+            await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
+        }
     }
     
     public async Task SavePeriodLength(UpdateData data)
@@ -172,6 +179,7 @@ public class CycleTrackerHandler(ITelegramBotClient bot, IServiceProvider servic
             var cycle = await ctServices.GetCycleByTelId(data.ChatId);
             await ShowNotifyModeMenu(data.ChatId, cycle!.Id);
         }
+        sessionService.ClearSession(data.ChatId);
     }
     
     private async Task ShowNotifyModeMenu(long chatId, Guid cycleId = default)
