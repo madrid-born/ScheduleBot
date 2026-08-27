@@ -463,6 +463,11 @@ public static class Context
     public const string AdditionalPlaylistIds = "AdditionalPlaylistIds";
 }
 
+public static class DatePickerMethods
+{
+    public const string Test = "Test";
+}
+
 public static class Files
 {
     public const string PdfWalletReport = "WalletReport_{0}.pdf";

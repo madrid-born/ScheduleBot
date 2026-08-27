@@ -260,15 +260,21 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
 
     #region DatePicker
 
-    public async Task SendDatePicker(long chatId, string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool isFirstTime = false)
+    public async Task Testttt(long chatId, string message, DateTime date)
+    {
+        await SendMessage(chatId, $"we received your date \"{date.ToString(CultureInfo.InvariantCulture)}\" message \"{message}\"");
+
+    }
+    
+    public async Task SendDatePicker(long chatId, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool isFirstTime = false)
     {
         var fixedDate = passedDate ?? DateTime.Now;
 
-        if (isFirstTime)
+        if (!string.IsNullOrEmpty(method))
         {
             var session = sessionService.GetData(chatId) ?? sessionService.SetData(chatId);
             session.ClearDatePicker();
-            session.SetDatePicker(chatId, isJalali, message, fixedDate);
+            session.SetDatePicker(chatId, method, isJalali, message, fixedDate);
         }
         else
         {
@@ -334,6 +340,7 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
                         await SendDateSelector(data.ChatId, session, data.DataSeparated[3]);
                         break;
                     case CallBacks.Done:
+                        await RetrieveDate(data.ChatId, session);
                         break;
                 }
                 break;
@@ -348,12 +355,53 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
         }
     }
 
+    private async Task SendDateSelector(long chatId, UserSession session, string callback)
+    {
+        int year;
+        if (session.DatePickerSetup == null) return;
+        
+        var fixedDate = session.DatePickerSetup.FixedDate;
+        if (session.DatePickerSetup.IsJalali) (year, _, _) = LoadJalaliDateData(fixedDate);
+        else (year, _, _) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
+        
+        var yearLevel = session.DatePickerSetup.YearLevel;
+        var collection = new List<List<Tuple<string, string>>>();
+        var message = "";
+        switch (callback)
+        {
+            case CallBacks.SelectYear:
+            {
+                message = Messages.SelectYear;
+                var numbers = Enumerable.Range(0, 10).ToList();
+                var yearValue = (yearLevel ?? year) / 10 * 10;
+                numbers = numbers.Select(num => (yearValue + num) * (int)Math.Pow(10, 4 - yearValue.ToString().Length)).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:2);
+                collection.Insert(0, [new(Messages.LevelUp, $"|{CallBacks.LevelUp}")]);
+                break;
+            }
+            case CallBacks.SelectMonth:
+            {
+                message = Messages.SelectMonth;
+                var numbers = Enumerable.Range(1, 12).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:3);
+                break;
+            }
+            case CallBacks.SelectDay:
+            {
+                message = Messages.SelectDay;
+                var numbers = Enumerable.Range(1, 31).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:6);
+                break;
+            }
+        }
+        
+        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{callback}");
+        await SendMessage(chatId, message, replyMarkup: keyboard);
+    }
+
     private async Task SetDateSelector(long chatId, UserSession session, string callback, string value)
     {
-        if (session.DatePickerSetup == null)
-        {
-            return;
-        }
+        if (session.DatePickerSetup == null) return;
         int year, month, day;
         var fixedDate = session.DatePickerSetup.FixedDate;
         if (session.DatePickerSetup.IsJalali) (year, month, day) = LoadJalaliDateData(fixedDate);
@@ -410,50 +458,22 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
         }
     }
     
-    private async Task SendDateSelector(long chatId, UserSession session, string callback)
+    private async Task RetrieveDate(long chatId, UserSession session)
     {
-        int year;
         if (session.DatePickerSetup == null) return;
-        
         var fixedDate = session.DatePickerSetup.FixedDate;
-        if (session.DatePickerSetup.IsJalali) (year, _, _) = LoadJalaliDateData(fixedDate);
-        else (year, _, _) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
-        
-        var yearLevel = session.DatePickerSetup.YearLevel;
-        var collection = new List<List<Tuple<string, string>>>();
-        var message = "";
-        switch (callback)
-        {
-            case CallBacks.SelectYear:
-            {
-                message = Messages.SelectYear;
-                var numbers = Enumerable.Range(0, 10).ToList();
-                var yearValue = (yearLevel ?? year) / 10 * 10;
-                numbers = numbers.Select(num => (yearValue + num) * (int)Math.Pow(10, 4 - yearValue.ToString().Length)).ToList();
-                collection = LoadCollectionOneClicker(numbers, width:2);
-                collection.Insert(0, [new(Messages.LevelUp, $"|{CallBacks.LevelUp}")]);
-                break;
-            }
-            case CallBacks.SelectMonth:
-            {
-                message = Messages.SelectMonth;
-                var numbers = Enumerable.Range(1, 12).ToList();
-                collection = LoadCollectionOneClicker(numbers, width:3);
-                break;
-            }
-            case CallBacks.SelectDay:
-            {
-                message = Messages.SelectDay;
-                var numbers = Enumerable.Range(1, 31).ToList();
-                collection = LoadCollectionOneClicker(numbers, width:6);
-                break;
-            }
-        }
-        
-        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{callback}");
-        await SendMessage(chatId, message, replyMarkup: keyboard);
-    }
+        var method = session.DatePickerSetup.Method;
 
+        switch (method)
+        {
+            case DatePickerMethods.Test:
+                Testttt(chatId, "heheheh", fixedDate);
+                break;
+            default:
+                throw new Exception(Messages.SomethingWentWrong);
+        }
+    }
+    
     #endregion
 
     #endregion
