@@ -581,17 +581,15 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
             case CallBacks.SelectDate:
                 var start = data.DataSeparated.ElementAtOrDefault(3);
                 var end = data.DataSeparated.ElementAtOrDefault(4);
+                
                 if (start == CallBacks.CustomPeriod)
                 {
-                    session.SetCallBack(Context.CustomStart);
-                    await AskCustomPeriod(data, true);
+                    await AskCustomPeriod(data.ChatId, true);
                     return;
                 }
-                else
-                {
-                    if (!string.IsNullOrEmpty(start)) session.SetContext(Context.StartDate, MainService.SimplifiedToGregorian(start));
-                    if (!string.IsNullOrEmpty(end)) session.SetContext(Context.EndDate, MainService.SimplifiedToGregorian(end));
-                }
+
+                if (!string.IsNullOrEmpty(start)) session.SetContext(Context.StartDate, MainService.SimplifiedToGregorian(start));
+                if (!string.IsNullOrEmpty(end)) session.SetContext(Context.EndDate, MainService.SimplifiedToGregorian(end));
                 await ShowCategorySelection(data.ChatId);
                 break;
             case CallBacks.MultipleSelectToggle:
@@ -625,34 +623,28 @@ public class TransactionHandler(ITelegramBotClient bot, IServiceProvider service
         }
     }
 
-    public async Task AskCustomPeriod(UpdateData data, bool isStart)
+    public async Task AskCustomPeriod(long chatId, bool isStart)
     {
-        await services.SendMessage(data.ChatId, string.Format(Messages.SendCustomDate, isStart ? Messages.CustomStart : Messages.CustomEnd));
+        if (isStart)
+            await services.SendDatePicker(chatId, DatePickerMethods.CustomStartTransactionReport, Messages.CustomStart);
+        else 
+            await services.SendDatePicker(chatId, DatePickerMethods.CustomEndTransactionReport, Messages.CustomEnd);
     }
-    
-    public async Task SetCustomPeriod(UpdateData data, bool isStart)
-    {
-        var date = MainService.DateValidation(data.MessageText!);
-        if (date == null)
-        {
-            await services.SendMessage(data.ChatId, Messages.InvalidDate);
-            await AskCustomPeriod(data, isStart);
-            return;
-        }
 
-        var session = sessionService.GetData(data.ChatId);
+    public async Task SetCustomPeriod(long chatId, DateTime date, bool isStart)
+    {
+        var session = sessionService.GetData(chatId);
         if (session == null) return;
 
         if (isStart)
         {
-            session.SetCallBack(Context.CustomEnd);
             session.SetContext(Context.StartDate, date);
-            await AskCustomPeriod(data, false);
+            await AskCustomPeriod(chatId, false);
         }
         else
         {
             session.SetContext(Context.EndDate, date);
-            await ShowCategorySelection(data.ChatId);
+            await ShowCategorySelection(chatId);
         }
     }
     

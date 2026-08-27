@@ -213,7 +213,7 @@ public class MessageHandler(
         if (text[..1] != "/") return flag;
         if (text.StartsWith("/Test") && data.ChatId == services.AdminChatId)
         {
-            await services.SendDatePicker(data.ChatId, method: DatePickerMethods.Test);
+            await services.SendMessage(data.ChatId, "Nothing in here");
             flag = true;
         }
         if (text.StartsWith(Messages.Start))
@@ -346,19 +346,19 @@ public class MessageHandler(
                 await transactionHandler.SetTransactionTitle(data, session.CallbackData);
                 flag = true;
                 break;
-            case Actions.BuildingReport:
-                switch (session.CallbackData)
-                {
-                    case Context.CustomStart:
-                        await transactionHandler.SetCustomPeriod(data, true);
-                        flag = true;
-                        break;
-                    case Context.CustomEnd:
-                        await transactionHandler.SetCustomPeriod(data, false);
-                        flag = true;
-                        break;
-                }
-                break;
+            // case Actions.BuildingReport:
+            //     switch (session.CallbackData)
+            //     {
+            //         case Context.CustomStart:
+            //             await transactionHandler.SetCustomPeriod(data, true);
+            //             flag = true;
+            //             break;
+            //         case Context.CustomEnd:
+            //             await transactionHandler.SetCustomPeriod(data, false);
+            //             flag = true;
+            //             break;
+            //     }
+            //     break;
             case Actions.AwaitingPlaylistId:
                 await spotifyHandler.CategorizePlaylist(data, data.MessageText!);
                 flag = true;

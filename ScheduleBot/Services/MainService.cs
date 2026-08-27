@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using ScheduleBot.BotHandlers;
 using ScheduleBot.Models;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -7,7 +8,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.Services;
 
-public class MainService(ITelegramBotClient bot, IConfiguration configuration, IWebHostEnvironment environment, UserSessionService sessionService)
+public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider, IConfiguration configuration, IWebHostEnvironment environment, UserSessionService sessionService)
 {
 
     #region Statics
@@ -16,6 +17,7 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
     public string Url => configuration[$"{Dop}:Url"]!;
     public string BotToken => configuration[$"{Dop}:BotToken"]!;
     public long AdminChatId => long.Parse(configuration["Telegram:AdminChatId"]!);
+    private TransactionHandler TransactionHandler => serviceProvider.GetRequiredService<TransactionHandler>();
     
     #endregion
     
@@ -259,14 +261,8 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
     #endregion
 
     #region DatePicker
-
-    public async Task Testttt(long chatId, string message, DateTime date)
-    {
-        await SendMessage(chatId, $"we received your date \"{date.ToString(CultureInfo.InvariantCulture)}\" message \"{message}\"");
-
-    }
     
-    public async Task SendDatePicker(long chatId, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool isFirstTime = false)
+    public async Task SendDatePicker(long chatId, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true)
     {
         var fixedDate = passedDate ?? DateTime.Now;
 
@@ -406,11 +402,11 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
         var fixedDate = session.DatePickerSetup.FixedDate;
         if (session.DatePickerSetup.IsJalali) (year, month, day) = LoadJalaliDateData(fixedDate);
         else (year, month, day) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
-        year = year / 10 * 10;
         switch (callback)
         {
             case CallBacks.SelectYear:
             {
+                year = year / 10 * 10;
                 if (value == CallBacks.LevelUp)
                 {
                     var yearLevelTimes10 = session.DatePickerSetup.YearLevel ?? year;
@@ -466,8 +462,11 @@ public class MainService(ITelegramBotClient bot, IConfiguration configuration, I
 
         switch (method)
         {
-            case DatePickerMethods.Test:
-                Testttt(chatId, "heheheh", fixedDate);
+            case DatePickerMethods.CustomStartTransactionReport:
+                await TransactionHandler.SetCustomPeriod(chatId, fixedDate, true);
+                break;
+            case DatePickerMethods.CustomEndTransactionReport:
+                await TransactionHandler.SetCustomPeriod(chatId, fixedDate, false);
                 break;
             default:
                 throw new Exception(Messages.SomethingWentWrong);

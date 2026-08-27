@@ -441,8 +441,6 @@ public static class Context
     public const string Section = "Section";
     public const string MessageId = "MessageId";
 
-    public const string CustomStart = "CustomStart";
-    public const string CustomEnd = "CustomEnd";
     public const string ReportWalletId = "ReportWalletId";
     public const string ReportSelectedCategories = "ReportSelectedCategories";
     public const string ReportAllSelected = "ReportAllSelected";
@@ -465,7 +463,8 @@ public static class Context
 
 public static class DatePickerMethods
 {
-    public const string Test = "Test";
+    public const string CustomStartTransactionReport = "CustomStartTransactionReport";
+    public const string CustomEndTransactionReport = "CustomEndTransactionReport";
 }
 
 public static class Files

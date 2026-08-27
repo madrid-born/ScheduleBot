@@ -55,8 +55,8 @@ var botToken = botTokenString ?? throw new InvalidOperationException("Bot token 
 var bot = new TelegramBotClient(botToken, httpClient);
 builder.Services.AddSingleton<ITelegramBotClient>(bot);
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
-builder.Services.AddSingleton<MainService>();
 builder.Services.AddSingleton<UserSessionService>();
+builder.Services.AddScoped<MainService>();
 builder.Services.AddScoped<DatabaseService>();
 builder.Services.AddScoped<MessageHandler>();
 builder.Services.AddScoped<UserHandler>();
