@@ -12,16 +12,13 @@ public static class Messages
     
     #region MainKeyboard
     
-    public const string AboutSymbol = "ℹ️ ";
-    public const string About = "About";
-    public const string PeriodTrackerSymbol = "🌸 ";
-    public const string PeriodTracker = "Period Tracker";
-    public const string CartSymbol = "🛒 ";
-    public const string Cart = "Cart";
-    public const string TransactionSymbol = "🏦 ";
-    public const string Transaction = "Transaction";
-    public const string SpotifySymbol = "🎵 ";
-    public const string Spotify = "Spotify";
+    public const string About = "ℹ️ About";
+    public const string PeriodTracker = "🌸 Period Tracker";
+    public const string Cart = "🛒 Cart";
+    public const string Transaction = "🏦 Wallet";
+    public const string Notification = "⏰ Notification Cneter";
+    
+    public const string Spotify = "🎵 Spotify";
     
     #endregion
 
@@ -287,6 +284,28 @@ public static class Messages
     public const string AcceptNoArtistPlaylists = "None";
 
     #endregion
+    
+    #region Notification
+
+    public const string LoadNotification = "Welcome to the Notification Center.\nWhat do you want to do?";
+    
+    public const string KeyboardCreateNotification = "Create New Notification";
+    public const string KeyboardNotificationManagement = "Notification Management";
+    
+    public const string AskNotificationName = "Enter the Notification name.";
+    public const string FirstOccurrence = "Enter the First Occurrence.";
+    public const string ReminderHowOften = "How often would you like to receive notifications?";
+    public const string HowOftenUnit = "How many {0} should the bot wait between reminders?";
+    public const string ReminderMessage = "Send the messge that you want to be reminded with.";
+    
+    public const string NotificationHour = "Hour(s)";
+    public const string NotificationDay = "Day(s)";
+    public const string NotificationMonth = "Month(s)";
+    public const string NotificationOneTime = "One Time";
+
+    public const string SelectNotification = "Select the notification you want.";
+
+    #endregion
 }
 
 public static class CallBacks
@@ -422,6 +441,21 @@ public static class CallBacks
     public const string GenreSelection = "GSN";
     #endregion
 
+    #region Notification
+
+    public const string Notification = "Notification";
+
+    public const string CreateNotification = "CN";
+    public const string NotificationManagement = "NM";
+    
+    public const string NotificationsHowOften = "NHO";
+    public const int NotificationOneTime = 0;
+    public const int NotificationHour = 1;
+    public const int NotificationDay = 2;
+    public const int NotificationMonthGregorian = 3;
+    public const int NotificationMonthJalali = 4;
+
+    #endregion
 }
 
 public static class Actions
@@ -441,6 +475,8 @@ public static class Actions
     public const string LoadSpotify = "AwaitingPlaylistId";
     public const string AwaitingPlaylistId = "AwaitingPlaylistId";
     public const string AwaitingTrackReview = "CategorizePlaylist";
+    
+    public const string SetUpNotification = "SetUpNotification";
 }
 
 public static class SessionCallBacks
@@ -452,6 +488,10 @@ public static class SessionCallBacks
     public const string AskForPeriodLength = "AskForPeriodLength";
     
     public const string AskCartName = "AskCartName";
+    
+    public const string AskNotificationName = "AskNotificationName";
+    public const string AskNotificationOftenUnit = "AskNotificationOftenUnit";
+    public const string AskReminderMessage = "AskReminderMessage";
 }
 
 public static class Context
@@ -480,6 +520,12 @@ public static class Context
     public const string GenresSelectedIds = "GenresSelectedIds";
     public const string GenresAllSelected = "GenresAllSelected";
     public const string AdditionalPlaylistIds = "AdditionalPlaylistIds";
+    
+    public const string NotificationName = "NotificationName";
+    public const string FirstOccurrence = "FirstOccurrence";
+    public const string ReminderUnit = "ReminderUnit";
+    public const string UnitCount = "UnitCount";
+    public const string ReminderMessage = "ReminderMessage";
 }
 
 public static class DatePickerMethods
@@ -488,6 +534,8 @@ public static class DatePickerMethods
     
     public const string CustomStartTransactionReport = "CustomStartTransactionReport";
     public const string CustomEndTransactionReport = "CustomEndTransactionReport";
+    
+    public const string NotificationFirstOccurrence = "NotificationFirstOccurrence";
 }
 
 public static class Files

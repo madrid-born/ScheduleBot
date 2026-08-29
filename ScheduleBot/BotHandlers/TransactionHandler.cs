@@ -186,7 +186,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     private async Task CategoryAction(UpdateData data, string callBack)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) throw new Exception();
         var callbacks = session.CallbackData.Split("|").ToList();
         var isMessageId = int.TryParse(callbacks[0], out var messageId);
         var isWalletId = Guid.TryParse(callbacks[1], out var walletId);

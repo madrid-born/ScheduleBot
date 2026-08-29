@@ -17,8 +17,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     public string Url => configuration[$"{Dop}:Url"]!;
     public string BotToken => configuration[$"{Dop}:BotToken"]!;
     public long AdminChatId => long.Parse(configuration["Telegram:AdminChatId"]!);
-    private TransactionHandler TransactionHandler => serviceProvider.GetRequiredService<TransactionHandler>();
     private CycleTrackerHandler CycleTrackerHandler => serviceProvider.GetRequiredService<CycleTrackerHandler>();
+    private TransactionHandler TransactionHandler => serviceProvider.GetRequiredService<TransactionHandler>();
+    private NotificationHandler NotificationHandler => serviceProvider.GetRequiredService<NotificationHandler>();
     
     #endregion
     
@@ -75,10 +76,10 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     {
         var collection = new List<List<string>>
         {
-            new() { Messages.PeriodTrackerSymbol + Messages.PeriodTracker, Messages.CartSymbol + Messages.Cart },
-            new() { Messages.TransactionSymbol + Messages.Transaction, },
+            new() { Messages.PeriodTracker, Messages.Cart },
+            new() { Messages.Transaction,   Messages.Notification},
         };
-        if (isAdmin) collection.Add([Messages.SpotifySymbol + Messages.Spotify]);
+        if (isAdmin) collection.Add([Messages.Spotify]);
         
         return (ReplyKeyboardMarkup)CreateKeyboard(collection, resizeKeyboard: true);
     }
@@ -122,6 +123,29 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: callBackStart);
 
         await SendMessage(chatId, message, replyMarkup: keyboard);
+    }
+
+    public List<List<string>> LoadCollectionForNormalKeyboard<T>(List<T> items, Func<T, string>? nameSelector = null,
+        int width = 2, string prefix = "", string suffix = "")
+    {
+        var collection = new List<List<string>>();
+        nameSelector ??= x => x.ToString();
+        
+        for (var index = 0; index < (double)items.Count/width ; index += 1)
+        {
+            List<string> row = [];
+            for (var i = 0; i < width; i++)
+            {
+                var itemIndex = index * width + i;
+                if (itemIndex < items.Count)
+                {
+                    row.Add(nameSelector(items[itemIndex]));
+                }
+            }
+            collection.Add(row);
+        }
+
+        return collection;
     }
 
     public List<List<Tuple<string, string>>> LoadCollectionInPages<T>(List<T> items, string callBack, int pageNumber,
@@ -517,6 +541,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                 break;
             case DatePickerMethods.CustomEndTransactionReport:
                 await TransactionHandler.SetCustomPeriod(chatId, fixedDate, false);
+                break;
+            case DatePickerMethods.NotificationFirstOccurrence:
+                await NotificationHandler.SetFirstOccurrence(chatId, fixedDate, session.DatePickerSetup.IsJalali);
                 break;
             default:
                 throw new Exception(Messages.SomethingWentWrong);

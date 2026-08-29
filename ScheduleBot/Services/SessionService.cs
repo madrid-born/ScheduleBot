@@ -15,10 +15,10 @@ public class UserSessionService
         return session;
     }
     
-    public UserSession? GetData(long chatId)
+    public UserSession GetData(long chatId)
     {
         _sessions.TryGetValue(chatId, out var session);
-        return session;
+        return session ?? throw new KeyNotFoundException();
     }
     
     public void ClearSession(long chatId)

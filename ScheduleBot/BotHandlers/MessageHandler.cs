@@ -14,6 +14,7 @@ public class MessageHandler(
     CartHandler cartHandler,
     TransactionHandler transactionHandler,
     SpotifyHandler spotifyHandler,
+    NotificationHandler notificationHandler,
     MainService services,
     IConfiguration configuration)
 {
@@ -136,6 +137,9 @@ public class MessageHandler(
             case CallBacks.Spotify:
                 await spotifyHandler.HandleCallBack(data);
                 break;
+            case CallBacks.Notification:
+                await notificationHandler.HandleCallBack(data);
+                break;
         }
     }
 
@@ -255,29 +259,33 @@ public class MessageHandler(
 
         try
         {
-            keyboardSymbol = data.MessageText![..3];
+            keyboardSymbol = data.MessageText;
         }
         catch (Exception e) { /*ignored*/ }
         
         switch (keyboardSymbol)
         {
-            case Messages.PeriodTrackerSymbol:
+            case Messages.PeriodTracker:
                 await cycleTrackerHandler.HandleSection(data);
                 flag = true;
                 break;
-            case Messages.CartSymbol:
+            case Messages.Cart:
                 await cartHandler.HandleSection(data);
                 flag = true;
                 break;
-            case Messages.TransactionSymbol:
+            case Messages.Transaction:
                 await transactionHandler.HandleSection(data);
                 flag = true;
                 break;
-            case Messages.SpotifySymbol:
+            case Messages.Spotify:
                 await spotifyHandler.HandleSection(data);
                 flag = true;
                 break;
-            case Messages.AboutSymbol:
+            case Messages.Notification:
+                await notificationHandler.HandleSection(data);
+                flag = true;
+                break;
+            case Messages.About:
                 flag = true;
                 break;
         }
@@ -363,6 +371,25 @@ public class MessageHandler(
                 await spotifyHandler.CategorizePlaylist(data, data.MessageText!);
                 flag = true;
                 break;
+            
+            case Actions.SetUpNotification:
+                switch (session.CallbackData)
+                {
+                    case SessionCallBacks.AskNotificationName:
+                        await notificationHandler.CreateNotification(data);
+                        flag = true;
+                        break;
+                    case SessionCallBacks.AskNotificationOftenUnit:
+                        await notificationHandler.SetNotificationOftenUnit(data);
+                        flag = true;
+                        break;
+                    case SessionCallBacks.AskReminderMessage:
+                        await notificationHandler.SetNotificationReminderMessage(data);
+                        flag = true;
+                        break;
+                }
+                break;
+
         }
         return flag;
     }

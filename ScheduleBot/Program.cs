@@ -67,6 +67,8 @@ builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<TransactionHandler>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<SpotifyHandler>();
+builder.Services.AddScoped<NotificationHandler>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddHttpClient<SpotifyService>(client =>
 {
     var baseUrl = builder.Configuration["SpotifyApi:BaseUrl"];

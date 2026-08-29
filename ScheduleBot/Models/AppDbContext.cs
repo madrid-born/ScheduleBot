@@ -17,4 +17,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Category> WalletCategory { get; set; }
     public DbSet<WalletAccess> WalletAccess { get; set; }
     public DbSet<TransactionRecord> WalletTransactions { get; set; }
+    
+    public DbSet<Notification> Notification { get; set; }
+    public DbSet<NotificationAccess> NotificationAccess { get; set; }
+    public DbSet<Future> NotificationFutureMessage { get; set; }
+    
+    
 }

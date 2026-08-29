@@ -264,7 +264,6 @@ public class CartHandler(UserSessionService sessionService, MainService services
     private async Task ProductAction(UpdateData data, string callBack)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) throw new Exception();
         var callbacks = session.CallbackData.Split("|").ToList();
         var isMessageId = int.TryParse(callbacks[0], out var messageId);
         var isCartId = Guid.TryParse(callbacks[1], out var cartId);
