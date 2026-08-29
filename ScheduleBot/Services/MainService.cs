@@ -268,7 +268,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
     #region DatePicker
     
-    public async Task SendDatePicker(long chatId, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true)
+    public async Task SendDatePicker(long chatId, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool timeIncluded = true)
     {
         var fixedDate = passedDate ?? DateTime.Now;
 
@@ -276,13 +276,14 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         {
             var session = sessionService.GetData(chatId) ?? sessionService.SetData(chatId);
             session.ClearDatePicker();
-            session.SetDatePicker(chatId, method, isJalali, message, fixedDate);
+            session.SetDatePicker(chatId, method, timeIncluded, isJalali, message, fixedDate);
         }
         else
         {
             var session = sessionService.GetData(chatId);
             var datePickerData = session?.DatePickerSetup;
             if (datePickerData == null) return;
+            timeIncluded = datePickerData.TimeIncluded;
             isJalali = datePickerData.IsJalali;
             message = datePickerData.Message;
             fixedDate = datePickerData.FixedDate;
@@ -290,6 +291,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
         Tuple<string, string> switchCalenderTuple;
         int year, month, day;
+        var (hour, minute) = (fixedDate.Hour, fixedDate.Minute);
         if (isJalali)
         {
             (year, month, day) = LoadJalaliDateData(fixedDate);
@@ -312,6 +314,16 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             },
             new() { switchCalenderTuple, new(Messages.Done, $"{CallBacks.Done}") }
         };
+        
+        if (timeIncluded)
+        {
+            collection.Insert(0,
+            [
+                new(hour.ToString(), CallBacks.SelectHour),
+                new(":", "-"),
+                new(minute.ToString(), CallBacks.SelectMinute)
+            ]);
+        }
         
         var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{CallBacks.DatePickerMianMenu}|");
         await SendMessage(chatId, message, replyMarkup: keyboard);
@@ -339,6 +351,8 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                     case CallBacks.SelectYear:
                     case CallBacks.SelectMonth:
                     case CallBacks.SelectDay:
+                    case CallBacks.SelectHour:
+                    case CallBacks.SelectMinute:
                         await SendDateSelector(data.ChatId, session, data.DataSeparated[3]);
                         break;
                     case CallBacks.Done:
@@ -350,6 +364,8 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             case CallBacks.SelectYear:
             case CallBacks.SelectMonth:
             case CallBacks.SelectDay:
+            case CallBacks.SelectHour:
+            case CallBacks.SelectMinute:
             {
                 await SetDateSelector(data.ChatId, session, data.DataSeparated[2], data.DataSeparated[3]);
                 break;
@@ -395,6 +411,20 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                 collection = LoadCollectionOneClicker(numbers, width:6);
                 break;
             }
+            case CallBacks.SelectHour:
+            {
+                message = Messages.SelectHour;
+                var numbers = Enumerable.Range(1, 24).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:6);
+                break;
+            }
+            case CallBacks.SelectMinute:
+            {
+                message = Messages.SelectMinute;
+                var numbers = Enumerable.Range(1, 60).ToList();
+                collection = LoadCollectionOneClicker(numbers, width:5);
+                break;
+            }
         }
         
         var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{callback}");
@@ -408,6 +438,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         var fixedDate = session.DatePickerSetup.FixedDate;
         if (session.DatePickerSetup.IsJalali) (year, month, day) = LoadJalaliDateData(fixedDate);
         else (year, month, day) = (fixedDate.Year, fixedDate.Month, fixedDate.Day);
+        var (hour, minute) = (fixedDate.Hour, fixedDate.Minute);
         switch (callback)
         {
             case CallBacks.SelectYear:
@@ -442,16 +473,25 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                 day = int.Parse(value);
                 break;
             }
+            case CallBacks.SelectHour:
+            {
+                hour = int.Parse(value);
+                break;
+            }
+            case CallBacks.SelectMinute:
+            {
+                minute = int.Parse(value);
+                break;
+            }
         }
         
         try
         {
             fixedDate = session.DatePickerSetup.IsJalali
-                ? ConvertJalaliToGregorianWithData(year, month, day)
-                : new DateTime(year, month, day);
+                ? ConvertJalaliToGregorianWithData(year, month, day, hour, minute)
+                : new DateTime(year, month, day, hour, minute, 0);
             session.SetDatePicker(fixedDate: fixedDate);
             await SendDatePicker(chatId);
-
         }
         catch (Exception e)
         {

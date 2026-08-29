@@ -62,6 +62,8 @@ public static class Messages
     public const string SelectYear = "Select The year you want to set for the wanted date";
     public const string SelectMonth = "Select The month you want to set for the wanted date";
     public const string SelectDay = "Select The day you want to set for the wanted date";
+    public const string SelectHour = "Select The hour you want to set for the wanted date";
+    public const string SelectMinute = "Select The minute you want to set for the wanted date";
     public const string DateNotValid = "This date is nt valid";
 
     #endregion
@@ -313,6 +315,8 @@ public static class CallBacks
     public const string SelectYear = "DPSY";
     public const string SelectMonth = "DPSM";
     public const string SelectDay = "DPSD";
+    public const string SelectHour = "DPSH";
+    public const string SelectMinute = "DPSMi";
     public const string Jalali = "J";
     public const string Gregorian = "G";
     public const string LevelUp = "LU";

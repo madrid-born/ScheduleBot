@@ -34,4 +34,5 @@ public class DatePicker
     public string Message { get; set; }
     public DateTime FixedDate { get; set; }
     public int? YearLevel { get; set; }
+    public bool TimeIncluded { get; set; }
 }
