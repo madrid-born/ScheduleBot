@@ -217,7 +217,7 @@ namespace ScheduleBot.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("SeparationValue")
+                    b.Property<int?>("SeparationValue")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartTime")

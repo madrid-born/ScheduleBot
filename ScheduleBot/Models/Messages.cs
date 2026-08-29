@@ -458,6 +458,11 @@ public static class CallBacks
     #endregion
 }
 
+public static class Errors
+{
+    public const string FirstOccurrencePassed = "The time registered as the first occurrence has passed.";
+}
+
 public static class Actions
 {
     public const string Register = "Register";
@@ -496,6 +501,8 @@ public static class SessionCallBacks
 
 public static class Context
 {
+    public const string BotNotifications = "BotNotifications";
+    
     public const string Tps = "TransactionProcesses";
     public const string Wallet = "Wallet";
     public const string Index = "Index";

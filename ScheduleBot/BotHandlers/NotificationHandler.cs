@@ -136,7 +136,13 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
         var reminderUnit = (int) session.Context[Context.ReminderUnit];
         var unitCount = reminderUnit == 0 ? null : (int?) session.Context[Context.UnitCount];
         
-        await nServices.CreateNewReminder(notificationName, firstOccurrence, reminderUnit, unitCount, reminderMessage);
+        var notificationId = await nServices.CreateNewReminder(chatId, notificationName, firstOccurrence, reminderUnit, unitCount, reminderMessage);
+        var futureNotifications = await nServices.GetFutureNotificationsByNotificationId(notificationId);
+        var botSession = sessionService.GetData(0);
+        var notifications = (List<ToBeSentNotification>) botSession.Context[Context.BotNotifications];
+        notifications.AddRange(futureNotifications);
+        botSession.SetContext(Context.BotNotifications, notifications);
+        
         sessionService.ClearSession(chatId);
     }
 
@@ -150,6 +156,41 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
         var collection = services.LoadCollectionInPages(notifications, callBack, pageNumber, x => x.Id, x => x.Name!);
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Notification}|");
         await services.SendMessage(chatId, Messages.SelectNotification, replyMarkup: keyboard);
+    }
+
+    #endregion
+
+    #region CheckForNotifications
+    
+    public async Task CheckAndSendNotifications(bool install = false)
+    {
+        var now = DateTime.Now;
+        var session = sessionService.GetData(0);
+        List<ToBeSentNotification> notifications = null!;
+        try
+        {
+            notifications = (List<ToBeSentNotification>) session.Context[Context.BotNotifications];
+        }
+        catch (Exception e)
+        {
+            install = true;
+        }
+
+        
+        if (install || now.TimeOfDay.Minutes == 0)
+        {
+            var notificationsForNextHour = await nServices.GetNotificationsForNextHour(now);
+            session.SetContext(Context.BotNotifications, notificationsForNextHour);
+        }
+        else
+        {
+            foreach (var notification in notifications.Where(notification => notification.Time <= now).ToList())
+            {
+                notifications.Remove(notification);
+                await services.SendMessage(notification.ChatId, notification.Message);
+            }
+            session.SetContext(Context.BotNotifications, notifications);
+        }
     }
 
     #endregion

@@ -9,6 +9,7 @@ namespace ScheduleBot.BotHandlers;
 public class BotPollingService(
     ITelegramBotClient botClient,
     IServiceProvider serviceProvider,
+    UserSessionService sessionService,
     ILogger<BotPollingService> logger)
     : BackgroundService
 {
@@ -16,6 +17,7 @@ public class BotPollingService(
     {
         logger.LogInformation("Starting bot polling service...");
 
+        sessionService.SetData(0);
         var receiverOptions = new ReceiverOptions
         {
             AllowedUpdates = Array.Empty<UpdateType>()
@@ -37,9 +39,11 @@ public class BotPollingService(
             {
                 using var scope = serviceProvider.CreateScope();
                 var cycleTracker = scope.ServiceProvider.GetRequiredService<CycleTrackerHandler>();
+                var notificationTracker = scope.ServiceProvider.GetRequiredService<NotificationHandler>();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await cycleTracker.CheckAndSendNotifications();
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await notificationTracker.CheckAndSendNotifications();
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
         }, stoppingToken);
         
