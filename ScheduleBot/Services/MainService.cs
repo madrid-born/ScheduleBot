@@ -298,14 +298,14 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
         if (!string.IsNullOrEmpty(method))
         {
-            var session = sessionService.GetData(chatId);
+            var session = sessionService.GetOrSetData(chatId);
             session.ClearDatePicker();
             session.SetDatePicker(chatId, method, timeIncluded, isJalali, message, fixedDate);
         }
         else
         {
             var session = sessionService.GetData(chatId);
-            var datePickerData = session?.DatePickerSetup;
+            var datePickerData = session.DatePickerSetup;
             if (datePickerData == null) return;
             timeIncluded = datePickerData.TimeIncluded;
             isJalali = datePickerData.IsJalali;
