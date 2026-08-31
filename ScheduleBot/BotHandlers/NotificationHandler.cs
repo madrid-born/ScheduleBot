@@ -53,7 +53,7 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
         var session = sessionService.GetData(data.ChatId);
 
         session.SetContext(Context.NotificationName, data.MessageText!);
-        await services.SendDatePicker(data.ChatId, DatePickerMethods.NotificationFirstOccurrence, Messages.FirstOccurrence);
+        await services.SendDatePicker(data.ChatId, method: DatePickerMethods.NotificationFirstOccurrence, message: Messages.FirstOccurrence);
     }
 
     public async Task SetFirstOccurrence(long chatId, DateTime fixedDate, bool isJalali)

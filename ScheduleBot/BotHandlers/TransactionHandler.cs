@@ -609,9 +609,9 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     public async Task AskCustomPeriod(long chatId, bool isStart)
     {
         if (isStart)
-            await services.SendDatePicker(chatId, DatePickerMethods.CustomStartTransactionReport, Messages.CustomStart);
+            await services.SendDatePicker(chatId, method: DatePickerMethods.CustomStartTransactionReport, message: Messages.CustomStart);
         else 
-            await services.SendDatePicker(chatId, DatePickerMethods.CustomEndTransactionReport, Messages.CustomEnd);
+            await services.SendDatePicker(chatId, method: DatePickerMethods.CustomEndTransactionReport, message: Messages.CustomEnd);
     }
 
     public async Task SetCustomPeriod(long chatId, DateTime date, bool isStart)

@@ -292,9 +292,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
     #region DatePicker
     
-    public async Task SendDatePicker(long chatId, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool timeIncluded = true)
+    public async Task SendDatePicker(long chatId, int? messageId = null, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool timeIncluded = true)
     {
-        var fixedDate = passedDate ?? GetIranDateTime();
+        var fixedDate = passedDate ?? GetIranDateTime(hourZero: true);
 
         if (!string.IsNullOrEmpty(method))
         {
@@ -349,13 +349,16 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             ]);
         }
         
-        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{CallBacks.DatePickerMianMenu}|");
-        await SendMessage(chatId, message, replyMarkup: keyboard);
+        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.MainSection}|{CallBacks.DatePicker}|{CallBacks.DatePickerMianMenu}|");
+        if (messageId == null) await SendMessage(chatId, message, replyMarkup: keyboard);
+        else await EditMessage(chatId, (int)messageId, message, replyMarkup: keyboard);
+        
     }
 
     private async Task ProcessDatePicker(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
+        var messageId = data.MessageId;
         
         switch (data.DataSeparated[2])
         {
@@ -365,21 +368,21 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                 {
                     case CallBacks.SelectGregorianCalender:
                         session.SetDatePicker(isJalali: false);
-                        await SendDatePicker(data.ChatId);
+                        await SendDatePicker(data.ChatId, messageId);
                         break;
                     case CallBacks.SelectJalaliCalender:
                         session.SetDatePicker(isJalali: true);
-                        await SendDatePicker(data.ChatId);
+                        await SendDatePicker(data.ChatId, messageId);
                         break;
                     case CallBacks.SelectYear:
                     case CallBacks.SelectMonth:
                     case CallBacks.SelectDay:
                     case CallBacks.SelectHour:
                     case CallBacks.SelectMinute:
-                        await SendDateSelector(data.ChatId, session, data.DataSeparated[3]);
+                        await SendDateSelector(data.ChatId, messageId, session, data.DataSeparated[3]);
                         break;
                     case CallBacks.Done:
-                        await RetrieveDate(data.ChatId, session);
+                        await RetrieveDate(data.ChatId, messageId, session);
                         break;
                 }
                 break;
@@ -390,13 +393,13 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             case CallBacks.SelectHour:
             case CallBacks.SelectMinute:
             {
-                await SetDateSelector(data.ChatId, session, data.DataSeparated[2], data.DataSeparated[3]);
+                await SetDateSelector(data.ChatId, messageId, session, data.DataSeparated[2], data.DataSeparated[3]);
                 break;
             }
         }
     }
 
-    private async Task SendDateSelector(long chatId, UserSession session, string callback)
+    private async Task SendDateSelector(long chatId, int messageId, UserSession session, string callback)
     {
         int year;
         if (session.DatePickerSetup == null) return;
@@ -450,11 +453,11 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             }
         }
         
-        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.MainSection}|{CallBacks.DatePicker}|{callback}");
-        await SendMessage(chatId, message, replyMarkup: keyboard);
+        var keyboard = CreateKeyboard(inlineCollection: collection, callBackStart: $"*{CallBacks.MainSection}|{CallBacks.DatePicker}|{callback}");
+        await EditMessage(chatId, messageId, message, replyMarkup: keyboard);
     }
 
-    private async Task SetDateSelector(long chatId, UserSession session, string callback, string value)
+    private async Task SetDateSelector(long chatId, int messageId, UserSession session, string callback, string value)
     {
         if (session.DatePickerSetup == null) return;
         int year, month, day;
@@ -471,14 +474,14 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                 {
                     var yearLevelTimes10 = session.DatePickerSetup.YearLevel ?? year;
                     session.SetDatePicker(yearLevel: yearLevelTimes10 / 10);
-                    await SendDateSelector(chatId, session, callback);
+                    await SendDateSelector(chatId, messageId, session, callback);
                     return;
                 }
                 
                 if (session.DatePickerSetup.YearLevel is < 1000)
                 {
                     session.SetDatePicker(yearLevel: int.Parse(value));
-                    await SendDateSelector(chatId, session, callback);
+                    await SendDateSelector(chatId, messageId, session, callback);
                     return;
                 }
 
@@ -514,21 +517,21 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                 ? ConvertJalaliToGregorianWithData(year, month, day, hour, minute)
                 : new DateTime(year, month, day, hour, minute, 0);
             session.SetDatePicker(fixedDate: fixedDate);
-            await SendDatePicker(chatId);
+            await SendDatePicker(chatId, messageId);
         }
         catch (Exception e)
         {
-            await SendMessage(chatId, Messages.DateNotValid);
-            await SendDateSelector(chatId, session, callback);
+            await EditMessage(chatId, messageId, Messages.DateNotValid);
+            await SendDateSelector(chatId, messageId, session, callback);
         }
     }
     
-    private async Task RetrieveDate(long chatId, UserSession session)
+    private async Task RetrieveDate(long chatId, int messageId, UserSession session)
     {
         if (session.DatePickerSetup == null) return;
         var fixedDate = session.DatePickerSetup.FixedDate;
         var method = session.DatePickerSetup.Method;
-
+        await DeleteMessage(chatId, messageId);
         switch (method)
         {
             case DatePickerMethods.PeriodDateCycleTracker:
@@ -555,30 +558,15 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
     #region StaticMethods
 
-    public static DateTime? DateValidation(string dataMessageText)
+    public DateTime GetIranDateTime(bool utc = false, DateTime? dateTimeNull = null, bool hourZero = false)
     {
-        DateTime? date = null;
-        try
+        var dateTime = dateTimeNull ?? DateTime.UtcNow;
+        if (hourZero)
         {
-            var firstDigit = dataMessageText[..1];
-            switch (firstDigit)
-            {
-                case "1":
-                    date = ConvertJalaliToGregorian(dataMessageText);
-                    break;
-                case "2":
-                    if (DateTime.TryParse(dataMessageText, out var gregorianDate)) date = gregorianDate;
-                    break;
-            }
+            dateTime = dateTime.AddHours(-dateTime.Hour);
+            dateTime = dateTime.AddMinutes(-dateTime.Minute);
+            dateTime = dateTime.AddSeconds(-dateTime.Second);
         }
-        catch (Exception e) { /*ignored*/ }
-
-        return date;
-    }
-
-    public DateTime GetIranDateTime(bool utc = false, DateTime? dateTimeNull = null)
-    {
-        var dateTime = dateTimeNull ?? DateTime.UtcNow; 
         if (utc) return dateTime;
         
         var timeZoneId = OperatingSystem.IsWindows()
@@ -592,7 +580,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     
     public static string GregorianToSimplified(DateTime date)
     {
-        return $"{date.Year}{date.Month:00}{date.Day:00}";
+        return $"{date.Year}{date.Month:D2}{date.Day:D2}";
     }
     
     public static DateTime SimplifiedToGregorian(string date)
@@ -653,17 +641,17 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     public static string ConvertGregorianToJalali(DateTime date)
     {
         var (year, month, day) = LoadJalaliDateData(date);
-        return $"{year:D4}/{month:D2:00}/{day:D2:00}";
+        return $"{year:D4}/{month:D2}/{day:D2}";
     }
     
     public static string ConvertGregorianToJalaliAndGregorian(DateTime date)
     {
-        return $"{date.Year}/{date.Month:00}/{date.Day:00} - {ConvertGregorianToJalali(date)}";
+        return $"{date.Year:D4}/{date.Month:D2}/{date.Day:D2} - {ConvertGregorianToJalali(date)}";
     }
     
     public static string ConvertGregorianToJalaliAndGregorianWithTime(DateTime date)
     {
-        return $"{date.Hour:00}:{date.Minute:00}:{date.Second:00}\n{ConvertGregorianToJalaliAndGregorian(date)}";
+        return $"{date.Hour:D2}:{date.Minute:D2}:{date.Second:D2}\n{ConvertGregorianToJalaliAndGregorian(date)}";
     }
     
     public static string TruncateString(string? text, int maxLength)

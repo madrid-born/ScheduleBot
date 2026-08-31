@@ -123,7 +123,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
             return;
         }
         sessionService.SetData(data.ChatId, Actions.SetUpPeriod);
-        await services.SendDatePicker(data.ChatId, DatePickerMethods.PeriodDateCycleTracker, timeIncluded: false);
+        await services.SendDatePicker(data.ChatId, method: DatePickerMethods.PeriodDateCycleTracker, timeIncluded: false);
 
         // await services.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
     }
