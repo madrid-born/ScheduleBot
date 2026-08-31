@@ -11,7 +11,7 @@ public class DatabaseService(AppDbContext dbContext, MainService service)
 {
     #region MainService
 
-    protected DateTime GetIranDateTime(bool utc = false, DateTime? dateTimeNull = null) => service.GetIranDateTime(utc, dateTimeNull);
+    protected DateTime GetIranDateTime(DateTime? dateTimeNull = null) => service.GetIranDateTime(dateTimeNull);
 
     #endregion
     

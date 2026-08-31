@@ -19,7 +19,7 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
             Id = Guid.NewGuid(),
             UserId = user!.Id,
             IsActive = true,
-            CreateTime = GetIranDateTime(true),
+            CreateTime = GetIranDateTime(),
             StartTime = firstOccurrence,
             Type = unitType,
             SeparationValue = unitCount,
@@ -89,7 +89,8 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
         var notification = await _dbContext.Notification.FirstAsync(x => x.Id == databaseFuture.NotificationId);
 
         databaseFuture.Message = null;
-        while (databaseFuture.Time < GetIranDateTime(true) && databaseFuture.Time != new DateTime(1, 1, 1))
+        var tte = GetIranDateTime();
+        while (databaseFuture.Time < GetIranDateTime() && databaseFuture.Time != new DateTime(1, 1, 1))
         {
             databaseFuture.Time = CalculateNextOccurrence(databaseFuture.Time, notification.Type, notification.SeparationValue);
             if (databaseFuture.Time == new DateTime(1, 1, 1))

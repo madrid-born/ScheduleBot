@@ -43,7 +43,7 @@ public class BotPollingService(
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await cycleTracker.CheckAndSendNotifications();
                 await notificationTracker.CheckAndSendNotifications();
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
         }, stoppingToken);
         

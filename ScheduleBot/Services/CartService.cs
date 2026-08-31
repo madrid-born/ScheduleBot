@@ -116,7 +116,7 @@ public class CartService(AppDbContext dbContext, MainService service) : Database
             Id = Guid.NewGuid(),
             CartId = cart!.Id,
             Name =  productName,
-            CreateTime = GetIranDateTime(true),
+            CreateTime = GetIranDateTime(),
             TempAdded = true,
             TempDeleted = false
         };

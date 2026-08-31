@@ -332,9 +332,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         {
             new()
             { 
-                new(year.ToString(), CallBacks.SelectYear),
-                new(month.ToString(), CallBacks.SelectMonth),
-                new(day.ToString(), CallBacks.SelectDay),
+                new($"{year:D4}", CallBacks.SelectYear),
+                new($"{month:D2}", CallBacks.SelectMonth),
+                new($"{day:D2}", CallBacks.SelectDay),
             },
             new() { switchCalenderTuple, new(Messages.Done, $"{CallBacks.Done}") }
         };
@@ -343,9 +343,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         {
             collection.Insert(0,
             [
-                new(hour.ToString(), CallBacks.SelectHour),
+                new($"{hour:D2}", CallBacks.SelectHour),
                 new(":", "-"),
-                new(minute.ToString(), CallBacks.SelectMinute)
+                new($"{minute:D2}", CallBacks.SelectMinute)
             ]);
         }
         
@@ -558,24 +558,25 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
     #region StaticMethods
 
-    public DateTime GetIranDateTime(bool utc = false, DateTime? dateTimeNull = null, bool hourZero = false)
+    public DateTime GetIranDateTime(DateTime? dateTimeNull = null, bool hourZero = false)
     {
         var dateTime = dateTimeNull ?? DateTime.UtcNow;
+        var timeZoneId = OperatingSystem.IsWindows()
+            ? "Iran Standard Time"
+            : "Asia/Tehran";
+        dateTime = TimeZoneInfo.ConvertTimeFromUtc(
+            dateTime,
+            TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)
+        );
+
         if (hourZero)
         {
             dateTime = dateTime.AddHours(-dateTime.Hour);
             dateTime = dateTime.AddMinutes(-dateTime.Minute);
             dateTime = dateTime.AddSeconds(-dateTime.Second);
         }
-        if (utc) return dateTime;
-        
-        var timeZoneId = OperatingSystem.IsWindows()
-            ? "Iran Standard Time"
-            : "Asia/Tehran";
-        return TimeZoneInfo.ConvertTimeFromUtc(
-            dateTime,
-            TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)
-        );
+
+        return dateTime;
     }
     
     public static string GregorianToSimplified(DateTime date)

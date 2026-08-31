@@ -107,7 +107,7 @@ public class CycleTrackerService(AppDbContext dbContext, MainService service) : 
     public async Task SetNewEndByTelId(long chatId)
     {
         var cycle = await GetCycleByTelId(chatId);
-        cycle!.LastEnd = GetIranDateTime(true);
+        cycle!.LastEnd = GetIranDateTime();
         await _dbContext.SaveChangesAsync();
 
         await SaveLastCycleHistory(chatId);
@@ -289,7 +289,7 @@ public class CycleTrackerService(AppDbContext dbContext, MainService service) : 
         var periodLength = (int)cycleDetail.PeriodLength!;
         var lastStart = cycleDetail.LastStart;
         var lastEnd = cycleDetail.LastEnd;
-        var now = GetIranDateTime(true).Date;
+        var now = GetIranDateTime().Date;
         var daysSinceStart = (now - lastStart.Value).Days + 1;
         if (daysSinceStart < 0) return Messages.InvalidFutureCycle;
 

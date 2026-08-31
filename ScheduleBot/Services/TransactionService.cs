@@ -36,7 +36,7 @@ public class TransactionService(AppDbContext dbContext, MainService service) : D
         {
             Id = Guid.NewGuid(),
             WalletId = wallet.Id,
-            CreateTime = GetIranDateTime(true),
+            CreateTime = GetIranDateTime(),
             Name = "Not specified",
             TempAdded = false,
             TempDeleted = false
@@ -103,7 +103,7 @@ public class TransactionService(AppDbContext dbContext, MainService service) : D
 
     public async Task<Guid> AddCategoryToWallet(Guid walletId, string name)
     {
-        var category = new Category { Id = Guid.NewGuid(), Name = name.Trim() , WalletId = walletId, CreateTime = GetIranDateTime(true), TempAdded = true};
+        var category = new Category { Id = Guid.NewGuid(), Name = name.Trim() , WalletId = walletId, CreateTime = GetIranDateTime(), TempAdded = true};
         _dbContext.WalletCategory.Add(category);
         await _dbContext.SaveChangesAsync();
         return category.Id;
@@ -399,7 +399,7 @@ public class TransactionService(AppDbContext dbContext, MainService service) : D
         return new WalletReport
         {
             WalletName = wallet.Name ?? "Unnamed Wallet",
-            GeneratedAt = GetIranDateTime(true),
+            GeneratedAt = GetIranDateTime(),
             Transactions = transactions,
             TotalTransactions = transactions.Count,
             FromDate = startDate ?? (transactions.Count != 0 ? transactions.Min(t => t.Date) : null),
