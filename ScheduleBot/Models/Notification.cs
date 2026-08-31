@@ -39,7 +39,5 @@ public class ToBeSentNotification
     public Guid FutureNotificationId { get; set; }
     public long ChatId { get; set; }
     public DateTime Time { get; set; }
-    public int NotificationType { get; set; }
-    public int SeparationValue { get; set; }
     public string Message { get; set; }
 }

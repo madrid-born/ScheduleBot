@@ -297,6 +297,7 @@ public static class Messages
     public const string ReminderHowOften = "How often would you like to receive notifications?";
     public const string HowOftenUnit = "How many {0} should the bot wait between reminders?";
     public const string ReminderMessage = "Send the messge that you want to be reminded with.";
+    public const string ReminderSetSuccessful = "Your notification got successfuly added.";
     
     public const string NotificationHour = "Hour(s)";
     public const string NotificationDay = "Day(s)";

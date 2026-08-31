@@ -124,6 +124,7 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
 
         session.SetContext(Context.ReminderMessage, data.MessageText!);
         await SaveReminder(data.ChatId);
+        await services.SendMessage(data.ChatId, Messages.ReminderSetSuccessful);
     }
 
     private async Task SaveReminder(long chatId)
@@ -187,6 +188,7 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
             foreach (var notification in notifications.Where(notification => notification.Time <= now).ToList())
             {
                 notifications.Remove(notification);
+                await nServices.RenewFutureNotifications(notification.FutureNotificationId);
                 await services.SendMessage(notification.ChatId, notification.Message);
             }
             session.SetContext(Context.BotNotifications, notifications);

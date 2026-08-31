@@ -77,27 +77,28 @@ public class NotificationService(AppDbContext dbContext) : DatabaseService(dbCon
                 ChatId = user.ChatId,
                 Time = future.Time,
                 Message = future.Message ?? notification.Message,
-                NotificationType = notification.Type,
-                SeparationValue = notification.SeparationValue ?? 0
             };
         
         var result = await condition(query).ToListAsync();
-        await RenewFutureNotifications(result);
         return result;
     }
-    
-    private async Task RenewFutureNotifications(List<ToBeSentNotification> notifications)
+
+    public async Task RenewFutureNotifications(Guid futureId)
     {
-        var ids = notifications.Select(x => x.FutureNotificationId).ToList();
-        var futures = await _dbContext.NotificationFutureMessage.Where(x => ids.Contains(x.Id)).ToListAsync();
+        var databaseFuture = await _dbContext.NotificationFutureMessage.FirstAsync(x => x.Id == futureId);
+        var notification = await _dbContext.Notification.FirstAsync(x => x.Id == databaseFuture.NotificationId);
 
-        foreach (var future in futures)
+        databaseFuture.Message = null;
+        while (databaseFuture.Time < DateTime.Now && databaseFuture.Time != new DateTime(1, 1, 1))
         {
-            var notification = notifications.First(x => x.FutureNotificationId == future.Id);
-            future.Time = CalculateNextOccurrence(future.Time, notification.NotificationType, notification.SeparationValue);
-            future.Message = null;
+            databaseFuture.Time = CalculateNextOccurrence(databaseFuture.Time, notification.Type, notification.SeparationValue);
+            if (databaseFuture.Time == new DateTime(1, 1, 1))
+            {
+                notification.IsActive = false;
+                await _dbContext.NotificationFutureMessage.Where(x => x.Id == futureId).ExecuteDeleteAsync();
+            }
         }
-
+        
         await _dbContext.SaveChangesAsync();
     }
     
@@ -105,6 +106,9 @@ public class NotificationService(AppDbContext dbContext) : DatabaseService(dbCon
     {
         switch (type)
         {
+            case CallBacks.NotificationOneTime:
+                time = new DateTime(1, 1, 1);
+                break;
             case CallBacks.NotificationHour:
                 time = time.AddHours((double)separationValue!);
                 break;
