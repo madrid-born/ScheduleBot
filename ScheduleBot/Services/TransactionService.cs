@@ -10,7 +10,7 @@ using ScheduleBot.Models;
 
 namespace ScheduleBot.Services;
 
-public class TransactionService(AppDbContext dbContext) : DatabaseService(dbContext)
+public class TransactionService(AppDbContext dbContext, MainService service) : DatabaseService(dbContext, service)
 {
     private readonly AppDbContext _dbContext = dbContext;
     
@@ -36,7 +36,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         {
             Id = Guid.NewGuid(),
             WalletId = wallet.Id,
-            CreateTime = DateTime.Now,
+            CreateTime = GetIranDateTime(true),
             Name = "Not specified",
             TempAdded = false,
             TempDeleted = false
@@ -103,7 +103,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
 
     public async Task<Guid> AddCategoryToWallet(Guid walletId, string name)
     {
-        var category = new Category { Id = Guid.NewGuid(), Name = name.Trim() , WalletId = walletId, CreateTime = DateTime.Now, TempAdded = true};
+        var category = new Category { Id = Guid.NewGuid(), Name = name.Trim() , WalletId = walletId, CreateTime = GetIranDateTime(true), TempAdded = true};
         _dbContext.WalletCategory.Add(category);
         await _dbContext.SaveChangesAsync();
         return category.Id;
@@ -399,7 +399,7 @@ public class TransactionService(AppDbContext dbContext) : DatabaseService(dbCont
         return new WalletReport
         {
             WalletName = wallet.Name ?? "Unnamed Wallet",
-            GeneratedAt = DateTime.Now,
+            GeneratedAt = GetIranDateTime(true),
             Transactions = transactions,
             TotalTransactions = transactions.Count,
             FromDate = startDate ?? (transactions.Count != 0 ? transactions.Min(t => t.Date) : null),

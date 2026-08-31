@@ -7,8 +7,14 @@ using ScheduleBot.Models;
 
 namespace ScheduleBot.Services;
 
-public class DatabaseService(AppDbContext dbContext)
+public class DatabaseService(AppDbContext dbContext, MainService service)
 {
+    #region MainService
+
+    protected DateTime GetIranDateTime(bool utc = false, DateTime? dateTimeNull = null) => service.GetIranDateTime(utc, dateTimeNull);
+
+    #endregion
+    
     public async Task<User?> GetUserByTelId(long telId)
     {
         return await dbContext.Users.FirstOrDefaultAsync(u => u.ChatId == telId);

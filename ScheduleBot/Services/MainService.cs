@@ -294,11 +294,11 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     
     public async Task SendDatePicker(long chatId, string? method = null , string message = Messages.SelectDatePicker, DateTime? passedDate = null, bool isJalali = true, bool timeIncluded = true)
     {
-        var fixedDate = passedDate ?? DateTime.Now;
+        var fixedDate = passedDate ?? GetIranDateTime();
 
         if (!string.IsNullOrEmpty(method))
         {
-            var session = sessionService.GetData(chatId) ?? sessionService.SetData(chatId);
+            var session = sessionService.GetData(chatId);
             session.ClearDatePicker();
             session.SetDatePicker(chatId, method, timeIncluded, isJalali, message, fixedDate);
         }
@@ -356,7 +356,6 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     private async Task ProcessDatePicker(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         
         switch (data.DataSeparated[2])
         {
@@ -577,6 +576,20 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         return date;
     }
 
+    public DateTime GetIranDateTime(bool utc = false, DateTime? dateTimeNull = null)
+    {
+        var dateTime = dateTimeNull ?? DateTime.UtcNow; 
+        if (utc) return dateTime;
+        
+        var timeZoneId = OperatingSystem.IsWindows()
+            ? "Iran Standard Time"
+            : "Asia/Tehran";
+        return TimeZoneInfo.ConvertTimeFromUtc(
+            dateTime,
+            TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)
+        );
+    }
+    
     public static string GregorianToSimplified(DateTime date)
     {
         return $"{date.Year}{date.Month:00}{date.Day:00}";

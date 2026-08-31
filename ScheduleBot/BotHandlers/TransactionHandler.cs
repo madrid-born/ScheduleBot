@@ -258,7 +258,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     public async Task ProcessBluFile(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         var walletId = Guid.Parse(session.CallbackData);
         var transactionProcesses = new List<TransactionProcess>();
         using var workbook = new XLWorkbook(data.Document!.FileAddress);
@@ -376,7 +375,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     private async Task BluAction(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         var transactionProcesses = (List<TransactionProcess>)session.Context[Context.Tps];
         var index = (int)session.Context[Context.Index];
         var walletId = (Guid)session.Context[Context.Wallet];
@@ -481,7 +479,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     {
         var transactionTitle = data.MessageText!;
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         var transactionProcesses = (List<TransactionProcess>)session.Context[Context.Tps];
         var transactionProcess = transactionProcesses[(int)session.Context[Context.Index]];
         transactionProcess.Title = transactionTitle;
@@ -511,7 +508,7 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
 
     private async Task AskDateRange(UpdateData data)
     {
-        var (previous, current, next) = MainService.LoadJalaliFirstOfMonths(DateTime.Now);
+        var (previous, current, next) = MainService.LoadJalaliFirstOfMonths(services.GetIranDateTime());
         var collection = new List<List<Tuple<string, string>>>
         {
             new() { new (Messages.ThisMonth,    $"{MainService.GregorianToSimplified(current)}|{MainService.GregorianToSimplified(next)}"), },
@@ -527,7 +524,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     private async Task ShowCategorySelection(long chatId)
     {
         var session = sessionService.GetData(chatId);
-        if (session == null) return;
         
         var walletId = (Guid)session.Context[Context.ReportWalletId];
         var selectedIds = (List<Guid>)session.Context[Context.ReportSelectedCategories];
@@ -558,7 +554,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     private async Task HandleReportCallback(UpdateData data, string action)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         
         var walletId = (Guid)session.Context[Context.ReportWalletId];
         var selectedIds = (List<Guid>)session.Context[Context.ReportSelectedCategories];
@@ -622,7 +617,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     public async Task SetCustomPeriod(long chatId, DateTime date, bool isStart)
     {
         var session = sessionService.GetData(chatId);
-        if (session == null) return;
 
         if (isStart)
         {
@@ -639,7 +633,6 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     private async Task GenerateWalletReport(long chatId)
     {
         var session = sessionService.GetData(chatId);
-        if (session == null) return;
         
         var walletId = (Guid)session.Context[Context.ReportWalletId];
         var selectedCategoryIds = (List<Guid>)session.Context[Context.ReportSelectedCategories];
@@ -653,12 +646,12 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
         var pdfBytes = tServices.GeneratePdf(report);
         using var stream = new MemoryStream(pdfBytes);
         await services.SendMessage(chatId, string.Format(Messages.ReportReady, report.WalletName, $"{report.GeneratedAt:yyyy/MM/dd HH:mm}", report.Transactions.Count()),
-            document: new InputFileStream(stream, string.Format(Files.PdfWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")));
+            document: new InputFileStream(stream, string.Format(Files.PdfWalletReport, $"{services.GetIranDateTime():yyyyMMdd_HHmmss}")));
         
         var excelBytes = tServices.GenerateExcel(report);
         using var excelStream = new MemoryStream(excelBytes);
         await services.SendMessage(chatId, Messages.ExcelCaption,
-            document: new InputFileStream(excelStream, string.Format(Files.ExcelWalletReport, $"{DateTime.Now:yyyyMMdd_HHmmss}")));
+            document: new InputFileStream(excelStream, string.Format(Files.ExcelWalletReport, $"{services.GetIranDateTime():yyyyMMdd_HHmmss}")));
         
         sessionService.ClearSession(chatId);
     }
@@ -676,7 +669,7 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
     //         return;
     //     }
     //
-    //     await tServices.AddTransaction(data.ChatId, Guid.Parse(p[0]), Guid.Parse(p[1]), DateTime.Now,
+    //     await tServices.AddTransaction(data.ChatId, Guid.Parse(p[0]), Guid.Parse(p[1]), services.GetIranDateTime(),
     //         parts[0].Trim()[0] == '+', amount, parts[1]);
     //     sessionService.ClearSession(data.ChatId);
     //     await services.SendMessage(data.ChatId, Messages.TransactionSaved);

@@ -5,21 +5,21 @@ using ScheduleBot.Models;
 
 namespace ScheduleBot.Services;
 
-public class NotificationService(AppDbContext dbContext) : DatabaseService(dbContext)
+public class NotificationService(AppDbContext dbContext, MainService service) : DatabaseService(dbContext, service)
 {
     private readonly AppDbContext _dbContext = dbContext;
     public async Task<Guid> CreateNewReminder(long chatId, string notificationName, DateTime firstOccurrence, int unitType,
         int? unitCount, string reminderMessage)
     {
         var user = await GetUserByTelId(chatId);
-        if (firstOccurrence <= DateTime.UtcNow) throw new IOException(Errors.FirstOccurrencePassed);
+        if (firstOccurrence <= GetIranDateTime()) throw new IOException(Errors.FirstOccurrencePassed);
         
         var notification = new Notification
         {
             Id = Guid.NewGuid(),
             UserId = user!.Id,
             IsActive = true,
-            CreateTime = DateTime.UtcNow,
+            CreateTime = GetIranDateTime(true),
             StartTime = firstOccurrence,
             Type = unitType,
             SeparationValue = unitCount,
@@ -89,7 +89,7 @@ public class NotificationService(AppDbContext dbContext) : DatabaseService(dbCon
         var notification = await _dbContext.Notification.FirstAsync(x => x.Id == databaseFuture.NotificationId);
 
         databaseFuture.Message = null;
-        while (databaseFuture.Time < DateTime.Now && databaseFuture.Time != new DateTime(1, 1, 1))
+        while (databaseFuture.Time < GetIranDateTime(true) && databaseFuture.Time != new DateTime(1, 1, 1))
         {
             databaseFuture.Time = CalculateNextOccurrence(databaseFuture.Time, notification.Type, notification.SeparationValue);
             if (databaseFuture.Time == new DateTime(1, 1, 1))

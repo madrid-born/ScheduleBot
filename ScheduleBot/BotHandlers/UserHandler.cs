@@ -68,7 +68,6 @@ public class UserHandler(MainService services, UserSessionService sessionService
     public async Task AskForEmail(UpdateData data)
     {        
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         session.SetCallBack(SessionCallBacks.AskForEmail);
         await databaseService.InsertUserName(data.ChatId, data.MessageText);
         await services.SendMessage(data.ChatId, Messages.EnterYourEmail, replyMarkup: new ForceReplyMarkup());

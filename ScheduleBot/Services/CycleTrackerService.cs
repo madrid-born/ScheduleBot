@@ -5,7 +5,7 @@ using Telegram.Bot;
 
 namespace ScheduleBot.Services;
 
-public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbContext)
+public class CycleTrackerService(AppDbContext dbContext, MainService service) : DatabaseService(dbContext, service)
 {
     private readonly AppDbContext _dbContext = dbContext;
     
@@ -107,7 +107,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
     public async Task SetNewEndByTelId(long chatId)
     {
         var cycle = await GetCycleByTelId(chatId);
-        cycle!.LastEnd = DateTime.Now;
+        cycle!.LastEnd = GetIranDateTime(true);
         await _dbContext.SaveChangesAsync();
 
         await SaveLastCycleHistory(chatId);
@@ -153,7 +153,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         if (cycleDetail == null) throw new Exception("No available cycle had been found");
         cycleDetail.PeriodLength = length;
         var end = cycleDetail.LastStart?.AddDays(length);
-        if (DateTime.Now > end)
+        if (GetIranDateTime() > end)
         {
             cycleDetail.LastEnd = end;
             
@@ -289,7 +289,7 @@ public class CycleTrackerService(AppDbContext dbContext) : DatabaseService(dbCon
         var periodLength = (int)cycleDetail.PeriodLength!;
         var lastStart = cycleDetail.LastStart;
         var lastEnd = cycleDetail.LastEnd;
-        var now = DateTime.UtcNow.Date;
+        var now = GetIranDateTime(true).Date;
         var daysSinceStart = (now - lastStart.Value).Days + 1;
         if (daysSinceStart < 0) return Messages.InvalidFutureCycle;
 

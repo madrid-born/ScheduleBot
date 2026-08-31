@@ -2,13 +2,13 @@
 
 namespace ScheduleBot.Services;
 
-public class UserSessionService
+public class UserSessionService(MainService service)
 {
     private readonly Dictionary<long, UserSession> _sessions = new();
     
     public UserSession SetData(long chatId, string action = "", string callbackData = "")
     {
-        var session = new UserSession();
+        var session = new UserSession(service);
         session.SetAction(action);
         session.SetCallBack(callbackData);
         _sessions[chatId] = session;
@@ -21,13 +21,22 @@ public class UserSessionService
         return session ?? throw new KeyNotFoundException();
     }
     
+    public UserSession GetOrSetData(long chatId)
+    {
+        UserSession session;
+        try { session = GetData(chatId); }
+        catch (Exception e) { session = SetData(chatId); }
+
+        return session;
+    }
+    
     public void ClearSession(long chatId)
     {
         _sessions.Remove(chatId);
     }
 }
 
-public class UserSession
+public class UserSession(MainService service)
 {
     public string Action { get; private set; }
     public string CallbackData { get; private set; }
@@ -38,19 +47,19 @@ public class UserSession
     public void SetAction(string action)
     {
         Action = action;
-        Timestamp = DateTime.Now;
+        Timestamp = service.GetIranDateTime(true);
     }
 
     public void SetCallBack(string callbackData)
     {
         CallbackData = callbackData;
-        Timestamp = DateTime.Now;
+        Timestamp = service.GetIranDateTime(true);
     }
 
     public void SetContext(string key, object value)
     {
         Context[key] = value;
-        Timestamp = DateTime.Now;
+        Timestamp = service.GetIranDateTime(true);
     }
 
     public void SetDatePicker(long? chatId = null, string? method = null, bool? timeIncluded = null , bool? isJalali = null ,string? message = null, DateTime? fixedDate = null, int? yearLevel = null)
@@ -63,12 +72,12 @@ public class UserSession
         if (message != null) DatePickerSetup.Message = message;
         if (fixedDate != null) DatePickerSetup.FixedDate = (DateTime) fixedDate;
         if (yearLevel != null) DatePickerSetup.YearLevel = (int) yearLevel;
-        Timestamp = DateTime.Now;
+        Timestamp = service.GetIranDateTime(true);
     }
 
     public void ClearDatePicker()
     {
         DatePickerSetup = null;
-        Timestamp = DateTime.Now;
+        Timestamp = service.GetIranDateTime(true);
     }
 }

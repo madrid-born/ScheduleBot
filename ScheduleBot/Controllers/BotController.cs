@@ -15,7 +15,7 @@ public class BotController(DatabaseService db, ILogger<BotController> logger) : 
         return Ok(new
         {
             Status = "Online",
-            Uptime = DateTime.UtcNow,
+            Uptime = DateTime.Now,
             Mode = "Polling"
         });
     }

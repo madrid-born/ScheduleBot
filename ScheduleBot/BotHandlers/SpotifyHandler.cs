@@ -57,7 +57,6 @@ public class SpotifyHandler(
         var keyboard = services.CreateKeyboard(inlineCollection: collection);
 
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         session.SetAction(Actions.AwaitingPlaylistId);
         await services.SendMessage(data.ChatId, Messages.AskForPlaylistId, replyMarkup: keyboard);
     }
@@ -217,7 +216,6 @@ public class SpotifyHandler(
     private async Task TrackCategorizingAction(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
         var trackId = (string)session.Context[Context.TrackId];
         var section = (string)session.Context[Context.Section];
         var index = (int)session.Context[Context.Index];

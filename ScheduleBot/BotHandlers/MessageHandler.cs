@@ -296,8 +296,7 @@ public class MessageHandler(
     {
         var flag = false;
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return flag;
-        if (session.Timestamp.AddMinutes(10) < DateTime.Now)
+        if (session.Timestamp.AddHours(1) < services.GetIranDateTime(true))
         {
             sessionService.ClearSession(data.ChatId);
             return flag;

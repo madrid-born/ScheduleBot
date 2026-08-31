@@ -165,7 +165,7 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
     
     public async Task CheckAndSendNotifications(bool install = false)
     {
-        var now = DateTime.Now;
+        var now = services.GetIranDateTime();
         var session = sessionService.GetData(0);
         List<ToBeSentNotification> notifications = null!;
         try

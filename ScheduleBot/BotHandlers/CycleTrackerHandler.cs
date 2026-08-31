@@ -131,7 +131,6 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
     public async Task SaveLastPeriodStart(long chatId, DateTime date)
     {
         var session = sessionService.GetData(chatId);
-        if (session == null) return;
 
         var exists = await ctServices.SetLastStartDate(chatId, date);
         if (exists) await services.SendMessage(chatId, Messages.LastStartChanged);
@@ -145,7 +144,6 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
     public async Task SaveCycleLength(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
-        if (session == null) return;
 
         if (!int.TryParse(data.MessageText, out var length))
         {
@@ -289,7 +287,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
             receiver = await ctServices.GetUserByTelId(data.ChatId);
             message = await ctServices.CreateStatusMessage(cycleId);
         }
-        var date = $"{DateTime.Now:MM/dd/yyyy} - {MainService.ConvertGregorianToJalali(DateTime.Now)}";
+        var date = $"{services.GetIranDateTime():MM/dd/yyyy} - {MainService.ConvertGregorianToJalali(services.GetIranDateTime())}";
 
         if (owner!.Id == receiver!.Id)
         {
@@ -313,7 +311,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         switch (result)
         {
             case CallBacks.Yes:
-                if (isStart) await ctServices.SetNewStartByTelId(data.ChatId, DateTime.Now);
+                if (isStart) await ctServices.SetNewStartByTelId(data.ChatId, services.GetIranDateTime());
                 else await ctServices.SetNewEndByTelId(data.ChatId);
                 await services.SendMessage(data.ChatId, Messages.SavedData);
                 await Notify(data.ChatId, isStart);
@@ -382,7 +380,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
     
     public async Task CheckAndSendNotifications(bool pass = false)
     {
-        var now = DateTime.UtcNow;
+        var now = services.GetIranDateTime();
         // _notificationHour = new TimeSpan(now.Hour, now.Minute, now.Second);
         if (!pass && (now.TimeOfDay.Hours != _notificationHour.Hours || now.TimeOfDay.Minutes != _notificationHour.Minutes)) return;
         var allCycleNotifies = await ctServices.GetAllCycleNotifies();
@@ -401,7 +399,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
 
     private bool ShouldNotifyToday(CycleDetail cycle, int mode)
     {
-        var today = DateTime.Now;
+        var today = services.GetIranDateTime();
         var daysSinceLastStart = (today - cycle.LastStart!.Value).Days;
         var daysUntilNext = cycle.CycleLength - daysSinceLastStart;
         var isInPeriod = cycle.LastEnd == null; // today >= cycle.LastStart.Value && today <= cycle.LastEnd!.Value;

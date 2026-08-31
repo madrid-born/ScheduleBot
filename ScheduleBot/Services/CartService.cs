@@ -3,7 +3,7 @@ using ScheduleBot.Models;
 
 namespace ScheduleBot.Services;
 
-public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
+public class CartService(AppDbContext dbContext, MainService service) : DatabaseService(dbContext, service)
 {
     private readonly AppDbContext _dbContext = dbContext;
 
@@ -116,7 +116,7 @@ public class CartService(AppDbContext dbContext) : DatabaseService(dbContext)
             Id = Guid.NewGuid(),
             CartId = cart!.Id,
             Name =  productName,
-            CreateTime = DateTime.Now,
+            CreateTime = GetIranDateTime(true),
             TempAdded = true,
             TempDeleted = false
         };
