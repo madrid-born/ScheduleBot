@@ -14,6 +14,7 @@ public class Notification
     public int? SeparationValue { get; set; }
     public string Name { get; set; }
     public string Message { get; set; }
+    public int SpecialBehavior { get; set; }
 }
 
 public class NotificationAccess
@@ -40,4 +41,5 @@ public class ToBeSentNotification
     public long ChatId { get; set; }
     public DateTime Time { get; set; }
     public string Message { get; set; }
+    public int SpecialBehavior { get; set; }
 }

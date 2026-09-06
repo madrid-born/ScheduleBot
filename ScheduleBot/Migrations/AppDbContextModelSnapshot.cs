@@ -220,6 +220,9 @@ namespace ScheduleBot.Migrations
                     b.Property<int?>("SeparationValue")
                         .HasColumnType("int");
 
+                    b.Property<int>("SpecialBehavior")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("datetime2");
 

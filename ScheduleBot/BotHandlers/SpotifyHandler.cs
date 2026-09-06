@@ -211,8 +211,7 @@ public class SpotifyHandler(
 
         return services.LoadCollectionMultiSelect(items, selectedIds, allSelected, playlist => playlist.SpotifyId, playlist => playlist.PlaylistName/*, prefixCallbackData: callbackPrefix*/);
     }
-
-
+    
     private async Task TrackCategorizingAction(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
@@ -332,5 +331,12 @@ public class SpotifyHandler(
         session.SetContext(Context.MoodsSelectedIds, new List<string>());
         session.SetContext(Context.GenresSelectedIds, new List<string>());
         session.SetContext(Context.AdditionalPlaylistIds, new List<string>());
+    }
+
+    public async Task CheckForNewDeleted(long chatId)
+    {
+        var accessToken = await spotifyService.GetAccessToken();
+        var response = await spotifyService.CheckForNewDeleted(accessToken, chatId);
+        await services.SendMessage(chatId, response);
     }
 }

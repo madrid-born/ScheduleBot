@@ -24,7 +24,8 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
             Type = unitType,
             SeparationValue = unitCount,
             Name = notificationName,
-            Message = reminderMessage
+            Message = reminderMessage,
+            SpecialBehavior = 0
         };
         
         var notificationAccess = new NotificationAccess
@@ -77,6 +78,7 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
                 ChatId = user.ChatId,
                 Time = future.Time,
                 Message = future.Message ?? notification.Message,
+                SpecialBehavior =  notification.SpecialBehavior,
             };
         
         var result = await condition(query).ToListAsync();

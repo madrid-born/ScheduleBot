@@ -455,6 +455,8 @@ public static class CallBacks
     public const int NotificationDay = 2;
     public const int NotificationMonthGregorian = 3;
     public const int NotificationMonthJalali = 4;
+    
+    public const int SpecialAdminCheckSpotify = 1;
 
     #endregion
 }
@@ -554,6 +556,7 @@ public static class Files
 
 public static class SpotifyApi
 {
+    public const string AllSongsPlaylistId = "21SgdiMHUdSgXrZpnuqc56";
     public const string NotCategorizedPlaylistId = "21SgdiMHUdSgXrZpnuqc56";
     public const string ApiPassword = "VeryStrongPasswordForAuthentication";
     public const string ApiCallSignIn = "/api/Authorization/SignIn";
@@ -561,4 +564,5 @@ public static class SpotifyApi
     public const string ApiCallGetPlaylists = "/api/PlayList/GetPlayListsFromDatabase";
     public const string ApiCallGetTrack = "api/PlayList/GetTrackFromSpotify";
     public const string ApiCallAddTrack = "api/PlayList/AddTrackToCollection";
+    public const string ApiCheckForPlaylistTracksAvailability = "api/PlayList/CheckForPlaylistTracksAvailability";
 }

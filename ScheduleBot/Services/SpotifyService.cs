@@ -108,4 +108,17 @@ public class SpotifyService(HttpClient httpClient, IConfiguration configuration)
 
         return await response.Content.ReadAsStringAsync(_cancellationToken);
     }
+
+    public async Task<string> CheckForNewDeleted(string accessToken, long chatId)
+    {
+        var requestUri = $"{SpotifyApi.ApiCheckForPlaylistTracksAvailability}?playlistSpotifyId={SpotifyApi.AllSongsPlaylistId}";
+        
+        using var response = await SendAsync(HttpMethod.Put, requestUri, accessToken);
+    
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"Error happened at checking for playlist tracks availability  ({(int)response.StatusCode}).");
+
+        //TODO : implement the model handler here
+        return await response.Content.ReadAsStringAsync(_cancellationToken);
+    }
 }
