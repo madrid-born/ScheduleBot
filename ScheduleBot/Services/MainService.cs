@@ -53,10 +53,10 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     public async Task EditMessage(long chatId, int messageId, string? message = null, ReplyMarkup? replyMarkup = null,
         ParseMode parseMode = ParseMode.Markdown)
     {
-        message = message.Replace("_", "-");
-
         if(!string.IsNullOrEmpty(message))
         {
+            message = message.Replace("_", "-");
+
             await bot.EditMessageText(chatId: chatId, messageId: messageId, text: message, replyMarkup: replyMarkup as InlineKeyboardMarkup, parseMode: parseMode);
         }
         else
