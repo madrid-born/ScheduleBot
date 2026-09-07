@@ -1,24 +1,5 @@
 namespace ScheduleBot.Models;
 
-public sealed record SpotifyTrack(
-    string Id,
-    string Name,
-    string? AlbumName,
-    IReadOnlyList<string> Artists);
-
-
-
-public sealed record SpotifyPlaylist(
-    string SpotifyId,
-    int PlaylistTypeId,
-    string PlaylistName,
-    int TrackCounts,
-    string OwnerName,
-    string OwnerId,
-    string? ImageUrl,
-    List<string>? PlaylistTracksId
-);
-
 public class Playlist
 {
     public string SpotifyId { get; set; }
@@ -63,4 +44,19 @@ public class Album
     // public int TrackCount { get; set; }
     // public string? AlbumUrl { get; set; }
     // public string? ImageUrl { get; set; }
+}
+
+public sealed class PlaylistTracksAvailability
+{
+    public string SpotifyId { get; set; } = string.Empty;
+    public string PlaylistName { get; set; } = string.Empty;
+    public List<PlaylistAvailabilityTrack> PreviousAvailableTracks { get; set; } = [];
+    public List<PlaylistAvailabilityTrack> PreviousUnavailableTracks { get; set; } = [];
+}
+
+public sealed class PlaylistAvailabilityTrack
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Artist0 { get; set; } = string.Empty;
 }

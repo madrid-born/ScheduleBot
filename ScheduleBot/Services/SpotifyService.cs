@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using ScheduleBot.Models;
 
@@ -109,16 +110,55 @@ public class SpotifyService(HttpClient httpClient, IConfiguration configuration)
         return await response.Content.ReadAsStringAsync(_cancellationToken);
     }
 
-    public async Task<string> CheckForNewDeleted(string accessToken, long chatId)
+    public async Task<string> CheckForNewDeleted(string accessToken, long chatId, string? playlistId = null)
     {
-        var requestUri = $"{SpotifyApi.ApiCheckForPlaylistTracksAvailability}?playlistSpotifyId={SpotifyApi.AllSongsPlaylistId}";
+        var requestUri = $"{SpotifyApi.ApiCheckForPlaylistTracksAvailability}?playlistSpotifyId={playlistId ?? SpotifyApi.AllSongsPlaylistId}";
         
         using var response = await SendAsync(HttpMethod.Put, requestUri, accessToken);
     
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"Error happened at checking for playlist tracks availability  ({(int)response.StatusCode}).");
 
-        //TODO : implement the model handler here
-        return await response.Content.ReadAsStringAsync(_cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(_cancellationToken);
+
+        var availability = await JsonSerializer.DeserializeAsync<PlaylistTracksAvailability>(
+            stream,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+            _cancellationToken
+        );
+
+        if (availability == null) throw new InvalidOperationException("Invalid playlist availability data received");
+
+        var previousAvailableTracks = availability.PreviousAvailableTracks;
+        var previousUnavailableTracks = availability.PreviousUnavailableTracks;
+        var message = new StringBuilder($"Playlist '{availability.PlaylistName}' was checked.");
+
+        if (previousAvailableTracks.Count > 0)
+        {
+            message.AppendLine().AppendLine().AppendLine("These tracks were available but are not anymore:");
+            AppendTracks(message, previousAvailableTracks);
+        }
+
+        if (previousUnavailableTracks.Count > 0)
+        {
+            message.AppendLine().AppendLine().AppendLine("These tracks were unavailable but are available now:");
+            AppendTracks(message, previousUnavailableTracks);
+        }
+
+        if (previousAvailableTracks.Count == 0 && previousUnavailableTracks.Count == 0)
+        {
+            message.AppendLine().AppendLine().Append("No track availability changes were found.");
+        }
+
+        return message.ToString().TrimEnd();
+    }
+
+    private static void AppendTracks(StringBuilder message, IEnumerable<PlaylistAvailabilityTrack> tracks)
+    {
+        foreach (var track in tracks)
+        {
+            var artist = string.IsNullOrWhiteSpace(track.Artist0) ? "Unknown artist" : track.Artist0;
+            message.AppendLine($"• {track.Name} — {artist}");
+        }
     }
 }
