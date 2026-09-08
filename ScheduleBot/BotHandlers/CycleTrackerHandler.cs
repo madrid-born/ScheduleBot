@@ -124,8 +124,6 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         }
         sessionService.SetData(data.ChatId, Actions.SetUpPeriod);
         await services.SendDatePicker(data.ChatId, method: DatePickerMethods.PeriodDateCycleTracker, timeIncluded: false);
-
-        // await services.SendMessage(data.ChatId, Messages.SetupTracker, replyMarkup: new ForceReplyMarkup());
     }
     
     public async Task SaveLastPeriodStart(long chatId, DateTime date)
@@ -137,18 +135,17 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         else
         {
             session.SetCallBack(SessionCallBacks.AskForCycleLength);
-            await services.SendMessage(chatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+            await services.SendMessage(chatId, Messages.AskForCycleLength, replyMarkup: services.CreateKeyboard(15, 15));
         }
     }
     
     public async Task SaveCycleLength(UpdateData data)
     {
         var session = sessionService.GetData(data.ChatId);
-
         if (!int.TryParse(data.MessageText, out var length))
         {
             await services.SendMessage(data.ChatId, Messages.InvalidInteger);
-            await services.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: new ForceReplyMarkup());
+            await services.SendMessage(data.ChatId, Messages.AskForCycleLength, replyMarkup: services.CreateKeyboard(15, 15));
             return;
         }
         
@@ -156,8 +153,8 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         if (exists) await services.SendMessage(data.ChatId, Messages.CycleLengthChanged);
         else
         {
-            session.SetCallBack(SessionCallBacks.AskForCycleLength);
-            await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
+            session.SetCallBack(SessionCallBacks.AskForPeriodLength);
+            await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: services.CreateKeyboard(1, 9));
         }
     }
     
@@ -166,7 +163,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         if (!int.TryParse(data.MessageText, out var length))
         {
             await services.SendMessage(data.ChatId, Messages.InvalidInteger);
-            await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: new ForceReplyMarkup());
+            await services.SendMessage(data.ChatId, Messages.AskForPeriodLength, replyMarkup: services.CreateKeyboard(1, 9));
             return;
         }
         

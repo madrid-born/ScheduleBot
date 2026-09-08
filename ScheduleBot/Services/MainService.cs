@@ -85,6 +85,13 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         
         return (ReplyKeyboardMarkup)CreateKeyboard(collection, resizeKeyboard: true);
     }
+
+    public ReplyMarkup? CreateKeyboard(int start = 1, int count = 9)
+    {
+        var numbers = Enumerable.Range(start, count).ToList();
+        var collection = LoadCollectionForNormalKeyboard(numbers, width:3);
+        return CreateKeyboard(normalCollection: collection);
+    }
     
     public ReplyMarkup? CreateKeyboard(IEnumerable<IEnumerable<string>>? normalCollection = null,IEnumerable<IEnumerable<Tuple<string, string>>>? inlineCollection = null,
         string symbol = "", string callBackStart = "", bool resizeKeyboard = true)
