@@ -1,13 +1,19 @@
 ﻿using System.Globalization;
-using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using ScheduleBot.Models;
 
 namespace ScheduleBot.Services;
 
-public class NotificationService(AppDbContext dbContext, MainService service) : DatabaseService(dbContext, service)
+public class NotificationService(
+    AppDbContext dbContext,
+    MainService service,
+    CycleTrackerService cycleTrackerService)
+    : DatabaseService(dbContext, service)
 {
     private readonly AppDbContext _dbContext = dbContext;
+    private readonly MainService _service = service;
+    private static readonly TimeSpan PeriodTrackerNotificationTime = new(12, 30, 0);
+
     public async Task<Guid> CreateNewReminder(long chatId, string notificationName, DateTime firstOccurrence, int unitType,
         int? unitCount, string reminderMessage)
     {
@@ -25,14 +31,16 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
             SeparationValue = unitCount,
             Name = notificationName,
             Message = reminderMessage,
-            SpecialBehavior = 0
+            SpecialBehavior = 0,
+            SpecialBehaviorTargetId = null
         };
         
         var notificationAccess = new NotificationAccess
         {
             Id = Guid.NewGuid(),
             NotificationId = notification.Id,
-            UserId = user.Id
+            UserId = user.Id,
+            NotifyMode = 0
         };
 
         var notificationFutureMessage = new Future
@@ -75,6 +83,7 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
             select new ToBeSentNotification
             {
                 FutureNotificationId = future.Id,
+                NotificationId = notification.Id,
                 ChatId = user.ChatId,
                 Time = future.Time,
                 Message = future.Message ?? notification.Message,
@@ -91,11 +100,10 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
         var notification = await _dbContext.Notification.FirstAsync(x => x.Id == databaseFuture.NotificationId);
 
         databaseFuture.Message = null;
-        var tte = GetIranDateTime();
-        while (databaseFuture.Time < GetIranDateTime() && databaseFuture.Time != new DateTime(1, 1, 1))
+        while (databaseFuture.Time <= GetIranDateTime() && databaseFuture.Time != DateTime.MinValue)
         {
             databaseFuture.Time = CalculateNextOccurrence(databaseFuture.Time, notification.Type, notification.SeparationValue);
-            if (databaseFuture.Time == new DateTime(1, 1, 1))
+            if (databaseFuture.Time == DateTime.MinValue)
             {
                 notification.IsActive = false;
                 await _dbContext.NotificationFutureMessage.Where(x => x.Id == futureId).ExecuteDeleteAsync();
@@ -134,7 +142,7 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
                     {
                         time = pc.ToDateTime(expectedYear, expectedMonth, jalaliDay--, time.Hour, time.Minute, 0, 0);
                     }
-                    catch (Exception e) { /*ignored*/ }
+                    catch (Exception) { /* ignored */ }
                 }
                 break;
         }
@@ -145,5 +153,202 @@ public class NotificationService(AppDbContext dbContext, MainService service) : 
     {
         var user = await GetUserByTelId(chatId);
         return await _dbContext.Notification.Where(n => n.UserId == user!.Id).OrderBy(c => c.CreateTime).ToListAsync();
+    }
+
+    public async Task<string?> SetPeriodTrackerNotify(long chatId, int mode, Guid cycleId)
+    {
+        if (mode < 0 || mode >= Messages.NotifyModes.Count)
+            throw new ArgumentOutOfRangeException(nameof(mode));
+
+        var receiver = await GetUserByTelId(chatId)
+                       ?? throw new InvalidOperationException("User was not found.");
+        var cycle = await _dbContext.CycleDetails.FirstOrDefaultAsync(x => x.Id == cycleId)
+                    ?? throw new InvalidOperationException("Cycle was not found.");
+        var owner = await GetUserById(cycle.UserId)
+                    ?? throw new InvalidOperationException("Cycle owner was not found.");
+
+        var notification = await GetOrCreatePeriodTrackerNotification(cycle, owner);
+        var access = await _dbContext.NotificationAccess.FirstOrDefaultAsync(x =>
+            x.NotificationId == notification.Id && x.UserId == receiver.Id);
+
+        if (access == null)
+        {
+            _dbContext.NotificationAccess.Add(new NotificationAccess
+            {
+                Id = Guid.NewGuid(),
+                NotificationId = notification.Id,
+                UserId = receiver.Id,
+                NotifyMode = mode
+            });
+        }
+        else
+        {
+            access.NotifyMode = mode;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return receiver.Id == owner.Id ? null : owner.Name;
+    }
+
+    public async Task<List<User>> GetPeriodTrackerFollowersByChatId(long chatId)
+    {
+        var cycle = await cycleTrackerService.GetCycleByTelId(chatId);
+        if (cycle == null) return [];
+
+        return await (
+            from notification in _dbContext.Notification
+            join access in _dbContext.NotificationAccess on notification.Id equals access.NotificationId
+            join user in _dbContext.Users on access.UserId equals user.Id
+            where notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+                  && notification.SpecialBehaviorTargetId == cycle.Id
+            select user
+        ).ToListAsync();
+    }
+
+    public async Task<List<(string UserName, Guid CycleId)>> GetPeriodTrackerFollowingByChatId(long chatId)
+    {
+        var user = await GetUserByTelId(chatId);
+        if (user == null) return [];
+
+        return (await (
+            from access in _dbContext.NotificationAccess
+            join notification in _dbContext.Notification on access.NotificationId equals notification.Id
+            join cycle in _dbContext.CycleDetails on notification.SpecialBehaviorTargetId equals cycle.Id
+            join owner in _dbContext.Users on cycle.UserId equals owner.Id
+            where access.UserId == user.Id
+                  && notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+            select new { UserName = owner.Name!, CycleId = cycle.Id }
+        ).ToListAsync()).Select(x => (x.UserName, x.CycleId)).ToList();
+    }
+
+    public async Task RemovePeriodTrackerReceiver(Guid cycleId, Guid receiverId)
+    {
+        await (
+            from access in _dbContext.NotificationAccess
+            join notification in _dbContext.Notification on access.NotificationId equals notification.Id
+            where notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+                  && notification.SpecialBehaviorTargetId == cycleId
+                  && access.UserId == receiverId
+            select access
+        ).ExecuteDeleteAsync();
+    }
+
+    public async Task SendPeriodTrackerNotifications(Guid notificationId)
+    {
+        var notification = await _dbContext.Notification.FirstOrDefaultAsync(x =>
+            x.Id == notificationId && x.SpecialBehavior == CallBacks.SpecialPeriodTracker);
+        if (notification?.SpecialBehaviorTargetId == null) return;
+
+        var cycle = await cycleTrackerService.GetCycleByCycleId(notification.SpecialBehaviorTargetId.Value);
+        if (cycle == null) return;
+
+        var owner = await GetUserById(cycle.UserId);
+        if (owner == null) return;
+
+        var recipients = await (
+            from access in _dbContext.NotificationAccess
+            join user in _dbContext.Users on access.UserId equals user.Id
+            where access.NotificationId == notification.Id
+            select new { Access = access, User = user }
+        ).ToListAsync();
+
+        var now = GetIranDateTime();
+        var status = await cycleTrackerService.CreateStatusMessage(cycle.Id);
+        foreach (var recipient in recipients.Where(x => ShouldNotifyToday(cycle, x.Access.NotifyMode, now)))
+        {
+            var date = $"{now:MM/dd/yyyy} - {MainService.ConvertGregorianToJalali(now)}";
+            if (recipient.User.Id == owner.Id)
+            {
+                await _service.SendMessage(owner.ChatId, string.Format(Messages.StatusForOwner, date, status));
+                await _service.ApproveKeyboardInline(
+                    owner.ChatId,
+                    cycle.LastEnd != null ? Messages.DidItStart : Messages.DidItEnd,
+                    $"{CallBacks.Cycle}|{(cycle.LastEnd != null ? CallBacks.ReportStart : CallBacks.ReportEnd)}|");
+            }
+            else
+            {
+                await _service.SendMessage(recipient.User.ChatId,
+                    string.Format(Messages.StatusForReceiver, date, owner.Name, status));
+            }
+        }
+    }
+
+    public async Task SendPeriodTrackerEvent(long ownerChatId, bool isStart)
+    {
+        var owner = await GetUserByTelId(ownerChatId);
+        var cycle = await cycleTrackerService.GetCycleByTelId(ownerChatId);
+        if (owner == null || cycle == null) return;
+
+        var recipients = await (
+            from notification in _dbContext.Notification
+            join access in _dbContext.NotificationAccess on notification.Id equals access.NotificationId
+            join user in _dbContext.Users on access.UserId equals user.Id
+            where notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+                  && notification.SpecialBehaviorTargetId == cycle.Id
+                  && access.NotifyMode != 0
+                  && user.Id != owner.Id
+            select user
+        ).ToListAsync();
+
+        foreach (var recipient in recipients)
+        {
+            await _service.SendMessage(recipient.ChatId,
+                string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, owner.FullName));
+        }
+    }
+
+    private async Task<Notification> GetOrCreatePeriodTrackerNotification(CycleDetail cycle, User owner)
+    {
+        var notification = await _dbContext.Notification.FirstOrDefaultAsync(x =>
+            x.SpecialBehavior == CallBacks.SpecialPeriodTracker && x.SpecialBehaviorTargetId == cycle.Id);
+        if (notification != null) return notification;
+
+        var now = GetIranDateTime();
+        var firstOccurrence = now.Date.Add(PeriodTrackerNotificationTime);
+        if (firstOccurrence <= now) firstOccurrence = firstOccurrence.AddDays(1);
+
+        notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = owner.Id,
+            IsActive = true,
+            CreateTime = now,
+            StartTime = firstOccurrence,
+            Type = CallBacks.NotificationDay,
+            SeparationValue = 1,
+            Name = Messages.PeriodTracker,
+            Message = string.Empty,
+            SpecialBehavior = CallBacks.SpecialPeriodTracker,
+            SpecialBehaviorTargetId = cycle.Id
+        };
+
+        _dbContext.Notification.Add(notification);
+        _dbContext.NotificationFutureMessage.Add(new Future
+        {
+            Id = Guid.NewGuid(),
+            NotificationId = notification.Id,
+            Time = firstOccurrence,
+            Message = null
+        });
+
+        return notification;
+    }
+
+    private static bool ShouldNotifyToday(CycleDetail cycle, int mode, DateTime now)
+    {
+        if (cycle.LastStart == null || cycle.CycleLength == null) return false;
+
+        var daysSinceLastStart = (now.Date - cycle.LastStart.Value.Date).Days;
+        var daysUntilNext = cycle.CycleLength.Value - daysSinceLastStart;
+        var isInPeriod = cycle.LastEnd == null && daysSinceLastStart >= 0;
+        var isWithinThreeDaysBeforePeriod = daysUntilNext is >= 0 and <= 3;
+
+        return mode switch
+        {
+            1 => true,
+            2 => now.DayOfWeek == DayOfWeek.Monday,
+            4 => isWithinThreeDaysBeforePeriod || isInPeriod,
+            _ => false
+        };
     }
 }

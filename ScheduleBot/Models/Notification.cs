@@ -15,6 +15,7 @@ public class Notification
     public string Name { get; set; }
     public string Message { get; set; }
     public int SpecialBehavior { get; set; }
+    public Guid? SpecialBehaviorTargetId { get; set; }
 }
 
 public class NotificationAccess
@@ -23,6 +24,7 @@ public class NotificationAccess
     public Guid Id { get; set; }
     public Guid NotificationId { get; set; }
     public Guid UserId { get; set; }
+    public int NotifyMode { get; set; }
 
 }
 
@@ -38,6 +40,7 @@ public class Future
 public class ToBeSentNotification
 {
     public Guid FutureNotificationId { get; set; }
+    public Guid NotificationId { get; set; }
     public long ChatId { get; set; }
     public DateTime Time { get; set; }
     public string Message { get; set; }

@@ -23,12 +23,3 @@ public class CycleHistory
     public DateTime Start { get; set; }
     public DateTime End { get; set; }
 }
-
-public class CycleNotify
-{
-    [Key]
-    public Guid Id { get; set; }
-    public Guid CycleId { get; set; }
-    public Guid ReceiverId { get; set; }
-    public int NotifyMode { get; set; }
-}

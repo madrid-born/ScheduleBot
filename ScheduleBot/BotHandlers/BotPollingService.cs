@@ -38,10 +38,7 @@ public class BotPollingService(
             while (!stoppingToken.IsCancellationRequested)
             {
                 using var scope = serviceProvider.CreateScope();
-                var cycleTracker = scope.ServiceProvider.GetRequiredService<CycleTrackerHandler>();
                 var notificationTracker = scope.ServiceProvider.GetRequiredService<NotificationHandler>();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await cycleTracker.CheckAndSendNotifications();
                 await notificationTracker.CheckAndSendNotifications();
                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
             }

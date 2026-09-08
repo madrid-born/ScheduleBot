@@ -6,7 +6,11 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class CycleTrackerHandler(MainService services, UserSessionService sessionService, CycleTrackerService ctServices)
+public class CycleTrackerHandler(
+    MainService services,
+    UserSessionService sessionService,
+    CycleTrackerService ctServices,
+    NotificationService notificationService)
 {
     
     #region Handel
@@ -192,7 +196,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         var chatId = data.ChatId;
         var mode = int.Parse(data.DataSeparated[2]);
         var cycleId = Guid.Parse(data.DataSeparated[3]);
-        var ownerName = await ctServices.SetNotify(chatId, mode, cycleId);
+        var ownerName = await notificationService.SetPeriodTrackerNotify(chatId, mode, cycleId);
         var message = string.Format(Messages.SetNotifyComplete, Messages.NotifyModes[mode]);
         
         if (ownerName != null) 
@@ -209,8 +213,11 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
     
     private async Task EditCheck(UpdateData data)
     {
-        var (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength, followers) =
+        var (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength) =
             await ctServices.LoadCycleDetail(data.ChatId);
+        var followers = (await notificationService.GetPeriodTrackerFollowersByChatId(data.ChatId))
+            .Where(x => x.ChatId != data.ChatId)
+            .Aggregate("", (current, user) => current + user.Name + " (@[" + user.Username + "])\n");
         var message = string.Format(Messages.CurrentData, lastPeriodStart, cycleLength, periodLength, avgCycleLength, avgPeriodLength) +
                       string.Format(Messages.Followers, followers);
         await services.SendMessage(data.ChatId, message);
@@ -236,7 +243,9 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
     private async Task RemoveFollowersList(UpdateData data)
     {
         var collection = new List<List<Tuple<string, string>>>();
-        collection.AddRange((await ctServices.GetFollowersByChatId(data.ChatId)).Select(user =>
+        collection.AddRange((await notificationService.GetPeriodTrackerFollowersByChatId(data.ChatId))
+            .Where(user => user.ChatId != data.ChatId)
+            .Select(user =>
             (List<Tuple<string, string>>)[new(user.Name!, user.Id.ToString())]));
 
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}|{CallBacks.RemoveFollower}|");
@@ -248,7 +257,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         var cycleId = (await ctServices.GetCycleByTelId(data.ChatId))!.Id;
         var owner = await ctServices.GetUserByTelId(data.ChatId);
         var receiver = await ctServices.GetUserById(Guid.Parse(data.DataSeparated[2]));
-        await ctServices.RemoveReceiverFromCycle(cycleId, receiver!.Id);
+        await notificationService.RemovePeriodTrackerReceiver(cycleId, receiver!.Id);
         
         await services.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowerForReceiver, owner!.Name));
         await services.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowerForOwner, receiver.Name));
@@ -259,7 +268,7 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         var cycleId = Guid.Parse(data.DataSeparated[2]);
         var owner = await ctServices.GetCycleOwnerByCycleId(cycleId);
         var receiver = await ctServices.GetUserByTelId(data.ChatId);
-        await ctServices.RemoveReceiverFromCycle(cycleId, receiver!.Id);
+        await notificationService.RemovePeriodTrackerReceiver(cycleId, receiver!.Id);
         
         await services.SendMessage(receiver.ChatId, string.Format(Messages.RemoveFollowingForReceiver, owner!.Name));
         await services.SendMessage(owner!.ChatId, string.Format(Messages.RemoveFollowingForOwner, receiver.Name));
@@ -274,16 +283,13 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
         await LoadCycleList(data.ChatId, CallBacks.CurrentStatus);
     }
     
-    private async Task SendCurrentStatus(UpdateData? data = null, CycleDetail? cycle = null, User? owner = null, User? receiver = null, string? message = "")
+    private async Task SendCurrentStatus(UpdateData data)
     {
-        if (data != null)
-        {
-            var cycleId = Guid.Parse(data.DataSeparated[2]);
-            cycle = await ctServices.GetCycleByCycleId(cycleId);
-            owner = await ctServices.GetCycleOwnerByCycleId(cycleId);
-            receiver = await ctServices.GetUserByTelId(data.ChatId);
-            message = await ctServices.CreateStatusMessage(cycleId);
-        }
+        var cycleId = Guid.Parse(data.DataSeparated[2]);
+        var cycle = await ctServices.GetCycleByCycleId(cycleId);
+        var owner = await ctServices.GetCycleOwnerByCycleId(cycleId);
+        var receiver = await ctServices.GetUserByTelId(data.ChatId);
+        var message = await ctServices.CreateStatusMessage(cycleId);
         var date = $"{services.GetIranDateTime():MM/dd/yyyy} - {MainService.ConvertGregorianToJalali(services.GetIranDateTime())}";
 
         if (owner!.Id == receiver!.Id)
@@ -311,21 +317,11 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
                 if (isStart) await ctServices.SetNewStartByTelId(data.ChatId, services.GetIranDateTime());
                 else await ctServices.SetNewEndByTelId(data.ChatId);
                 await services.SendMessage(data.ChatId, Messages.SavedData);
-                await Notify(data.ChatId, isStart);
+                await notificationService.SendPeriodTrackerEvent(data.ChatId, isStart);
                 break;
             case CallBacks.No:
                 await services.SendMessage(data.ChatId, Messages.HopeTomorrow);
                 break;
-        }
-    }
-    
-    private async Task Notify(long chatId, bool isStart)
-    {
-        var owner = await ctServices.GetUserByTelId(chatId);
-        var users = await ctServices.GetFollowersByChatId(chatId);
-        foreach (var user in users.Where(user => user.ChatId != chatId))
-        {
-            await services.SendMessage(user.ChatId, string.Format(isStart ? Messages.NotifyStart : Messages.NotifyEnd, owner!.FullName));
         }
     }
     
@@ -363,54 +359,16 @@ public class CycleTrackerHandler(MainService services, UserSessionService sessio
     
     #region General
     
-    private TimeSpan _notificationHour = new(12, 30, 0);
-    
     private async Task LoadCycleList(long chatId, string callBack)
     {
         var collection = new List<List<Tuple<string, string>>>();
-        collection.AddRange((await ctServices.GetFollowingByChatId(chatId)).Select(user =>
+        collection.AddRange((await notificationService.GetPeriodTrackerFollowingByChatId(chatId)).Select(user =>
             (List<Tuple<string, string>>)[new(user.UserName, user.CycleId.ToString())]));
 
         var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Cycle}|{callBack}|");
         await services.SendMessage(chatId, Messages.SelectCycle, replyMarkup: keyboard);
     }
     
-    public async Task CheckAndSendNotifications(bool pass = false)
-    {
-        var now = services.GetIranDateTime();
-        // _notificationHour = new TimeSpan(now.Hour, now.Minute, now.Second);
-        if (!pass && (now.TimeOfDay.Hours != _notificationHour.Hours || now.TimeOfDay.Minutes != _notificationHour.Minutes)) return;
-        var allCycleNotifies = await ctServices.GetAllCycleNotifies();
-        
-        foreach (var cycle in allCycleNotifies)
-        {
-            var message = await ctServices.CreateStatusMessage(cycle.cycle.Id);
-            foreach (var notifies in cycle.notifies)
-            {
-                var shouldNotify = ShouldNotifyToday(cycle.cycle, notifies.notify.NotifyMode);
-                if (!pass && !shouldNotify) continue;
-                await SendCurrentStatus(cycle: cycle.cycle, owner: cycle.owner, receiver: notifies.receiver, message: message);
-            }
-        }
-    }
-
-    private bool ShouldNotifyToday(CycleDetail cycle, int mode)
-    {
-        var today = services.GetIranDateTime();
-        var daysSinceLastStart = (today - cycle.LastStart!.Value).Days;
-        var daysUntilNext = cycle.CycleLength - daysSinceLastStart;
-        var isInPeriod = cycle.LastEnd == null; // today >= cycle.LastStart.Value && today <= cycle.LastEnd!.Value;
-        var daysBeforePeriod = daysUntilNext <= 3;
-        
-        return mode switch
-        {
-            1 => true,
-            2 => today.DayOfWeek == DayOfWeek.Monday,
-            4 => daysBeforePeriod || isInPeriod,
-            _ => false
-        };
-    }
-
     #endregion
     
 }

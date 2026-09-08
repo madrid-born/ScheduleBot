@@ -457,6 +457,7 @@ public static class CallBacks
     public const int NotificationMonthJalali = 4;
     
     public const int SpecialAdminCheckSpotify = 1;
+    public const int SpecialPeriodTracker = 2;
 
     #endregion
 }

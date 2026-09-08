@@ -7,8 +7,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users { get; set; }
     public DbSet<CycleDetail> CycleDetails { get; set; }
     public DbSet<CycleHistory> CycleHistories { get; set; }
-    public DbSet<CycleNotify> CycleNotifies { get; set; }
-    
     public DbSet<Cart> Cart { get; set; }
     public DbSet<CartItem> CartItem { get; set; }
     public DbSet<CartAccess> CartAccess { get; set; }
@@ -21,6 +19,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Notification> Notification { get; set; }
     public DbSet<NotificationAccess> NotificationAccess { get; set; }
     public DbSet<Future> NotificationFutureMessage { get; set; }
-    
-    
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Notification>()
+            .HasIndex(x => new { x.SpecialBehavior, x.SpecialBehaviorTargetId })
+            .IsUnique()
+            .HasFilter("[SpecialBehaviorTargetId] IS NOT NULL");
+
+        modelBuilder.Entity<NotificationAccess>()
+            .HasIndex(x => new { x.NotificationId, x.UserId })
+            .IsUnique();
+    }
 }

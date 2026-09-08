@@ -172,7 +172,7 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
         {
             notifications = (List<ToBeSentNotification>) session.Context[Context.BotNotifications];
         }
-        catch (Exception e)
+        catch (Exception)
         {
             install = true;
         }
@@ -196,14 +196,18 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
                         case CallBacks.SpecialAdminCheckSpotify:
                             await spotifyHandler.CheckForNewDeleted(notification.ChatId);
                             break;
+                        case CallBacks.SpecialPeriodTracker:
+                            await nServices.SendPeriodTrackerNotifications(notification.NotificationId);
+                            break;
                         default:
                             await services.SendMessage(notification.ChatId, notification.Message);
                             break;
                     }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    await services.SendMessage(notification.ChatId, notification.Message);
+                    if (notification.SpecialBehavior == 0 && !string.IsNullOrWhiteSpace(notification.Message))
+                        await services.SendMessage(notification.ChatId, notification.Message);
                 }
             }
             session.SetContext(Context.BotNotifications, notifications);

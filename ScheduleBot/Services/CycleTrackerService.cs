@@ -57,34 +57,6 @@ public class CycleTrackerService(AppDbContext dbContext, MainService service) : 
         return await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId)!;
     }
 
-    public async Task<List<User>> GetFollowersByChatId(long chatId)
-    {
-        var user = await GetUserByTelId(chatId);
-        var cycle = await GetCycleByTelId(user!.ChatId);
-        return await GetFollowersByCycleId(cycle!.Id);
-    }
-    
-    public async Task<List<User>> GetFollowersByCycleId(Guid cycleId)
-    {
-        var receiverIds = (await _dbContext.CycleNotifies.Where(x => x.CycleId == cycleId).ToListAsync())
-            .Select(x => x.ReceiverId);
-        return await _dbContext.Users.Where(x => receiverIds.Contains(x.Id)).ToListAsync();
-    }
-    
-    public async Task<List<CycleNotify>> GetCycleNotifiesByCycleId(Guid cycleId)
-    {
-        return await _dbContext.CycleNotifies.Where(c => c.CycleId == cycleId).ToListAsync();
-    }
-    
-    public async Task<List<User?>> GetNotifyUsersByCycleId(Guid cycleDetailId)
-    {
-        var cycleNotifies = await GetCycleNotifiesByCycleId(cycleDetailId);
-        var users = await _dbContext.Users.ToListAsync();
-        return cycleNotifies
-            .Select(cycleNotify => users.FirstOrDefault(x => x.Id == cycleNotify.ReceiverId))
-            .ToList();
-    }
-    
     public async Task AddNewCycle(long chatId, DateTime lastStart)
     {
         var user = await GetUserByTelId(chatId);
@@ -170,84 +142,7 @@ public class CycleTrackerService(AppDbContext dbContext, MainService service) : 
         await _dbContext.SaveChangesAsync();
     }
 
-    public async Task<string?> SetNotify(long chatId, int mode, Guid cycleId = default)
-    {
-        string? name = null;
-        var userId = (await GetUserByTelId(chatId))!.Id;
-        if (cycleId == Guid.Empty)
-        {
-            cycleId = (await _dbContext.CycleDetails.FirstOrDefaultAsync(c => c.UserId == userId))!.Id;
-            name = (await GetCycleOwnerByCycleId(cycleId))!.Name;
-        }
-        var notify = await _dbContext.CycleNotifies.FirstOrDefaultAsync(n => n.CycleId == cycleId && n.ReceiverId == userId);
-        if (notify == null)
-        {
-            notify = new CycleNotify
-            {
-                Id = Guid.NewGuid(),
-                CycleId = cycleId,
-                ReceiverId = userId,
-                NotifyMode = mode
-            };
-            _dbContext.CycleNotifies.Add(notify);
-        }
-        else
-        {
-            notify.NotifyMode = mode;
-        }
-
-        await _dbContext.SaveChangesAsync();
-        return name;
-    }
-    
-    public async Task RemoveReceiverFromCycle(Guid cycleId, Guid receiverId)
-    {
-        await _dbContext.CycleNotifies
-            .Where(x => x.CycleId == cycleId && x.ReceiverId == receiverId)
-            .ExecuteDeleteAsync();
-    }
-    
-    public async Task<List<(string UserName, Guid CycleId)>> GetFollowingByChatId(long chatId)
-    {
-        var user = await GetUserByTelId(chatId);
-
-        return (await
-                (
-                    from notify in _dbContext.CycleNotifies
-                    join cycle in _dbContext.CycleDetails
-                        on notify.CycleId equals cycle.Id
-                    join owner in _dbContext.Users
-                        on cycle.UserId equals owner.Id
-                    where notify.ReceiverId == user!.Id
-                    select new { UserName = owner.Name, CycleId = cycle.Id }
-                )
-                .ToListAsync()).Select(x => (x.UserName, x.CycleId))
-            .ToList();
-    }
-    
-    
-    public async Task<List<(CycleDetail cycle, User owner, List<(CycleNotify notify, User receiver)> notifies)>> GetAllCycleNotifies()
-    {
-        return (await
-                (
-                    from notify in _dbContext.CycleNotifies
-                    join cycle in _dbContext.CycleDetails on notify.CycleId equals cycle.Id
-                    join owner in _dbContext.Users on cycle.UserId equals owner.Id
-                    join receiver in _dbContext.Users on notify.ReceiverId equals receiver.Id
-                    select new { cycle, notify, owner, receiver }
-                )
-                .ToListAsync())
-            .Select(x => (x.cycle, x.notify, x.owner, x.receiver))
-            .GroupBy(x => new { x.cycle, x.owner })
-            .Select(g => (
-                g.Key.cycle,
-                g.Key.owner,
-                notifies: g.Select(x => (x.notify, x.receiver)).ToList()
-            ))
-            .ToList();
-    }
-    
-    public async Task<(int? cycleLength, int?periodLength, string lastPeriodStart, double avgCycleLength, double avgPeriodLength, string followers)> LoadCycleDetail(long chatId)
+    public async Task<(int? cycleLength, int?periodLength, string lastPeriodStart, double avgCycleLength, double avgPeriodLength)> LoadCycleDetail(long chatId)
     {
         var cycleDetail = (await GetCycleByTelId(chatId))!;
         var lastStart = (DateTime)cycleDetail.LastStart!;
@@ -255,9 +150,7 @@ public class CycleTrackerService(AppDbContext dbContext, MainService service) : 
         var periodLength = cycleDetail.PeriodLength;
         var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} - {MainService.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
         var (avgCycleLength, avgPeriodLength) = CalculateAverages(await GetCycleHistoryByCycleId(cycleDetail.Id));
-        var followers = (await GetNotifyUsersByCycleId(cycleDetail.Id)).Where(x => x!.ChatId != chatId).Aggregate("", (current, user) => current + user!.Name + " (@[" + user.Username + "])\n");
-
-        return (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength, followers);
+        return (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength);
     }
     
     private static (double AvgCycleLengthDays, double AvgPeriodLengthDays) CalculateAverages(IEnumerable<CycleHistory> cycleHistories)
