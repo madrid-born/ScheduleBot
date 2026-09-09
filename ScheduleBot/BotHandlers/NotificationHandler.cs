@@ -4,7 +4,12 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ScheduleBot.BotHandlers;
 
-public class NotificationHandler(UserSessionService sessionService, MainService services, NotificationService nServices, SpotifyHandler spotifyHandler)
+public class NotificationHandler(
+    UserSessionService sessionService,
+    MainService services,
+    NotificationService nServices,
+    SpotifyHandler spotifyHandler,
+    CycleTrackerHandler cycleTrackerHandler)
 {
     #region Handel
 
@@ -197,7 +202,7 @@ public class NotificationHandler(UserSessionService sessionService, MainService 
                             await spotifyHandler.CheckForNewDeleted(notification.ChatId);
                             break;
                         case CallBacks.SpecialPeriodTracker:
-                            await nServices.SendPeriodTrackerNotifications(notification.NotificationId);
+                            await cycleTrackerHandler.SendPeriodTrackerNotifications(notification.NotificationId);
                             break;
                         default:
                             await services.SendMessage(notification.ChatId, notification.Message);

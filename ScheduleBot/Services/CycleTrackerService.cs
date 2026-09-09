@@ -7,6 +7,8 @@ namespace ScheduleBot.Services;
 
 public class CycleTrackerService(AppDbContext dbContext, MainService service) : DatabaseService(dbContext, service)
 {
+    private static readonly TimeSpan PeriodTrackerNotificationTime = new(12, 00, 0);
+
     private readonly AppDbContext _dbContext = dbContext;
     
     public async Task<CycleDetail?> GetCycleByTelId(long chatId)
@@ -151,6 +153,125 @@ public class CycleTrackerService(AppDbContext dbContext, MainService service) : 
         var lastPeriodStart = $"\n{lastStart.Year}/{lastStart.Month}/{lastStart.Day} - {MainService.ConvertGregorianToJalali((DateTime)cycleDetail.LastStart!)}";
         var (avgCycleLength, avgPeriodLength) = CalculateAverages(await GetCycleHistoryByCycleId(cycleDetail.Id));
         return (cycleLength, periodLength, lastPeriodStart, avgCycleLength, avgPeriodLength);
+    }
+    
+    public async Task<List<User>> GetPeriodTrackerFollowersByChatId(long chatId)
+    {
+        var cycle = await GetCycleByTelId(chatId);
+        if (cycle == null) return [];
+
+        return await (
+            from notification in _dbContext.Notification
+            join access in _dbContext.NotificationAccess on notification.Id equals access.NotificationId
+            join user in _dbContext.Users on access.UserId equals user.Id
+            where notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+                  && notification.SpecialBehaviorTargetId == cycle.Id
+            select user
+        ).ToListAsync();
+    }
+    
+    public async Task<List<(string UserName, Guid CycleId)>> GetPeriodTrackerFollowingByChatId(long chatId)
+    {
+        var user = await GetUserByTelId(chatId);
+        if (user == null) return [];
+
+        return (await (
+            from access in _dbContext.NotificationAccess
+            join notification in _dbContext.Notification on access.NotificationId equals notification.Id
+            join cycle in _dbContext.CycleDetails on notification.SpecialBehaviorTargetId equals cycle.Id
+            join owner in _dbContext.Users on cycle.UserId equals owner.Id
+            where access.UserId == user.Id
+                  && notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+            select new { UserName = owner.Name!, CycleId = cycle.Id }
+        ).ToListAsync()).Select(x => (x.UserName, x.CycleId)).ToList();
+    }
+    
+    public async Task RemovePeriodTrackerReceiver(Guid cycleId, Guid receiverId)
+    {
+        await (
+            from access in _dbContext.NotificationAccess
+            join notification in _dbContext.Notification on access.NotificationId equals notification.Id
+            where notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+                  && notification.SpecialBehaviorTargetId == cycleId
+                  && access.UserId == receiverId
+            select access
+        ).ExecuteDeleteAsync();
+    }
+
+    public async Task<(CycleDetail cycle, List<(NotificationAccess Access, User User)> recipients, User owner)> GetRecipientsByOwnerChatIdwd(Guid notificationId)
+    {
+        var notification = await _dbContext.Notification.FirstOrDefaultAsync(x =>
+            x.Id == notificationId && x.SpecialBehavior == CallBacks.SpecialPeriodTracker);
+        
+        var cycle = await GetCycleByCycleId(notification.SpecialBehaviorTargetId.Value);
+        
+        var owner = await GetUserById(cycle.UserId);
+        
+        var recipients = await (
+            from access in _dbContext.NotificationAccess
+            join user in _dbContext.Users
+                on access.UserId equals user.Id
+            where access.NotificationId == notification.Id
+            select new ValueTuple<NotificationAccess, User>(access, user)
+        ).ToListAsync();
+        
+        return (cycle, recipients, owner);
+    }
+    
+    public async Task<(List<User> recipients, User owner)> GetRecipientsByOwnerChatId(long ownerChatId)
+    {
+        var owner = await GetUserByTelId(ownerChatId);
+        var cycle = await GetCycleByTelId(ownerChatId);
+
+        var recipients = await (
+            from notification in _dbContext.Notification
+            join access in _dbContext.NotificationAccess on notification.Id equals access.NotificationId
+            join user in _dbContext.Users on access.UserId equals user.Id
+            where notification.SpecialBehavior == CallBacks.SpecialPeriodTracker
+                  && notification.SpecialBehaviorTargetId == cycle.Id
+                  && access.NotifyMode != 0
+                  && user.Id != owner.Id
+            select user
+        ).ToListAsync();
+        
+        return (recipients, owner);
+    }
+    
+    public async Task<Notification> GetOrCreatePeriodTrackerNotification(CycleDetail cycle, User owner)
+    {
+        var notification = await _dbContext.Notification.FirstOrDefaultAsync(x =>
+            x.SpecialBehavior == CallBacks.SpecialPeriodTracker && x.SpecialBehaviorTargetId == cycle.Id);
+        if (notification != null) return notification;
+
+        var now = GetIranDateTime();
+        var firstOccurrence = now.Date.Add(PeriodTrackerNotificationTime);
+        if (firstOccurrence <= now) firstOccurrence = firstOccurrence.AddDays(1);
+
+        notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = owner.Id,
+            IsActive = true,
+            CreateTime = now,
+            StartTime = firstOccurrence,
+            Type = CallBacks.NotificationDay,
+            SeparationValue = 1,
+            Name = Messages.PeriodTracker,
+            Message = string.Empty,
+            SpecialBehavior = CallBacks.SpecialPeriodTracker,
+            SpecialBehaviorTargetId = cycle.Id
+        };
+
+        _dbContext.Notification.Add(notification);
+        _dbContext.NotificationFutureMessage.Add(new Future
+        {
+            Id = Guid.NewGuid(),
+            NotificationId = notification.Id,
+            Time = firstOccurrence,
+            Message = null
+        });
+
+        return notification;
     }
     
     private static (double AvgCycleLengthDays, double AvgPeriodLengthDays) CalculateAverages(IEnumerable<CycleHistory> cycleHistories)
