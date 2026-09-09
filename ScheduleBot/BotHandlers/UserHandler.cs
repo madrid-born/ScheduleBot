@@ -79,20 +79,19 @@ public class UserHandler(MainService services, UserSessionService sessionService
         
         var adminMessage = string.Format(Messages.AdminMessageTemplate, user.Id, user.ChatId, user.Name, user.Email, "[@"+user.Username+"]");
         
-        var collection = new List<List<Tuple<string, string>>>
-        {
-            new()
-            {
-                new(Messages.Yes, $"{CallBacks.AcceptRegister}|{user.ChatId}"),
-                new(Messages.No, $"{CallBacks.RejectRegister}|{user.ChatId}"),
-            }
-        };
-        var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Register}|");
-
-        
-        await services.SendMessage(services.AdminChatId, adminMessage, replyMarkup: keyboard);
-        await services.SendMessage(data.ChatId, Messages.RegistrationSuccessful);
+        // var collection = new List<List<Tuple<string, string>>>
+        // {
+        //     new()
+        //     {
+        //         new(Messages.Yes, $"{CallBacks.AcceptRegister}|{user.ChatId}"),
+        //         new(Messages.No, $"{CallBacks.RejectRegister}|{user.ChatId}"),
+        //     }
+        // };
+        // var keyboard = services.CreateKeyboard(inlineCollection: collection, callBackStart: $"{CallBacks.Register}|");
+        // await services.SendMessage(data.ChatId, Messages.RegistrationSuccessful);
+        await services.SendMessage(services.AdminChatId, adminMessage/*, replyMarkup: keyboard*/);
         sessionService.ClearSession(data.ChatId);
+        await AdminApproval(data, true);
     }
     
     private async Task AdminApproval(UpdateData data, bool accept)
@@ -101,6 +100,6 @@ public class UserHandler(MainService services, UserSessionService sessionService
         var status = accept ? Messages.Approved : Messages.Rejected ;
         await databaseService.UpdateUserAcceptance(chatId, accept);
         await services.SendMessage(services.AdminChatId, string.Format(Messages.AdminAcceptanceTemplate, chatId ,status));
-        await services.SendMessage(chatId, string.Format(Messages.UserAcceptanceTemplate, status));
+        await services.SendMessage(chatId, Messages.Welcome);
     }
 }
