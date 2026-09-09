@@ -15,6 +15,7 @@ public class MessageHandler(
     TransactionHandler transactionHandler,
     SpotifyHandler spotifyHandler,
     NotificationHandler notificationHandler,
+    MetroHandler metroHandler,
     MainService services,
     IConfiguration configuration)
 {
@@ -74,6 +75,11 @@ public class MessageHandler(
             data.MessageId = update.Message.MessageId;
             data.MessageText = update.Message.Text;
             data.MessageSeparated = (update.Message.Text ?? "").Split('"').ToList();
+            if (update.Message.Location != null)
+            {
+                data.Latitude = update.Message.Location.Latitude;
+                data.Longitude = update.Message.Location.Longitude;
+            }
 
             if (update.Message.Document != null)
             {
@@ -140,6 +146,9 @@ public class MessageHandler(
             case CallBacks.Notification:
                 await notificationHandler.HandleCallBack(data);
                 break;
+            case CallBacks.Metro:
+                await metroHandler.HandleCallBack(data);
+                break;
         }
     }
 
@@ -186,8 +195,8 @@ public class MessageHandler(
     private async Task<bool> CheckCommand(UpdateData data)
     {
         var flag = false;
-        var text = data.MessageText!;
-        if (text[..1] != "/") return flag;
+        var text = data.MessageText;
+        if (string.IsNullOrEmpty(text) || !text.StartsWith('/')) return flag;
         if (text.StartsWith("/Test") && data.ChatId == services.AdminChatId)
         {
             await services.SendMessage(data.ChatId, "Nothing in here");
@@ -283,6 +292,10 @@ public class MessageHandler(
                 break;
             case Messages.Notification:
                 await notificationHandler.HandleSection(data);
+                flag = true;
+                break;
+            case Messages.Metro:
+                await metroHandler.HandleSection(data);
                 flag = true;
                 break;
             case Messages.About:
@@ -387,6 +400,11 @@ public class MessageHandler(
                         flag = true;
                         break;
                 }
+                break;
+            case Actions.MetroNavigation:
+            case Actions.MetroStationDetails:
+                await metroHandler.HandleSession(data);
+                flag = true;
                 break;
 
         }

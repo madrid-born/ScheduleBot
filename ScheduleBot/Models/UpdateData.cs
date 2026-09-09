@@ -19,6 +19,8 @@ public class UpdateData
     public List<string> MessageSeparated { get; set; } = new();
     public List<string> ReplyMessageSeparated { get; set; } = new();
     public ImportedFile? Document { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 }
 
 public class ImportedFile(string fileAddress)

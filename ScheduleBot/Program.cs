@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -32,6 +33,29 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     if (!builder.Environment.IsDevelopment()) return;
     options.EnableSensitiveDataLogging();
     options.EnableDetailedErrors();
+});
+
+var applicationConnection = builder.Configuration.GetConnectionString(connString)
+    ?? throw new InvalidOperationException($"Connection string '{connString}' was not found.");
+var configuredMetroConnection = builder.Configuration.GetConnectionString("MetroConnection");
+var metroConnection = string.IsNullOrWhiteSpace(configuredMetroConnection)
+    ? new SqlConnectionStringBuilder(applicationConnection) { InitialCatalog = "metro" }.ConnectionString
+    : configuredMetroConnection;
+
+builder.Services.AddDbContext<MetroDbContext>(options =>
+{
+    options.UseSqlServer(
+        metroConnection,
+        sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(60);
+        });
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+    if (builder.Environment.IsDevelopment()) options.EnableDetailedErrors();
 });
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -69,6 +93,8 @@ builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<SpotifyHandler>();
 builder.Services.AddScoped<NotificationHandler>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<MetroHandler>();
+builder.Services.AddScoped<MetroService>();
 builder.Services.AddHttpClient<SpotifyService>(client =>
 {
     var baseUrl = builder.Configuration["SpotifyApi:BaseUrl"];

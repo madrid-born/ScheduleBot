@@ -17,9 +17,27 @@ public static class Messages
     public const string Cart = "🛒 Cart";
     public const string Transaction = "🏦 Wallet";
     public const string Notification = "⏰ Notification Cneter";
+    public const string Metro = "🚇 Tehran Metro";
     
     public const string Spotify = "🎵 Spotify";
     
+    #endregion
+
+    #region Metro
+
+    public const string MetroNavigation = "Navigation";
+    public const string MetroStationDetails = "Show station detail";
+    public const string MetroWelcome = "Welcome to Tehran Metro. What would you like to do?";
+    public const string MetroAskStationName = "Enter the Persian or English station name.";
+    public const string MetroAskOriginLocation = "Send your starting point with Telegram's location button.";
+    public const string MetroAskDestinationLocation = "Now send your destination with Telegram's location button.";
+    public const string MetroSendLocation = "📍 Send location";
+    public const string MetroCalculating = "Calculating the best Metro route and next available trains...";
+    public const string MetroRouteNotFound = "I could not find a usable Metro route for those locations.";
+    public const string MetroStationNotFound = "No matching Metro station was found.";
+    public const string MetroSelectStation = "Select the station you meant.";
+    public const string MetroCancelled = "Metro request cancelled.";
+
     #endregion
 
     #region Universal
@@ -460,6 +478,15 @@ public static class CallBacks
     public const int SpecialPeriodTracker = 2;
 
     #endregion
+
+    #region Metro
+
+    public const string Metro = "Metro";
+    public const string MetroNavigation = "Navigation";
+    public const string MetroStationDetails = "StationDetails";
+    public const string MetroStationSelected = "StationSelected";
+
+    #endregion
 }
 
 public static class Errors
@@ -486,6 +513,9 @@ public static class Actions
     public const string AwaitingTrackReview = "CategorizePlaylist";
     
     public const string SetUpNotification = "SetUpNotification";
+
+    public const string MetroNavigation = "MetroNavigation";
+    public const string MetroStationDetails = "MetroStationDetails";
 }
 
 public static class SessionCallBacks
@@ -501,6 +531,10 @@ public static class SessionCallBacks
     public const string AskNotificationName = "AskNotificationName";
     public const string AskNotificationOftenUnit = "AskNotificationOftenUnit";
     public const string AskReminderMessage = "AskReminderMessage";
+
+    public const string AskMetroStationName = "AskMetroStationName";
+    public const string AskMetroOriginLocation = "AskMetroOriginLocation";
+    public const string AskMetroDestinationLocation = "AskMetroDestinationLocation";
 }
 
 public static class Context
@@ -537,6 +571,9 @@ public static class Context
     public const string ReminderUnit = "ReminderUnit";
     public const string UnitCount = "UnitCount";
     public const string ReminderMessage = "ReminderMessage";
+
+    public const string MetroOriginLatitude = "MetroOriginLatitude";
+    public const string MetroOriginLongitude = "MetroOriginLongitude";
 }
 
 public static class DatePickerMethods
