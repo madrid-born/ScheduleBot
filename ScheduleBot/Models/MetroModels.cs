@@ -114,6 +114,13 @@ public sealed class MetroHolidayDate
 
 public sealed record MetroGeoPoint(double Latitude, double Longitude);
 
+public sealed record MetroLineDetails(
+    byte LineId,
+    string NameFa,
+    string NameEn,
+    string Color,
+    int OperationalStationCount);
+
 public sealed record MetroNearestStation(
     string StationId,
     string NameFa,
@@ -134,6 +141,8 @@ public sealed record MetroStationDetails(
 
 public sealed record MetroJourneyLeg(
     byte LineId,
+    string LineName,
+    string LineColor,
     string RouteId,
     string FromStationId,
     string FromStationName,
@@ -147,6 +156,7 @@ public sealed record MetroJourneyLeg(
     DateTime? Arrival,
     TimeSpan WaitTime,
     TimeSpan EstimatedRideTime,
+    string ServiceDayType,
     bool ScheduleFound);
 
 public sealed record MetroNavigationResult(

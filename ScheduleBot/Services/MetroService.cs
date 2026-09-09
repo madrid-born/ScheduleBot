@@ -18,6 +18,53 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
     private readonly int _defaultTransferWalkSeconds =
         configuration.GetValue("Metro:DefaultTransferWalkSeconds", 240);
 
+    public async Task<IReadOnlyList<MetroLineDetails>> GetOperationalLinesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var stationCounts = await dbContext.StationLines
+            .AsNoTracking()
+            .Where(x => x.IsOperational)
+            .GroupBy(x => x.LineId)
+            .Select(group => new { LineId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(x => x.LineId, x => x.Count, cancellationToken);
+        var lines = await dbContext.Lines
+            .AsNoTracking()
+            .OrderBy(x => x.LineId)
+            .ToListAsync(cancellationToken);
+        return lines
+            .Where(x => stationCounts.ContainsKey(x.LineId))
+            .Select(x => new MetroLineDetails(
+                x.LineId,
+                x.NameFa,
+                x.NameEn,
+                x.Color,
+                stationCounts[x.LineId]))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<MetroStationDetails>> GetStationsByLineAsync(
+        byte lineId,
+        CancellationToken cancellationToken = default)
+    {
+        var stations = await (
+            from link in dbContext.StationLines.AsNoTracking()
+            join station in dbContext.Stations.AsNoTracking() on link.StationId equals station.StationId
+            where link.LineId == lineId &&
+                  link.IsOperational &&
+                  station.InfrastructureStatus == "operational"
+            orderby station.NameEn
+            select station)
+            .ToListAsync(cancellationToken);
+
+        var stationIds = stations.Select(x => x.StationId).ToList();
+        var lineLinks = await dbContext.StationLines.AsNoTracking()
+            .Where(x => stationIds.Contains(x.StationId) && x.IsOperational)
+            .ToListAsync(cancellationToken);
+        return stations
+            .Select(x => ToDetails(x, lineLinks.Where(link => link.StationId == x.StationId).Select(link => link.LineId)))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<MetroStationDetails>> SearchStationsAsync(
         string query,
         int limit = 8,
@@ -119,6 +166,8 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
         if (path.Count == 0) return null;
 
         var transferRules = await dbContext.TransferRules.AsNoTracking().ToListAsync(cancellationToken);
+        var lineById = await dbContext.Lines.AsNoTracking()
+            .ToDictionaryAsync(x => x.LineId, cancellationToken);
         var plannedLegs = GroupPath(path);
         var resultLegs = new List<MetroJourneyLeg>();
         var readyAt = now + originWalk;
@@ -141,6 +190,7 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
 
             var scheduled = await FindNextTripAsync(planned, readyAt, cancellationToken);
             var waitTime = TimeSpan.Zero;
+            var serviceDayType = await GetDayTypeAsync(readyAt.Date, cancellationToken);
             DateTime? departure = null;
             DateTime? arrival = null;
             string directionName;
@@ -154,6 +204,7 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
                 arrival = scheduled.Arrival;
                 directionName = stationById[scheduled.DirectionStationId].NameEn;
                 isExpress = scheduled.IsExpress;
+                serviceDayType = scheduled.DayType;
                 waitTime = scheduled.Departure - readyAt;
                 rideTime = scheduled.Arrival - scheduled.Departure;
                 scheduleFound = true;
@@ -176,6 +227,8 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
 
             resultLegs.Add(new MetroJourneyLeg(
                 planned.LineId,
+                lineById[planned.LineId].NameEn,
+                lineById[planned.LineId].Color,
                 planned.RouteId,
                 planned.FromStationId,
                 stationById[planned.FromStationId].NameEn,
@@ -189,6 +242,7 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
                 arrival,
                 waitTime,
                 rideTime,
+                serviceDayType,
                 scheduleFound));
         }
 
@@ -235,7 +289,8 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
                     serviceDate.Add(x.FromTime).AddDays(x.FromOffset),
                     serviceDate.Add(x.ToTime).AddDays(x.ToOffset),
                     x.DirectionStationId,
-                    x.IsExpress))
+                    x.IsExpress,
+                    dayType))
                 .Where(x => x.Departure >= readyAt)
                 .OrderBy(x => x.Arrival)
                 .FirstOrDefault();
@@ -422,5 +477,6 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
         DateTime Departure,
         DateTime Arrival,
         string DirectionStationId,
-        bool IsExpress);
+        bool IsExpress,
+        string DayType);
 }

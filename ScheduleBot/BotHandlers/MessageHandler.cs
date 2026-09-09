@@ -402,7 +402,6 @@ public class MessageHandler(
                 }
                 break;
             case Actions.MetroNavigation:
-            case Actions.MetroStationDetails:
                 await metroHandler.HandleSession(data);
                 flag = true;
                 break;

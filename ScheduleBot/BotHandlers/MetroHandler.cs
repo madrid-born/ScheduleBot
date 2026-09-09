@@ -1,7 +1,10 @@
 using System.Globalization;
+using System.Net;
 using System.Text;
 using ScheduleBot.Models;
 using ScheduleBot.Services;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -11,6 +14,7 @@ namespace ScheduleBot.BotHandlers;
 /// Telegram-only Metro interaction flow. Database work stays in MetroService.
 /// </summary>
 public sealed class MetroHandler(
+    ITelegramBotClient bot,
     MainService services,
     UserSessionService sessionService,
     MetroService metroService)
@@ -41,13 +45,13 @@ public sealed class MetroHandler(
                         await BeginNavigation(data.ChatId);
                         break;
                     case CallBacks.MetroStationDetails:
-                        sessionService.SetData(
-                            data.ChatId,
-                            Actions.MetroStationDetails,
-                            SessionCallBacks.AskMetroStationName);
-                        await services.SendMessage(data.ChatId, Messages.MetroAskStationName);
+                        await ShowLinePicker(data.ChatId);
                         break;
                 }
+                break;
+            case CallBacks.MetroLineSelected:
+                if (byte.TryParse(data.DataSeparated.ElementAtOrDefault(2), out var lineId))
+                    await ShowLineStations(data.ChatId, lineId);
                 break;
             case CallBacks.MetroStationSelected:
                 var stationId = data.DataSeparated.ElementAtOrDefault(2);
@@ -71,9 +75,6 @@ public sealed class MetroHandler(
         {
             case Actions.MetroNavigation:
                 await HandleNavigationLocation(data, session);
-                break;
-            case Actions.MetroStationDetails:
-                await SearchStation(data);
                 break;
         }
     }
@@ -121,42 +122,45 @@ public sealed class MetroHandler(
             await services.SendMessage(data.ChatId, Messages.MetroRouteNotFound);
             return;
         }
-        await services.SendMessage(
-            data.ChatId,
-            FormatNavigation(result, origin, destination),
-            parseMode: ParseMode.Html);
+        await SendNavigationCard(data.ChatId, result, origin, destination);
     }
 
-    private async Task SearchStation(UpdateData data)
+    private async Task ShowLinePicker(long chatId)
     {
-        if (string.IsNullOrWhiteSpace(data.MessageText))
+        var lines = await metroService.GetOperationalLinesAsync();
+        var keyboard = lines
+            .Select(line => new Tuple<string, string>(
+                $"{LineBadge(line.LineId)} Line {line.LineId} · {line.OperationalStationCount} stations",
+                line.LineId.ToString(CultureInfo.InvariantCulture)))
+            .Chunk(2)
+            .Select(row => row.ToList())
+            .ToList();
+        await services.SendMessage(
+            chatId,
+            Messages.MetroSelectLine,
+            services.CreateKeyboard(
+                inlineCollection: keyboard,
+                callBackStart: $"{CallBacks.Metro}|{CallBacks.MetroLineSelected}|"));
+    }
+
+    private async Task ShowLineStations(long chatId, byte lineId)
+    {
+        var stations = await metroService.GetStationsByLineAsync(lineId);
+        if (stations.Count == 0)
         {
-            await services.SendMessage(data.ChatId, Messages.MetroAskStationName);
+            await services.SendMessage(chatId, Messages.MetroStationNotFound);
             return;
         }
 
-        var matches = await metroService.SearchStationsAsync(data.MessageText);
-        if (matches.Count == 0)
-        {
-            await services.SendMessage(data.ChatId, Messages.MetroStationNotFound);
-            return;
-        }
-        if (matches.Count == 1)
-        {
-            sessionService.ClearSession(data.ChatId);
-            await ShowStation(data.ChatId, matches[0].StationId);
-            return;
-        }
-
-        List<List<Tuple<string, string>>> keyboard = matches
-            .Select(x => new List<Tuple<string, string>>
+        var keyboard = stations
+            .Select(station => new List<Tuple<string, string>>
             {
-                new($"{x.NameEn} — {x.NameFa}", x.StationId)
+                new($"{LineBadge(lineId)} {station.NameEn} · {station.NameFa}", station.StationId)
             })
             .ToList();
         await services.SendMessage(
-            data.ChatId,
-            Messages.MetroSelectStation,
+            chatId,
+            string.Format(Messages.MetroSelectLineStation, lineId),
             services.CreateKeyboard(
                 inlineCollection: keyboard,
                 callBackStart: $"{CallBacks.Metro}|{CallBacks.MetroStationSelected}|"));
@@ -181,7 +185,7 @@ public sealed class MetroHandler(
             🚇 <b>{station.NameEn}</b>
             {station.NameFa}
 
-            Lines: {string.Join(", ", station.Lines.Select(x => $"Line {x}"))}
+            Lines: {string.Join(", ", station.Lines.Select(x => $"{LineBadge(x)} Line {x}"))}
             Status: {station.Status.Replace('_', ' ')}
             Amenities: {amenities}
 
@@ -202,6 +206,56 @@ public sealed class MetroHandler(
             OneTimeKeyboard = true
         };
         await services.SendMessage(chatId, message, keyboard);
+    }
+
+    private async Task SendNavigationCard(
+        long chatId,
+        MetroNavigationResult result,
+        MetroGeoPoint origin,
+        MetroGeoPoint destination)
+    {
+        var walkingKeyboard = new InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton.WithUrl("🚶 Walk to the Metro", WalkingUrl(origin, result.OriginStation))],
+            [InlineKeyboardButton.WithUrl("🏁 Walk from Metro to destination", WalkingUrl(result.DestinationStation, destination))]
+        ]);
+
+        try
+        {
+            var image = MetroRouteCardRenderer.Render(result);
+            await using var stream = new MemoryStream(image);
+            await bot.SendPhoto(
+                chatId,
+                new InputFileStream(stream, "tehran-metro-route.png"),
+                caption: FormatNavigationCaption(result),
+                parseMode: ParseMode.Html,
+                replyMarkup: walkingKeyboard);
+        }
+        catch
+        {
+            await services.SendMessage(
+                chatId,
+                FormatNavigation(result, origin, destination),
+                replyMarkup: walkingKeyboard,
+                parseMode: ParseMode.Html);
+        }
+    }
+
+    private static string FormatNavigationCaption(MetroNavigationResult result)
+    {
+        var route = result.Legs.Count == 0
+            ? "Walking is the better move for these two pins."
+            : string.Join("  →  ", result.Legs.Select(leg =>
+                $"{LineBadge(leg.LineId)} Line {leg.LineId}"));
+        return $"""
+            ✨ <b>Your Tehran Metro game plan is ready</b>
+
+            {WebUtility.HtmlEncode(result.OriginStation.NameEn)}  →  {WebUtility.HtmlEncode(result.DestinationStation.NameEn)}
+            {route}
+
+            ⏱ <b>{FormatDuration(result.TotalTime)}</b> total · arrive around <b>{result.EstimatedArrival:HH:mm}</b>
+            🗓 Times use the {ServiceLabel(result)} timetable, not live train tracking.
+            """;
     }
 
     private static string FormatNavigation(
@@ -278,5 +332,31 @@ public sealed class MetroHandler(
     {
         var minutes = Math.Max(1, (int)Math.Ceiling(duration.TotalMinutes));
         return minutes < 60 ? $"{minutes} min" : $"{minutes / 60} h {minutes % 60} min";
+    }
+
+    internal static string LineBadge(byte lineId) => lineId switch
+    {
+        1 => "🟥",
+        2 => "🟦",
+        3 => "🔷",
+        4 => "🟨",
+        5 => "🟩",
+        6 => "🩷",
+        7 => "🟪",
+        _ => "⬜"
+    };
+
+    private static string ServiceLabel(MetroNavigationResult result)
+    {
+        var dayTypes = result.Legs.Select(x => x.ServiceDayType).Distinct().ToList();
+        if (dayTypes.Count == 0)
+            return result.RequestedAtTehran.DayOfWeek == DayOfWeek.Friday ? "Friday/holiday" :
+                result.RequestedAtTehran.DayOfWeek == DayOfWeek.Thursday ? "Thursday" : "Saturday–Wednesday";
+        return string.Join(" / ", dayTypes.Select(x => x switch
+        {
+            "friday" => "Friday/holiday",
+            "thursday" => "Thursday",
+            _ => "Saturday–Wednesday"
+        }));
     }
 }

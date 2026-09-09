@@ -28,14 +28,14 @@ public static class Messages
     public const string MetroNavigation = "Navigation";
     public const string MetroStationDetails = "Show station detail";
     public const string MetroWelcome = "Welcome to Tehran Metro. What would you like to do?";
-    public const string MetroAskStationName = "Enter the Persian or English station name.";
+    public const string MetroSelectLine = "Choose a Metro line, then I will show its stations.";
+    public const string MetroSelectLineStation = "Choose a station on Line {0}.";
     public const string MetroAskOriginLocation = "Send your starting point with Telegram's location button.";
     public const string MetroAskDestinationLocation = "Now send your destination with Telegram's location button.";
     public const string MetroSendLocation = "📍 Send location";
     public const string MetroCalculating = "Calculating the best Metro route and next available trains...";
     public const string MetroRouteNotFound = "I could not find a usable Metro route for those locations.";
     public const string MetroStationNotFound = "No matching Metro station was found.";
-    public const string MetroSelectStation = "Select the station you meant.";
     public const string MetroCancelled = "Metro request cancelled.";
 
     #endregion
@@ -484,6 +484,7 @@ public static class CallBacks
     public const string Metro = "Metro";
     public const string MetroNavigation = "Navigation";
     public const string MetroStationDetails = "StationDetails";
+    public const string MetroLineSelected = "LineSelected";
     public const string MetroStationSelected = "StationSelected";
 
     #endregion
@@ -515,7 +516,6 @@ public static class Actions
     public const string SetUpNotification = "SetUpNotification";
 
     public const string MetroNavigation = "MetroNavigation";
-    public const string MetroStationDetails = "MetroStationDetails";
 }
 
 public static class SessionCallBacks
@@ -532,7 +532,6 @@ public static class SessionCallBacks
     public const string AskNotificationOftenUnit = "AskNotificationOftenUnit";
     public const string AskReminderMessage = "AskReminderMessage";
 
-    public const string AskMetroStationName = "AskMetroStationName";
     public const string AskMetroOriginLocation = "AskMetroOriginLocation";
     public const string AskMetroDestinationLocation = "AskMetroDestinationLocation";
 }
