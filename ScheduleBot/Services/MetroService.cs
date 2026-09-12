@@ -17,6 +17,8 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
         configuration.GetValue("Metro:FallbackTrainSpeedKmPerHour", 35d);
     private readonly int _defaultTransferWalkSeconds =
         configuration.GetValue("Metro:DefaultTransferWalkSeconds", 240);
+    private readonly int _candidateStationsPerLine =
+        Math.Max(1, configuration.GetValue("Metro:CandidateStationsPerLine", 2));
 
     public async Task<IReadOnlyList<MetroLineDetails>> GetOperationalLinesAsync(
         CancellationToken cancellationToken = default)
@@ -116,31 +118,11 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
         var stationLines = await dbContext.StationLines.AsNoTracking()
             .Where(x => x.IsOperational)
             .ToListAsync(cancellationToken);
-        var boardableIds = stationLines.Select(x => x.StationId).ToHashSet(StringComparer.Ordinal);
-        var boardableStations = stations
-            .Where(x => x.InfrastructureStatus == "operational" && boardableIds.Contains(x.StationId))
-            .ToList();
-        if (boardableStations.Count == 0) return null;
-
-        var originStation = FindNearest(origin, boardableStations);
-        var destinationStation = FindNearest(destination, boardableStations);
         var stationById = stations.ToDictionary(x => x.StationId, StringComparer.Ordinal);
-
-        var originWalkMeters = originStation.DistanceMeters * _walkingDistanceFactor;
-        var destinationWalkMeters = destinationStation.DistanceMeters * _walkingDistanceFactor;
-        var originWalk = WalkingTime(originWalkMeters);
-        var destinationWalk = WalkingTime(destinationWalkMeters);
+        var originCandidates = FindCandidateStations(origin, stationById, stationLines);
+        var destinationCandidates = FindCandidateStations(destination, stationById, stationLines);
+        if (originCandidates.Count == 0 || destinationCandidates.Count == 0) return null;
         var now = requestedAtTehran ?? GetTehranNow();
-
-        if (originStation.StationId == destinationStation.StationId)
-        {
-            var arrival = now + originWalk + destinationWalk;
-            return new MetroNavigationResult(
-                originStation, destinationStation,
-                originWalkMeters, originWalk,
-                destinationWalkMeters, destinationWalk,
-                [], now, arrival, arrival - now);
-        }
 
         var segments = await dbContext.Segments.AsNoTracking()
             .Where(x => x.SegmentStatus == "operational")
@@ -156,19 +138,38 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
             .Select(x => (x.StationId, x.LineId))
             .ToHashSet();
 
-        var path = FindPath(
-            originStation.StationId,
-            destinationStation.StationId,
+        var pathPlan = FindPath(
+            originCandidates.Values,
+            destinationCandidates,
             stationById,
             segments,
             operationalRouteStops,
             operationalLineStops);
-        if (path.Count == 0) return null;
+        if (pathPlan == null) return null;
+
+        var originCandidate = originCandidates[pathPlan.OriginStationId];
+        var destinationCandidate = destinationCandidates[pathPlan.DestinationStationId];
+        var originStation = originCandidate.Station;
+        var destinationStation = destinationCandidate.Station;
+        var originWalkMeters = originCandidate.WalkMeters;
+        var destinationWalkMeters = destinationCandidate.WalkMeters;
+        var originWalk = originCandidate.WalkTime;
+        var destinationWalk = destinationCandidate.WalkTime;
+
+        if (pathPlan.Edges.Count == 0)
+        {
+            var arrival = now + originWalk + destinationWalk;
+            return new MetroNavigationResult(
+                originStation, destinationStation,
+                originWalkMeters, originWalk,
+                destinationWalkMeters, destinationWalk,
+                [], now, arrival, arrival - now);
+        }
 
         var transferRules = await dbContext.TransferRules.AsNoTracking().ToListAsync(cancellationToken);
         var lineById = await dbContext.Lines.AsNoTracking()
             .ToDictionaryAsync(x => x.LineId, cancellationToken);
-        var plannedLegs = GroupPath(path);
+        var plannedLegs = GroupPath(pathPlan.Edges);
         var resultLegs = new List<MetroJourneyLeg>();
         var readyAt = now + originWalk;
 
@@ -308,9 +309,9 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
         return serviceDate.DayOfWeek == DayOfWeek.Thursday ? "thursday" : "saturday_wednesday";
     }
 
-    private List<PathEdge> FindPath(
-        string origin,
-        string destination,
+    private PathPlan? FindPath(
+        IEnumerable<StationCandidate> originCandidates,
+        IReadOnlyDictionary<string, StationCandidate> destinationCandidates,
         IReadOnlyDictionary<string, MetroStation> stations,
         IReadOnlyCollection<MetroSegment> segments,
         HashSet<(string RouteId, string StationId)> operationalRouteStops,
@@ -323,21 +324,35 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
             AddEdge(new PathEdge(segment.ToStationId, segment.FromStationId, segment.LineId, segment.RouteId));
         }
 
-        var start = new RouteState(origin, 0, string.Empty);
         var queue = new PriorityQueue<RouteState, double>();
-        var distance = new Dictionary<RouteState, double> { [start] = 0 };
+        var distance = new Dictionary<RouteState, double>();
         var previous = new Dictionary<RouteState, (RouteState State, PathEdge Edge)>();
-        queue.Enqueue(start, 0);
+        foreach (var candidate in originCandidates)
+        {
+            var start = new RouteState(candidate.Station.StationId, 0, string.Empty);
+            var walkingSeconds = candidate.WalkTime.TotalSeconds;
+            if (distance.TryGetValue(start, out var known) && known <= walkingSeconds) continue;
+            distance[start] = walkingSeconds;
+            queue.Enqueue(start, walkingSeconds);
+        }
+
         RouteState? goal = null;
+        var bestGoalCost = double.PositiveInfinity;
 
         while (queue.TryDequeue(out var state, out var cost))
         {
             if (cost > distance[state]) continue;
-            if (state.StationId == destination && state.LineId != 0 &&
-                operationalRouteStops.Contains((state.RouteId, destination)))
+            if (cost >= bestGoalCost) break;
+
+            if (destinationCandidates.TryGetValue(state.StationId, out var destinationCandidate) &&
+                (state.LineId == 0 || operationalRouteStops.Contains((state.RouteId, state.StationId))))
             {
-                goal = state;
-                break;
+                var totalCost = cost + destinationCandidate.WalkTime.TotalSeconds;
+                if (totalCost < bestGoalCost)
+                {
+                    goal = state;
+                    bestGoalCost = totalCost;
+                }
             }
             if (!adjacency.TryGetValue(state.StationId, out var edges)) continue;
 
@@ -345,7 +360,7 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
             {
                 var changing = state.LineId != 0 &&
                                (state.LineId != edge.LineId || state.RouteId != edge.RouteId);
-                if (state.LineId == 0 && !operationalRouteStops.Contains((edge.RouteId, origin))) continue;
+                if (state.LineId == 0 && !operationalRouteStops.Contains((edge.RouteId, state.StationId))) continue;
                 if (changing)
                 {
                     if (!operationalRouteStops.Contains((edge.RouteId, state.StationId))) continue;
@@ -369,17 +384,16 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
             }
         }
 
-        if (goal == null) return [];
+        if (goal == null) return null;
         var path = new List<PathEdge>();
         var cursor = goal;
-        while (cursor != start)
+        while (previous.TryGetValue(cursor, out var step))
         {
-            var step = previous[cursor];
             path.Add(step.Edge);
             cursor = step.State;
         }
         path.Reverse();
-        return path;
+        return new PathPlan(cursor.StationId, goal.StationId, path);
 
         void AddEdge(PathEdge edge)
         {
@@ -405,14 +419,48 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
         return legs;
     }
 
-    private static MetroNearestStation FindNearest(MetroGeoPoint point, IEnumerable<MetroStation> stations)
+    private Dictionary<string, StationCandidate> FindCandidateStations(
+        MetroGeoPoint point,
+        IReadOnlyDictionary<string, MetroStation> stationById,
+        IEnumerable<MetroStationLine> stationLines)
     {
-        return stations
-            .Select(x => new MetroNearestStation(
-                x.StationId, x.NameFa, x.NameEn,
-                (double)x.Latitude, (double)x.Longitude,
-                HaversineMeters(point.Latitude, point.Longitude, (double)x.Latitude, (double)x.Longitude)))
-            .MinBy(x => x.DistanceMeters)!;
+        var candidates = new Dictionary<string, StationCandidate>(StringComparer.Ordinal);
+        foreach (var line in stationLines.GroupBy(x => x.LineId))
+        {
+            var nearestOnLine = line
+                .Select(x => stationById.GetValueOrDefault(x.StationId))
+                .Where(x => x is { InfrastructureStatus: "operational" })
+                .DistinctBy(x => x!.StationId)
+                .Select(x => new
+                {
+                    Station = x!,
+                    Distance = HaversineMeters(
+                        point.Latitude,
+                        point.Longitude,
+                        (double)x!.Latitude,
+                        (double)x.Longitude)
+                })
+                .OrderBy(x => x.Distance)
+                .Take(_candidateStationsPerLine);
+
+            foreach (var item in nearestOnLine)
+            {
+                var walkMeters = item.Distance * _walkingDistanceFactor;
+                candidates.TryAdd(
+                    item.Station.StationId,
+                    new StationCandidate(
+                        new MetroNearestStation(
+                            item.Station.StationId,
+                            item.Station.NameFa,
+                            item.Station.NameEn,
+                            (double)item.Station.Latitude,
+                            (double)item.Station.Longitude,
+                            item.Distance),
+                        walkMeters,
+                        WalkingTime(walkMeters)));
+            }
+        }
+        return candidates;
     }
 
     private TimeSpan WalkingTime(double meters) =>
@@ -460,6 +508,8 @@ public sealed class MetroService(MetroDbContext dbContext, IConfiguration config
 
     private sealed record RouteState(string StationId, byte LineId, string RouteId);
     private sealed record PathEdge(string FromStationId, string ToStationId, byte LineId, string RouteId);
+    private sealed record StationCandidate(MetroNearestStation Station, double WalkMeters, TimeSpan WalkTime);
+    private sealed record PathPlan(string OriginStationId, string DestinationStationId, IReadOnlyList<PathEdge> Edges);
     private sealed class PlannedLeg(
         byte lineId,
         string routeId,
