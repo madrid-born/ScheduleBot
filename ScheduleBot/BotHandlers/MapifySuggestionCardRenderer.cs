@@ -5,7 +5,7 @@ using ScheduleBot.Models;
 
 namespace ScheduleBot.BotHandlers;
 
-/// <summary>Creates a visual, map-first suggestion card for Telegram.</summary>
+/// <summary>Creates a visual suggestion card for Telegram.</summary>
 internal static class MapifySuggestionCardRenderer
 {
     private const string FontName = "MapifyVazirmatn";
@@ -34,25 +34,18 @@ internal static class MapifySuggestionCardRenderer
                 page.DefaultTextStyle(style => style.FontFamily(FontName).FontColor(Ink).FontSize(9));
                 page.Content().Column(column =>
                 {
-                    column.Item().Background(Ink).PaddingHorizontal(16).PaddingVertical(13).Column(header =>
+                    column.Item().Background(Ink).PaddingHorizontal(14).PaddingVertical(9).Row(header =>
                     {
-                        header.Item().Row(row =>
-                        {
-                            row.RelativeItem().Text($"MAPIFY PICK  ·  #{rank}").FontSize(7).SemiBold().FontColor("#C4B5FD").LetterSpacing(0.1f);
-                            row.AutoItem().Text(FormatDistance(distanceKilometers)).FontSize(8).Bold().FontColor("#FFFFFF");
-                        });
-                        header.Item().PaddingTop(3).Text(location.Name).FontSize(17).Bold().FontColor("#FFFFFF");
-                        header.Item().Text(string.Join(" · ", suggestion.CategoryNames)).FontSize(7.5f).FontColor("#D9E2EC");
+                        header.RelativeItem().Text($"MAPIFY PICK  ·  #{rank}").FontSize(7).SemiBold().FontColor("#C4B5FD").LetterSpacing(0.1f);
+                        header.AutoItem().Text(FormatDistance(distanceKilometers)).FontSize(8).Bold().FontColor("#FFFFFF");
                     });
 
                     column.Item().Padding(12).Column(body =>
                     {
                         body.Spacing(8);
+                        body.Item().Element(container => ComposeOverview(container, suggestion, linkPreview));
                         body.Item().Element(container => ComposeMap(container, mapImage));
-                        body.Item().Text("THE PINNED PLACE").FontSize(6.5f).SemiBold().FontColor(Accent).LetterSpacing(0.12f);
-                        body.Item().Element(container => ComposeDetails(container, suggestion));
-                        if (linkPreview != null) body.Item().Element(container => ComposePreview(container, linkPreview));
-                        body.Item().AlignCenter().Text("Map data © OpenStreetMap contributors · pin marks the saved place")
+                        body.Item().AlignCenter().Text("Map data © OpenStreetMap contributors")
                             .FontSize(5.7f).FontColor(Muted);
                     });
                 });
@@ -82,39 +75,59 @@ internal static class MapifySuggestionCardRenderer
         });
     }
 
-    private static void ComposeDetails(IContainer container, MapifyLocationSuggestion suggestion)
+    private static void ComposeOverview(IContainer container, MapifyLocationSuggestion suggestion, MapifyLinkPreview? preview)
     {
         var location = suggestion.Location;
         var visited = location.IsVisited
             ? $"Visited · {location.Score:0.#}/10"
             : "Not visited yet";
-        var accent = location.IsVisited ? "#0F766E" : "#B45309";
-        container.Background(Card).CornerRadius(9).BorderLeft(4).BorderColor(accent).Padding(10).Column(column =>
+        var statusColor = location.IsVisited ? "#0F766E" : "#B45309";
+        var description = RemoveUrls(location.Description);
+
+        container.Row(row =>
         {
-            column.Spacing(3);
-            column.Item().Text(visited).FontSize(9).SemiBold().FontColor(accent);
-            if (!string.IsNullOrWhiteSpace(location.Description))
-                column.Item().Text(location.Description).FontSize(8.3f).FontColor(Muted);
+            row.RelativeItem().MinHeight(150).Background(Card).CornerRadius(9).Border(1).BorderColor("#E4EAF1").Padding(10).Column(details =>
+            {
+                details.Spacing(5);
+                details.Item().Text(location.Name).FontSize(14).Bold().FontColor(Ink);
+                details.Item().Text(string.Join(" · ", suggestion.CategoryNames)).FontSize(7.2f).FontColor(Accent);
+                details.Item().PaddingTop(5).Background(location.IsVisited ? "#ECFDF5" : "#FFF7ED").CornerRadius(5).Padding(6)
+                    .Text(visited).FontSize(8.2f).SemiBold().FontColor(statusColor);
+                if (!string.IsNullOrWhiteSpace(description))
+                    details.Item().PaddingTop(3).Text(TrimCardText(description)).FontSize(7.5f).FontColor(Muted);
+            });
+
+            row.ConstantItem(8);
+            row.ConstantItem(112).Height(150).Background("#EDE9FE").CornerRadius(9).Padding(3).Element(previewContainer =>
+            {
+                if (preview?.Image != null)
+                {
+                    previewContainer.CornerRadius(7).Image(preview.Image).FitArea();
+                    return;
+                }
+
+                previewContainer.AlignCenter().AlignMiddle().Column(empty =>
+                {
+                    empty.Item().AlignCenter().Text("▣").FontSize(24).FontColor("#A78BFA");
+                    empty.Item().AlignCenter().Text("No preview").FontSize(7).FontColor(Muted);
+                });
+            });
         });
     }
 
-    private static void ComposePreview(IContainer container, MapifyLinkPreview preview)
+    private static string? RemoveUrls(string? text)
     {
-        container.Background("#F5F3FF").CornerRadius(9).Padding(8).Row(row =>
-        {
-            if (preview.Image != null)
-            {
-                row.ConstantItem(66).Height(66).CornerRadius(6).Image(preview.Image).FitArea();
-                row.ConstantItem(8);
-            }
-            row.RelativeItem().Column(column =>
-            {
-                column.Spacing(3);
-                column.Item().Text("SHARED LINK").FontSize(6.5f).SemiBold().FontColor(Accent).LetterSpacing(0.1f);
-                if (!string.IsNullOrWhiteSpace(preview.Title)) column.Item().Text(preview.Title).FontSize(8.5f).SemiBold();
-                if (!string.IsNullOrWhiteSpace(preview.Summary)) column.Item().Text(preview.Summary).FontSize(7.3f).FontColor(Muted);
-            });
-        });
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var withoutUrls = System.Text.RegularExpressions.Regex.Replace(text, "https?://[^\\s<>\\\"']+", string.Empty,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return string.IsNullOrWhiteSpace(withoutUrls) ? null : withoutUrls.Trim();
+    }
+
+    private static string TrimCardText(string text)
+    {
+        const int maximumLength = 220;
+        var normalized = string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return normalized.Length <= maximumLength ? normalized : $"{normalized[..(maximumLength - 1)]}…";
     }
 
     private static string FormatDistance(double kilometers) => kilometers < 1

@@ -811,10 +811,11 @@ public sealed class MapifyHandler(
         var linkPreviewTask = LoadLinkPreviewAsync(location.Description);
         await Task.WhenAll(mapImageTask, linkPreviewTask);
 
-        var image = MapifySuggestionCardRenderer.Render(rank, suggestion, distance, await mapImageTask, await linkPreviewTask);
+        var linkPreview = await linkPreviewTask;
+        var image = MapifySuggestionCardRenderer.Render(rank, suggestion, distance, await mapImageTask, linkPreview);
         await using var stream = new MemoryStream(image);
         var walkingUrl = WalkingUrl(originLatitude, originLongitude, location.Latitude, location.Longitude);
-        var caption = $"📍 <b>{WebUtility.HtmlEncode(location.Name)}</b> · {FormatDistance(distance)} away";
+        var caption = BuildSuggestionCaption(location.Name, distance, linkPreview?.Summary);
         var buttons = new List<InlineKeyboardButton[]>
         {
             new[] { InlineKeyboardButton.WithUrl("🚶 Walk here", walkingUrl) }
@@ -824,6 +825,18 @@ public sealed class MapifyHandler(
             buttons.Add(new[] { InlineKeyboardButton.WithUrl("🎬 Open shared post", sharedUrl) });
         var keyboard = new InlineKeyboardMarkup(buttons);
         await bot.SendPhoto(chatId, new InputFileStream(stream, $"mapify-{rank}.png"), caption: caption, parseMode: ParseMode.Html, replyMarkup: keyboard);
+    }
+
+    private static string BuildSuggestionCaption(string locationName, double distance, string? sharedPostCaption)
+    {
+        var caption = $"📍 <b>{WebUtility.HtmlEncode(locationName)}</b> · {FormatDistance(distance)} away";
+        if (string.IsNullOrWhiteSpace(sharedPostCaption)) return caption;
+
+        // Telegram photo captions are limited to 1024 characters. Keep room for the
+        // heading and HTML entity expansion while preserving as much post text as possible.
+        var postCaption = sharedPostCaption.Trim();
+        if (postCaption.Length > 700) postCaption = $"{postCaption[..699]}…";
+        return $"{caption}\n\n🎬 <b>Shared post</b>\n{WebUtility.HtmlEncode(postCaption)}";
     }
 
     private static string? ExtractSharedUrl(string? description)
@@ -838,8 +851,8 @@ public sealed class MapifyHandler(
 
     private async Task<MapifyMapImage?> DownloadMapImageAsync(double latitude, double longitude)
     {
-        // Zoom 15 at Tehran's latitude produces roughly 200 metres per centimetre in this card.
-        const int zoom = 15;
+        // One zoom level closer doubles the linear map scale and makes nearby streets useful.
+        const int zoom = 16;
         const int tileSize = 256;
         const int imageWidth = 480;
         const int imageHeight = 330;
@@ -875,7 +888,14 @@ public sealed class MapifyHandler(
         if (addedTiles == 0) return null;
         var markerX = imageWidth / 2d;
         var markerY = imageHeight / 2d;
-        svg.Append($"<circle cx=\"{markerX}\" cy=\"{markerY}\" r=\"15\" fill=\"#FFFFFF\" opacity=\"0.95\"/><circle cx=\"{markerX}\" cy=\"{markerY}\" r=\"10\" fill=\"#E11D48\"/><circle cx=\"{markerX}\" cy=\"{markerY}\" r=\"4\" fill=\"#FFFFFF\"/></svg>");
+        var markerXText = markerX.ToString("0.##", CultureInfo.InvariantCulture);
+        var markerYText = markerY.ToString("0.##", CultureInfo.InvariantCulture);
+        svg.Append($"<g transform=\"translate({markerXText} {markerYText})\">" +
+                   "<ellipse cx=\"0\" cy=\"4\" rx=\"12\" ry=\"5\" fill=\"#102A43\" opacity=\"0.32\"/>" +
+                   "<path d=\"M0 2 C-5 -6 -21 -20 -21 -36 A21 21 0 1 1 21 -36 C21 -20 5 -6 0 2Z\" fill=\"#E11D48\" stroke=\"#FFFFFF\" stroke-width=\"6\" stroke-linejoin=\"round\"/>" +
+                   "<circle cx=\"0\" cy=\"-36\" r=\"8\" fill=\"#FFFFFF\"/>" +
+                   "<circle cx=\"0\" cy=\"-36\" r=\"3\" fill=\"#102A43\"/>" +
+                   "</g></svg>");
         return new MapifyMapImage(svg.ToString());
     }
 
@@ -901,36 +921,69 @@ public sealed class MapifyHandler(
         var urlMatch = UrlRegex.Match(description ?? string.Empty);
         if (!urlMatch.Success || !Uri.TryCreate(urlMatch.Value, UriKind.Absolute, out var url) || !await IsSafeExternalUrlAsync(url)) return null;
 
+        string? title = null;
+        string? summary = null;
+        byte[]? image = null;
         try
         {
-            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var client = CreatePreviewClient();
-            using var response = await client.GetAsync(GetPreviewUrl(url), HttpCompletionOption.ResponseHeadersRead, cancellation.Token);
-            if (!response.IsSuccessStatusCode || !response.Content.Headers.ContentType?.MediaType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) == true)
-                return null;
-            if (response.Content.Headers.ContentLength is > 350_000) return null;
+            var isInstagram = url.Host.EndsWith("instagram.com", StringComparison.OrdinalIgnoreCase);
+            var previewUris = isInstagram
+                ? new[] { url, GetPreviewUrl(url) }.Distinct().ToArray()
+                : new[] { url };
+            var htmlResults = await Task.WhenAll(previewUris.Select(LoadPreviewHtmlAsync));
+            var documents = previewUris.Zip(htmlResults)
+                .Where(item => !string.IsNullOrWhiteSpace(item.Second))
+                .Select(item => (BaseUri: item.First, Html: item.Second!))
+                .ToList();
 
-            var html = await ReadHtmlAsync(response, cancellation.Token);
-            if (string.IsNullOrWhiteSpace(html)) return null;
+            title = documents.Select(document => FindMetaContent(document.Html, "og:title", "twitter:title") ?? FindTitle(document.Html))
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
-            var title = FindMetaContent(html, "og:title", "twitter:title") ?? FindTitle(html);
-            var summary = FindMetaContent(html, "og:description", "twitter:description", "description");
-            if (url.Host.EndsWith("instagram.com", StringComparison.OrdinalIgnoreCase))
+            if (isInstagram)
             {
                 title ??= "Instagram post";
-                summary ??= FindInstagramCaption(html);
+                summary = documents.Select(document => FindInstagramCaption(document.Html))
+                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
             }
-            var imageUrl = FindMetaContent(html, "og:image", "twitter:image");
-            byte[]? image = null;
-            if (Uri.TryCreate(url, imageUrl, out var thumbnailUrl) && await IsSafeExternalUrlAsync(thumbnailUrl))
+            else
+            {
+                summary = documents.Select(document => FindMetaContent(document.Html, "og:description", "twitter:description", "description"))
+                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+            }
+
+            foreach (var document in documents)
+            {
+                var imageUrl = FindMetaContent(document.Html, "og:image", "twitter:image");
+                if (!Uri.TryCreate(document.BaseUri, imageUrl, out var thumbnailUrl) || !await IsSafeExternalUrlAsync(thumbnailUrl)) continue;
                 image = await DownloadBytesAsync(thumbnailUrl, 2_500_000, imageOnly: true);
+                if (image != null) break;
+            }
+        }
+        catch
+        {
+            // Platform pages change frequently. Dedicated thumbnail fallbacks below
+            // can still produce a useful card when their HTML cannot be parsed.
+        }
 
-            image ??= await LoadKnownVideoThumbnailAsync(url);
-            image ??= await LoadInstagramThumbnailAsync(url);
+        image ??= await LoadKnownVideoThumbnailAsync(url);
+        image ??= await LoadInstagramThumbnailAsync(url);
 
-            return string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(summary) && image == null
-                ? null
-                : new MapifyLinkPreview(TrimPreviewText(title), TrimPreviewText(summary), image);
+        return string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(summary) && image == null
+            ? null
+            : new MapifyLinkPreview(TrimPreviewText(title, 180), TrimPreviewText(summary, 700), image);
+    }
+
+    private async Task<string?> LoadPreviewHtmlAsync(Uri url)
+    {
+        try
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            var client = CreatePreviewClient();
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellation.Token);
+            if (!response.IsSuccessStatusCode ||
+                response.Content.Headers.ContentType?.MediaType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) != true ||
+                response.Content.Headers.ContentLength is > 350_000) return null;
+            return await ReadHtmlAsync(response, cancellation.Token);
         }
         catch
         {
@@ -1046,13 +1099,63 @@ public sealed class MapifyHandler(
 
     private static string? FindInstagramCaption(string html)
     {
-        var match = Regex.Match(html, "\\\"caption\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"", RegexOptions.IgnoreCase);
-        if (!match.Success) return null;
-        try { return JsonSerializer.Deserialize<string>($"\\\"{match.Groups[1].Value}\\\""); }
+        string[] jsonPatterns =
+        [
+            "\\\"caption_text\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"",
+            "\\\"caption\\\"\\s*:\\s*\\{[^{}]{0,4000}?\\\"text\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"",
+            "\\\"edge_media_to_caption\\\"[^\\[]*\\[[^\\]]{0,8000}?\\\"text\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"",
+            "\\\"articleBody\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"",
+            "\\\"caption\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\""
+        ];
+
+        foreach (var pattern in jsonPatterns)
+        {
+            var match = Regex.Match(html, pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (!match.Success) continue;
+            var decoded = DecodeJsonString(match.Groups[1].Value);
+            if (IsUsefulInstagramCaption(decoded)) return decoded;
+        }
+
+        var captionElement = Regex.Match(html,
+            "<(?:div|span)[^>]*class=['\\\"][^'\\\"]*(?:Caption|captionText)[^'\\\"]*['\\\"][^>]*>(.*?)</(?:div|span)>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        if (captionElement.Success)
+        {
+            var decoded = WebUtility.HtmlDecode(Regex.Replace(captionElement.Groups[1].Value, "<[^>]+>", " "));
+            decoded = Regex.Replace(decoded, "\\s+", " ").Trim();
+            if (IsUsefulInstagramCaption(decoded)) return decoded;
+        }
+
+        var metaDescription = FindMetaContent(html, "og:description", "twitter:description", "description");
+        if (string.IsNullOrWhiteSpace(metaDescription)) return null;
+        var quotedCaption = Regex.Match(metaDescription, "(?:on Instagram\\s*:\\s*|:\\s*)[\\\"“](.+?)[\\\"”]\\.?$", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var candidate = quotedCaption.Success ? quotedCaption.Groups[1].Value.Trim() : metaDescription.Trim();
+        return IsUsefulInstagramCaption(candidate) ? candidate : null;
+    }
+
+    private static string? DecodeJsonString(string escapedValue)
+    {
+        try { return JsonSerializer.Deserialize<string>($"\\\"{escapedValue}\\\"")?.Trim(); }
         catch { return null; }
     }
 
-    private static string? TrimPreviewText(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim()[..Math.Min(text.Trim().Length, 180)];
+    private static bool IsUsefulInstagramCaption(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 2) return false;
+        var normalized = value.Trim();
+        return !normalized.Equals("Instagram", StringComparison.OrdinalIgnoreCase) &&
+               !normalized.StartsWith("Log in", StringComparison.OrdinalIgnoreCase) &&
+               !normalized.StartsWith("Sign up", StringComparison.OrdinalIgnoreCase) &&
+               !normalized.StartsWith("Create an account", StringComparison.OrdinalIgnoreCase) &&
+               !normalized.StartsWith("See Instagram photos and videos", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? TrimPreviewText(string? text, int maximumLength)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var trimmed = text.Trim();
+        return trimmed.Length <= maximumLength ? trimmed : $"{trimmed[..(maximumLength - 1)]}…";
+    }
 
     private static async Task<bool> IsSafeExternalUrlAsync(Uri url)
     {
