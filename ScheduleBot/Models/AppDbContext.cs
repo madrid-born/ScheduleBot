@@ -19,6 +19,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Notification> Notification { get; set; }
     public DbSet<NotificationAccess> NotificationAccess { get; set; }
     public DbSet<Future> NotificationFutureMessage { get; set; }
+    public DbSet<MapifyMap> MapifyMaps { get; set; }
+    public DbSet<MapifyMapAccess> MapifyMapAccesses { get; set; }
+    public DbSet<MapifyCategory> MapifyCategories { get; set; }
+    public DbSet<MapifyLocation> MapifyLocations { get; set; }
+    public DbSet<MapifyLocationCategory> MapifyLocationCategories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,5 +37,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<NotificationAccess>()
             .HasIndex(x => new { x.NotificationId, x.UserId })
             .IsUnique();
+
+        modelBuilder.Entity<MapifyMapAccess>()
+            .HasIndex(x => new { x.MapId, x.UserId })
+            .IsUnique();
+
+        modelBuilder.Entity<MapifyLocationCategory>()
+            .HasIndex(x => new { x.LocationId, x.CategoryId })
+            .IsUnique();
+
+        modelBuilder.Entity<MapifyLocation>()
+            .Property(x => x.Score)
+            .HasPrecision(3, 1);
     }
 }

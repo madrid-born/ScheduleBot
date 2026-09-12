@@ -80,7 +80,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         {
             new() { Messages.PeriodTracker, Messages.Cart },
             new() { Messages.Transaction,   Messages.Notification},
-            new() { Messages.Metro },
+            new() { Messages.Metro, Messages.Mapify },
         };
         if (isAdmin) collection.Add([Messages.Spotify]);
         

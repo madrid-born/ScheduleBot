@@ -95,6 +95,8 @@ builder.Services.AddScoped<NotificationHandler>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<MetroHandler>();
 builder.Services.AddScoped<MetroService>();
+builder.Services.AddScoped<MapifyHandler>();
+builder.Services.AddScoped<MapifyService>();
 builder.Services.AddHttpClient<SpotifyService>(client =>
 {
     var baseUrl = builder.Configuration["SpotifyApi:BaseUrl"];

@@ -18,9 +18,52 @@ public static class Messages
     public const string Transaction = "🏦 Wallet";
     public const string Notification = "⏰ Notification Cneter";
     public const string Metro = "🚇 Tehran Metro";
+    public const string Mapify = "📍 Mapify";
     
     public const string Spotify = "🎵 Spotify";
     
+    #endregion
+
+    #region Mapify
+
+    public const string MapifyWelcome = "Welcome to Mapify. Create shared maps for your favorite places, then add categories and locations.";
+    public const string MapifyMyMaps = "My Maps";
+    public const string MapifyCreateMap = "Create Map";
+    public const string MapifyAskMapName = "Enter a name for your new map.";
+    public const string MapifyCreated = "Map \"{0}\" has been created. You can share it using its map menu.\n\nMap code: `{1}`";
+    public const string MapifyNoMaps = "You do not have access to any maps yet. Create one or join a shared map.";
+    public const string MapifySelectMap = "Select a map.";
+    public const string MapifySelected = "Map \"{0}\" is selected. What would you like to do?";
+    public const string MapifyNotFound = "That map does not exist or you do not have access to it.";
+    public const string MapifyShare = "Share Map";
+    public const string MapifyInvite = "Share this button to invite someone to \"{0}\". Members can add categories and locations.";
+    public const string MapifyJoinButton = "Join this map";
+    public const string MapifyJoined = "You joined the shared map.";
+    public const string MapifyJoinFailed = "This invitation is invalid, expired, or you already have access to the map.";
+    public const string MapifyManageCategories = "Manage Categories";
+    public const string MapifyCategoryManagement = "Type a category to add it. Tap a category to mark it for removal, then press Done to save.";
+    public const string MapifyCategoryChangesSaved = "Map categories have been saved.";
+    public const string MapifyCategoryAddFailed = "I could not add that category. Make sure it is not blank and you still have access to the map.";
+    public const string MapifyNoCategories = "This map has no categories yet. Add at least one from Manage Categories first.";
+    public const string MapifyAddLocation = "Add Location";
+    public const string MapifySelectLocationCategories = "Select every category for this location.\n\nSelected: {0}/{1}";
+    public const string MapifyAskLocationName = "What is this place called?";
+    public const string MapifyAskLocationPin = "Send the exact pin for this place.";
+    public const string MapifyAskLocationDescription = "Send an Instagram link or any description for this place. Send ‘skip’ if you do not want to add one.";
+    public const string MapifyAskVisited = "Have you visited this place?";
+    public const string MapifyAskScore = "What score would you give it out of 10? Decimals are fine.";
+    public const string MapifyInvalidScore = "Enter a score from 0 to 10.";
+    public const string MapifyLocationSaved = "Location saved to your map.";
+    public const string MapifyLocationSaveFailed = "I could not save that location. Its categories may have changed; please try again.";
+    public const string MapifySuggest = "Suggest a Location";
+    public const string MapifySelectSuggestionCategories = "Select the kinds of places you want. A location can match any selected category.\n\nSelected: {0}/{1}";
+    public const string MapifyAskSuggestionPin = "Send your current pin and I will suggest nearby matching places.";
+    public const string MapifyNoSuggestions = "There are no saved locations matching those categories.";
+    public const string MapifySuggestions = "<b>Nearby suggestions</b>\n\n{0}";
+    public const string MapifyChooseAtLeastOneCategory = "Choose at least one category first.";
+    public const string MapifySendPin = "📍 Send pin";
+    public const string MapifyCancelled = "Mapify action cancelled.";
+
     #endregion
 
     #region Metro
@@ -482,10 +525,28 @@ public static class CallBacks
     #region Metro
 
     public const string Metro = "Metro";
-    public const string MetroNavigation = "Navigation";
-    public const string MetroStationDetails = "StationDetails";
-    public const string MetroLineSelected = "LineSelected";
-    public const string MetroStationSelected = "StationSelected";
+    public const string MetroNavigation = "MN";
+    public const string MetroStationDetails = "MSD";
+    public const string MetroLineSelected = "MLS";
+    public const string MetroStationSelected = "MSS";
+
+    #endregion
+
+    #region Mapify
+
+    public const string Mapify = "Mapify";
+    public const string MapifyMyMaps = "MM";
+    public const string MapifyCreateMap = "CM";
+    public const string MapifySelectMap = "SM";
+    public const string MapifyInvite = "IM";
+    public const string MapifyJoin = "JM";
+    public const string MapifyManageCategories = "MMC";
+    public const string MapifyCategoryAction = "MCA";
+    public const string MapifyAddLocation = "AML";
+    public const string MapifyAddLocationCategories = "ALC";
+    public const string MapifyVisited = "LV";
+    public const string MapifySuggest = "SML";
+    public const string MapifySuggestCategories = "SLC";
 
     #endregion
 }
@@ -516,6 +577,10 @@ public static class Actions
     public const string SetUpNotification = "SetUpNotification";
 
     public const string MetroNavigation = "MetroNavigation";
+    public const string MapifyCreateMap = "MapifyCreateMap";
+    public const string MapifyManagingCategories = "MapifyManagingCategories";
+    public const string MapifyAddingLocation = "MapifyAddingLocation";
+    public const string MapifySuggestingLocation = "MapifySuggestingLocation";
 }
 
 public static class SessionCallBacks
@@ -534,6 +599,13 @@ public static class SessionCallBacks
 
     public const string AskMetroOriginLocation = "AskMetroOriginLocation";
     public const string AskMetroDestinationLocation = "AskMetroDestinationLocation";
+    public const string MapifyAskMapName = "MapifyAskMapName";
+    public const string MapifyAskLocationName = "MapifyAskLocationName";
+    public const string MapifyAskLocationPin = "MapifyAskLocationPin";
+    public const string MapifyAskLocationDescription = "MapifyAskLocationDescription";
+    public const string MapifyAskVisited = "MapifyAskVisited";
+    public const string MapifyAskScore = "MapifyAskScore";
+    public const string MapifyAskSuggestionPin = "MapifyAskSuggestionPin";
 }
 
 public static class Context
@@ -573,6 +645,16 @@ public static class Context
 
     public const string MetroOriginLatitude = "MetroOriginLatitude";
     public const string MetroOriginLongitude = "MetroOriginLongitude";
+    public const string MapifyMapId = "MapifyMapId";
+    public const string MapifySelectedCategoryIds = "MapifySelectedCategoryIds";
+    public const string MapifyAllCategoriesSelected = "MapifyAllCategoriesSelected";
+    public const string MapifySelectorMessageId = "MapifySelectorMessageId";
+    public const string MapifyLocationName = "MapifyLocationName";
+    public const string MapifyLatitude = "MapifyLatitude";
+    public const string MapifyLongitude = "MapifyLongitude";
+    public const string MapifyDescription = "MapifyDescription";
+    public const string MapifyVisited = "MapifyVisited";
+    public const string MapifyScore = "MapifyScore";
 }
 
 public static class DatePickerMethods

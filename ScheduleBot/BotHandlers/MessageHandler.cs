@@ -16,6 +16,7 @@ public class MessageHandler(
     SpotifyHandler spotifyHandler,
     NotificationHandler notificationHandler,
     MetroHandler metroHandler,
+    MapifyHandler mapifyHandler,
     MainService services,
     IConfiguration configuration)
 {
@@ -149,6 +150,9 @@ public class MessageHandler(
             case CallBacks.Metro:
                 await metroHandler.HandleCallBack(data);
                 break;
+            case CallBacks.Mapify:
+                await mapifyHandler.HandleCallBack(data);
+                break;
         }
     }
 
@@ -252,6 +256,16 @@ public class MessageHandler(
                         }
                         break;
                     }
+                    case CallBacks.Mapify:
+                    {
+                        if (splitter.Count > 2 && splitter[1] == CallBacks.MapifyJoin)
+                        {
+                            data.MessageText = splitter[2];
+                            await mapifyHandler.JoinMapById(data);
+                            flag = true;
+                        }
+                        break;
+                    }
                 }
                 return flag;
             }
@@ -296,6 +310,10 @@ public class MessageHandler(
                 break;
             case Messages.Metro:
                 await metroHandler.HandleSection(data);
+                flag = true;
+                break;
+            case Messages.Mapify:
+                await mapifyHandler.HandleSection(data);
                 flag = true;
                 break;
             case Messages.About:
@@ -403,6 +421,13 @@ public class MessageHandler(
                 break;
             case Actions.MetroNavigation:
                 await metroHandler.HandleSession(data);
+                flag = true;
+                break;
+            case Actions.MapifyCreateMap:
+            case Actions.MapifyManagingCategories:
+            case Actions.MapifyAddingLocation:
+            case Actions.MapifySuggestingLocation:
+                await mapifyHandler.HandleSession(data);
                 flag = true;
                 break;
 
