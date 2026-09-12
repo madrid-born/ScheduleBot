@@ -46,6 +46,23 @@ public static class Messages
     public const string MapifyCategoryAddFailed = "I could not add that category. Make sure it is not blank and you still have access to the map.";
     public const string MapifyNoCategories = "This map has no categories yet. Add at least one from Manage Categories first.";
     public const string MapifyAddLocation = "Add Location";
+    public const string MapifyEditLocation = "Edit Location";
+    public const string MapifyAskLocationToEditPin = "Send a pin near the location you want to edit. I will show the closest saved places first.";
+    public const string MapifySelectLocationToEdit = "Select a location to edit. Places are ordered nearest first.";
+    public const string MapifyNoLocations = "This map has no locations yet.";
+    public const string MapifyLocationEditor = "<b>{0}</b>\n\nCategories: {1}\nVisited: {2}\nScore: {3}\nDescription: {4}";
+    public const string MapifyEditName = "Edit name";
+    public const string MapifyEditCategories = "Edit categories";
+    public const string MapifyEditPin = "Edit pin";
+    public const string MapifyEditDescription = "Edit description";
+    public const string MapifyEditVisited = "Edit visited status";
+    public const string MapifyEditScore = "Edit score";
+    public const string MapifyEditClose = "Close";
+    public const string MapifyAskEditedLocationName = "Send the new name for this place.";
+    public const string MapifyAskEditedLocationPin = "Send the new exact pin for this place.";
+    public const string MapifyAskEditedLocationDescription = "Send a new Instagram link or description. Send ‘skip’ to remove the current description.";
+    public const string MapifyLocationUpdated = "Location updated.";
+    public const string MapifyLocationUpdateFailed = "I could not update that location. It may have been removed or its categories changed; please try again.";
     public const string MapifySelectLocationCategories = "Select every category for this location.\n\nSelected: {0}/{1}";
     public const string MapifyAskLocationName = "What is this place called?";
     public const string MapifyAskLocationPin = "Send the exact pin for this place.";
@@ -545,6 +562,11 @@ public static class CallBacks
     public const string MapifyAddLocation = "AML";
     public const string MapifyAddLocationCategories = "ALC";
     public const string MapifyVisited = "LV";
+    public const string MapifyEditLocation = "EML";
+    public const string MapifySelectEditLocation = "ESL";
+    public const string MapifyEditField = "ELF";
+    public const string MapifyEditCategories = "ELC";
+    public const string MapifyEditVisited = "ELV";
     public const string MapifySuggest = "SML";
     public const string MapifySuggestCategories = "SLC";
 
@@ -580,6 +602,7 @@ public static class Actions
     public const string MapifyCreateMap = "MapifyCreateMap";
     public const string MapifyManagingCategories = "MapifyManagingCategories";
     public const string MapifyAddingLocation = "MapifyAddingLocation";
+    public const string MapifyEditingLocation = "MapifyEditingLocation";
     public const string MapifySuggestingLocation = "MapifySuggestingLocation";
 }
 
@@ -605,6 +628,11 @@ public static class SessionCallBacks
     public const string MapifyAskLocationDescription = "MapifyAskLocationDescription";
     public const string MapifyAskVisited = "MapifyAskVisited";
     public const string MapifyAskScore = "MapifyAskScore";
+    public const string MapifyAskEditedLocationName = "MapifyAskEditedLocationName";
+    public const string MapifyAskEditedLocationPin = "MapifyAskEditedLocationPin";
+    public const string MapifyAskEditedLocationDescription = "MapifyAskEditedLocationDescription";
+    public const string MapifyAskEditedLocationScore = "MapifyAskEditedLocationScore";
+    public const string MapifyAskLocationToEditPin = "MapifyAskLocationToEditPin";
     public const string MapifyAskSuggestionPin = "MapifyAskSuggestionPin";
 }
 
@@ -646,12 +674,15 @@ public static class Context
     public const string MetroOriginLatitude = "MetroOriginLatitude";
     public const string MetroOriginLongitude = "MetroOriginLongitude";
     public const string MapifyMapId = "MapifyMapId";
+    public const string MapifyLocationId = "MapifyLocationId";
     public const string MapifySelectedCategoryIds = "MapifySelectedCategoryIds";
     public const string MapifyAllCategoriesSelected = "MapifyAllCategoriesSelected";
     public const string MapifySelectorMessageId = "MapifySelectorMessageId";
     public const string MapifyLocationName = "MapifyLocationName";
     public const string MapifyLatitude = "MapifyLatitude";
     public const string MapifyLongitude = "MapifyLongitude";
+    public const string MapifyEditReferenceLatitude = "MapifyEditReferenceLatitude";
+    public const string MapifyEditReferenceLongitude = "MapifyEditReferenceLongitude";
     public const string MapifyDescription = "MapifyDescription";
     public const string MapifyVisited = "MapifyVisited";
     public const string MapifyScore = "MapifyScore";

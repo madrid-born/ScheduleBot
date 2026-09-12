@@ -263,6 +263,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         Func<T, TId> idSelector, Func<T, string> nameSelector, int width = 3, string prefixCallbackData = "")
     {
         List<List<Tuple<string, string>>> collection = [];
+        var callbackPrefix = string.IsNullOrEmpty(prefixCallbackData)
+            ? string.Empty
+            : prefixCallbackData.EndsWith('|') ? prefixCallbackData : $"{prefixCallbackData}|";
         
         for (var index = 0; index < (double)items.Count/width ; index += 1)
         {
@@ -280,7 +283,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
                 var itemId = idSelector(item);
                 var isSelected = selectedItems.Contains(itemId);
                 var displayName = (isSelected ? "☑" : "") + $" {nameSelector(item)}";
-                row.Add(new Tuple<string, string>(displayName, $"{(string.IsNullOrEmpty(prefixCallbackData) ? "" : $"{prefixCallbackData}|")}{CallBacks.MultipleSelectToggle}|{itemId}"));
+                row.Add(new Tuple<string, string>(displayName, $"{callbackPrefix}{CallBacks.MultipleSelectToggle}|{itemId}"));
             }
             collection.Add(row);
         }

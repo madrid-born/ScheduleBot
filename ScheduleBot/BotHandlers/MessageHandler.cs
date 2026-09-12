@@ -426,6 +426,7 @@ public class MessageHandler(
             case Actions.MapifyCreateMap:
             case Actions.MapifyManagingCategories:
             case Actions.MapifyAddingLocation:
+            case Actions.MapifyEditingLocation:
             case Actions.MapifySuggestingLocation:
                 await mapifyHandler.HandleSession(data);
                 flag = true;

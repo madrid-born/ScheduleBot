@@ -131,6 +131,62 @@ public sealed class MapifyService(AppDbContext dbContext, MainService service) :
         return true;
     }
 
+    public async Task<List<MapifyLocation>> GetLocationsAsync(long chatId, Guid mapId)
+    {
+        if (await GetMapForUserAsync(mapId, chatId) == null) return [];
+        return await _dbContext.MapifyLocations.Where(x => x.MapId == mapId).OrderBy(x => x.Name).ToListAsync();
+    }
+
+    public async Task<MapifyLocationDetails?> GetLocationDetailsAsync(long chatId, Guid locationId)
+    {
+        var location = await _dbContext.MapifyLocations.FirstOrDefaultAsync(x => x.Id == locationId);
+        if (location == null || await GetMapForUserAsync(location.MapId, chatId) == null) return null;
+
+        var categories = await _dbContext.MapifyLocationCategories.Where(x => x.LocationId == locationId)
+            .Join(_dbContext.MapifyCategories, link => link.CategoryId, category => category.Id,
+                (link, category) => new { link.CategoryId, category.Name, category.TempAdded, category.TempDeleted })
+            .Where(x => !x.TempAdded && !x.TempDeleted)
+            .OrderBy(x => x.Name)
+            .ToListAsync();
+
+        return new MapifyLocationDetails
+        {
+            Location = location,
+            CategoryIds = categories.Select(x => x.CategoryId).ToList(),
+            CategoryNames = categories.Select(x => x.Name).ToList()
+        };
+    }
+
+    public async Task<bool> UpdateLocationAsync(long chatId, Guid locationId, MapifyLocationDraft draft)
+    {
+        var location = await _dbContext.MapifyLocations.FirstOrDefaultAsync(x => x.Id == locationId && x.MapId == draft.MapId);
+        if (location == null || string.IsNullOrWhiteSpace(draft.Name) || draft.CategoryIds.Count == 0 ||
+            draft.Latitude is < -90 or > 90 || draft.Longitude is < -180 or > 180 ||
+            (draft.Score is < 0 or > 10) || (draft.IsVisited && draft.Score == null) || (!draft.IsVisited && draft.Score != null) ||
+            await GetMapForUserAsync(draft.MapId, chatId) == null) return false;
+
+        var categoryIds = draft.CategoryIds.Distinct().ToList();
+        var validCategoryCount = await _dbContext.MapifyCategories.CountAsync(x =>
+            x.MapId == draft.MapId && categoryIds.Contains(x.Id) && !x.TempAdded && !x.TempDeleted);
+        if (validCategoryCount != categoryIds.Count) return false;
+
+        location.Name = draft.Name.Trim();
+        location.Latitude = draft.Latitude;
+        location.Longitude = draft.Longitude;
+        location.Description = string.IsNullOrWhiteSpace(draft.Description) ? null : draft.Description.Trim();
+        location.IsVisited = draft.IsVisited;
+        location.Score = draft.Score;
+
+        var links = await _dbContext.MapifyLocationCategories.Where(x => x.LocationId == locationId).ToListAsync();
+        _dbContext.MapifyLocationCategories.RemoveRange(links);
+        _dbContext.MapifyLocationCategories.AddRange(categoryIds.Select(categoryId => new MapifyLocationCategory
+        {
+            Id = Guid.NewGuid(), LocationId = locationId, CategoryId = categoryId
+        }));
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<List<MapifyLocationSuggestion>> GetSuggestionLocationsAsync(long chatId, Guid mapId, IReadOnlyCollection<Guid> categoryIds)
     {
         if (categoryIds.Count == 0 || await GetMapForUserAsync(mapId, chatId) == null) return [];

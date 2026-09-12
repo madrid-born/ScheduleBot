@@ -70,3 +70,10 @@ public sealed class MapifyLocationSuggestion
     public required MapifyLocation Location { get; init; }
     public required IReadOnlyList<string> CategoryNames { get; init; }
 }
+
+public sealed class MapifyLocationDetails
+{
+    public required MapifyLocation Location { get; init; }
+    public required IReadOnlyList<Guid> CategoryIds { get; init; }
+    public required IReadOnlyList<string> CategoryNames { get; init; }
+}
