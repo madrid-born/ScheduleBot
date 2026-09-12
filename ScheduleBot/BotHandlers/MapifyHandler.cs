@@ -1,7 +1,13 @@
 using System.Globalization;
+using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using ScheduleBot.Models;
 using ScheduleBot.Services;
+using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -9,8 +15,14 @@ using Telegram.Bot.Types.ReplyMarkups;
 namespace ScheduleBot.BotHandlers;
 
 /// <summary>Telegram interaction flow for collaborative place maps.</summary>
-public sealed class MapifyHandler(UserSessionService sessionService, MainService services, MapifyService mapifyService)
+public sealed class MapifyHandler(
+    ITelegramBotClient bot,
+    IHttpClientFactory httpClientFactory,
+    UserSessionService sessionService,
+    MainService services,
+    MapifyService mapifyService)
 {
+    private readonly ConcurrentDictionary<string, Task<byte[]?>> _mapTiles = new();
     public async Task HandleSection(UpdateData data)
     {
         List<List<Tuple<string, string>>> collection =
@@ -756,9 +768,17 @@ public sealed class MapifyHandler(UserSessionService sessionService, MainService
         if (results.Count == 0) { await services.SendMessage(data.ChatId, Messages.MapifyNoSuggestions); return; }
 
         var ordered = results.Select(x => new { Suggestion = x, Distance = DistanceInKilometers(data.Latitude.Value, data.Longitude.Value, x.Location.Latitude, x.Location.Longitude) })
-            .OrderBy(x => x.Distance).Take(5).ToList();
-        var cards = ordered.Select((x, index) => FormatSuggestion(index + 1, x.Suggestion, x.Distance));
-        await services.SendMessage(data.ChatId, string.Format(Messages.MapifySuggestions, string.Join("\n\n", cards)), parseMode: ParseMode.Html);
+            .Where(x => x.Distance <= 10d)
+            .OrderBy(x => x.Distance)
+            .Take(5)
+            .ToList();
+        if (ordered.Count == 0) { await services.SendMessage(data.ChatId, Messages.MapifyNoNearbySuggestions); return; }
+
+        for (var index = 0; index < ordered.Count; index++)
+        {
+            var item = ordered[index];
+            await SendSuggestionCard(data.ChatId, index + 1, data.Latitude.Value, data.Longitude.Value, item.Suggestion, item.Distance);
+        }
     }
 
     private async Task AskForLocation(long chatId, string message)
@@ -784,12 +804,289 @@ public sealed class MapifyHandler(UserSessionService sessionService, MainService
 
     private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180d;
 
-    private static string FormatSuggestion(int rank, MapifyLocationSuggestion suggestion, double distance)
+    private async Task SendSuggestionCard(long chatId, int rank, double originLatitude, double originLongitude, MapifyLocationSuggestion suggestion, double distance)
     {
         var location = suggestion.Location;
-        var mapUrl = FormattableString.Invariant($"https://www.google.com/maps/search/?api=1&query={location.Latitude},{location.Longitude}");
-        var visited = location.IsVisited ? $"Visited · score {location.Score:0.#}/10" : "Not visited yet";
-        var description = string.IsNullOrWhiteSpace(location.Description) ? string.Empty : $"\n{WebUtility.HtmlEncode(location.Description)}";
-        return $"<b>{rank}. {WebUtility.HtmlEncode(location.Name)}</b> · {distance:0.0} km\n{WebUtility.HtmlEncode(string.Join(", ", suggestion.CategoryNames))}\n{visited}{description}\n<a href=\"{mapUrl}\">Open in Google Maps</a>";
+        var mapImageTask = DownloadMapImageAsync(location.Latitude, location.Longitude);
+        var linkPreviewTask = LoadLinkPreviewAsync(location.Description);
+        await Task.WhenAll(mapImageTask, linkPreviewTask);
+
+        var image = MapifySuggestionCardRenderer.Render(rank, suggestion, distance, await mapImageTask, await linkPreviewTask);
+        await using var stream = new MemoryStream(image);
+        var walkingUrl = WalkingUrl(originLatitude, originLongitude, location.Latitude, location.Longitude);
+        var caption = $"📍 <b>{WebUtility.HtmlEncode(location.Name)}</b> · {FormatDistance(distance)} away";
+        var buttons = new List<InlineKeyboardButton[]>
+        {
+            new[] { InlineKeyboardButton.WithUrl("🚶 Walk here", walkingUrl) }
+        };
+        var sharedUrl = ExtractSharedUrl(location.Description);
+        if (sharedUrl != null)
+            buttons.Add(new[] { InlineKeyboardButton.WithUrl("🎬 Open shared post", sharedUrl) });
+        var keyboard = new InlineKeyboardMarkup(buttons);
+        await bot.SendPhoto(chatId, new InputFileStream(stream, $"mapify-{rank}.png"), caption: caption, parseMode: ParseMode.Html, replyMarkup: keyboard);
     }
+
+    private static string? ExtractSharedUrl(string? description)
+    {
+        var match = UrlRegex.Match(description ?? string.Empty);
+        if (!match.Success) return null;
+        var candidate = match.Value.TrimEnd('.', ',', ';', ':', ')', ']', '}');
+        return Uri.TryCreate(candidate, UriKind.Absolute, out var url) && url.Scheme is "http" or "https"
+            ? url.AbsoluteUri
+            : null;
+    }
+
+    private async Task<MapifyMapImage?> DownloadMapImageAsync(double latitude, double longitude)
+    {
+        // Zoom 15 at Tehran's latitude produces roughly 200 metres per centimetre in this card.
+        const int zoom = 15;
+        const int tileSize = 256;
+        const int imageWidth = 480;
+        const int imageHeight = 330;
+        var worldSize = tileSize * (1 << zoom);
+        var centerX = (longitude + 180d) / 360d * worldSize;
+        var latitudeRadians = DegreesToRadians(Math.Clamp(latitude, -85.05112878d, 85.05112878d));
+        var centerY = (1d - Math.Asinh(Math.Tan(latitudeRadians)) / Math.PI) / 2d * worldSize;
+        var left = centerX - imageWidth / 2d;
+        var top = centerY - imageHeight / 2d;
+        var minTileX = (int)Math.Floor(left / tileSize);
+        var maxTileX = (int)Math.Floor((left + imageWidth - 1) / tileSize);
+        var minTileY = Math.Max(0, (int)Math.Floor(top / tileSize));
+        var maxTileY = Math.Min((1 << zoom) - 1, (int)Math.Floor((top + imageHeight - 1) / tileSize));
+        var tileCount = 1 << zoom;
+        var svg = new StringBuilder($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{imageWidth}\" height=\"{imageHeight}\" viewBox=\"0 0 {imageWidth} {imageHeight}\"><rect width=\"100%\" height=\"100%\" fill=\"#E6EEF6\"/>");
+        var addedTiles = 0;
+
+        for (var tileY = minTileY; tileY <= maxTileY; tileY++)
+        for (var tileX = minTileX; tileX <= maxTileX; tileX++)
+        {
+            var wrappedTileX = ((tileX % tileCount) + tileCount) % tileCount;
+            var tileUrl = $"https://tile.openstreetmap.org/{zoom}/{wrappedTileX}/{tileY}.png";
+            var tile = await _mapTiles.GetOrAdd(tileUrl, DownloadKnownOsmTileAsync);
+            if (tile == null) continue;
+            var x = tileX * tileSize - left;
+            var y = tileY * tileSize - top;
+            var xText = x.ToString("0.##", CultureInfo.InvariantCulture);
+            var yText = y.ToString("0.##", CultureInfo.InvariantCulture);
+            svg.Append($"<image x=\"{xText}\" y=\"{yText}\" width=\"256\" height=\"256\" href=\"data:image/png;base64,{Convert.ToBase64String(tile)}\"/>");
+            addedTiles++;
+        }
+
+        if (addedTiles == 0) return null;
+        var markerX = imageWidth / 2d;
+        var markerY = imageHeight / 2d;
+        svg.Append($"<circle cx=\"{markerX}\" cy=\"{markerY}\" r=\"15\" fill=\"#FFFFFF\" opacity=\"0.95\"/><circle cx=\"{markerX}\" cy=\"{markerY}\" r=\"10\" fill=\"#E11D48\"/><circle cx=\"{markerX}\" cy=\"{markerY}\" r=\"4\" fill=\"#FFFFFF\"/></svg>");
+        return new MapifyMapImage(svg.ToString());
+    }
+
+    private async Task<byte[]?> DownloadKnownOsmTileAsync(string url)
+    {
+        try
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var client = httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("ScheduleBot-Mapify/1.0");
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellation.Token);
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength is long size && size > 700_000) return null;
+            return await response.Content.ReadAsByteArrayAsync(cancellation.Token);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<MapifyLinkPreview?> LoadLinkPreviewAsync(string? description)
+    {
+        var urlMatch = UrlRegex.Match(description ?? string.Empty);
+        if (!urlMatch.Success || !Uri.TryCreate(urlMatch.Value, UriKind.Absolute, out var url) || !await IsSafeExternalUrlAsync(url)) return null;
+
+        try
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var client = CreatePreviewClient();
+            using var response = await client.GetAsync(GetPreviewUrl(url), HttpCompletionOption.ResponseHeadersRead, cancellation.Token);
+            if (!response.IsSuccessStatusCode || !response.Content.Headers.ContentType?.MediaType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) == true)
+                return null;
+            if (response.Content.Headers.ContentLength is > 350_000) return null;
+
+            var html = await ReadHtmlAsync(response, cancellation.Token);
+            if (string.IsNullOrWhiteSpace(html)) return null;
+
+            var title = FindMetaContent(html, "og:title", "twitter:title") ?? FindTitle(html);
+            var summary = FindMetaContent(html, "og:description", "twitter:description", "description");
+            if (url.Host.EndsWith("instagram.com", StringComparison.OrdinalIgnoreCase))
+            {
+                title ??= "Instagram post";
+                summary ??= FindInstagramCaption(html);
+            }
+            var imageUrl = FindMetaContent(html, "og:image", "twitter:image");
+            byte[]? image = null;
+            if (Uri.TryCreate(url, imageUrl, out var thumbnailUrl) && await IsSafeExternalUrlAsync(thumbnailUrl))
+                image = await DownloadBytesAsync(thumbnailUrl, 2_500_000, imageOnly: true);
+
+            image ??= await LoadKnownVideoThumbnailAsync(url);
+            image ??= await LoadInstagramThumbnailAsync(url);
+
+            return string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(summary) && image == null
+                ? null
+                : new MapifyLinkPreview(TrimPreviewText(title), TrimPreviewText(summary), image);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<byte[]?> DownloadBytesAsync(Uri url, int maxBytes, bool imageOnly)
+    {
+        if (!await IsSafeExternalUrlAsync(url)) return null;
+        try
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var client = CreatePreviewClient();
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellation.Token);
+            var mediaType = response.Content.Headers.ContentType?.MediaType;
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength is long contentLength && contentLength > maxBytes ||
+                (imageOnly && !string.IsNullOrWhiteSpace(mediaType) && !mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))) return null;
+            await using var input = await response.Content.ReadAsStreamAsync(cancellation.Token);
+            await using var output = new MemoryStream();
+            var buffer = new byte[16_384];
+            int read;
+            while ((read = await input.ReadAsync(buffer.AsMemory(), cancellation.Token)) > 0)
+            {
+                if (output.Length + read > maxBytes) return null;
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellation.Token);
+            }
+            return output.ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private HttpClient CreatePreviewClient()
+    {
+        var client = httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; ScheduleBot/1.0; +https://t.me)");
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9,fa;q=0.8");
+        return client;
+    }
+
+    private static Uri GetPreviewUrl(Uri original)
+    {
+        if (!original.Host.EndsWith("instagram.com", StringComparison.OrdinalIgnoreCase)) return original;
+        var parts = original.AbsolutePath.Trim('/').Split('/');
+        return parts.Length >= 2 && parts[0] is "p" or "reel" or "tv"
+            ? new Uri($"https://www.instagram.com/{parts[0]}/{parts[1]}/embed/captioned/")
+            : original;
+    }
+
+    private async Task<byte[]?> LoadKnownVideoThumbnailAsync(Uri url)
+    {
+        var videoId = GetYoutubeVideoId(url);
+        return videoId == null ? null : await DownloadBytesAsync(new Uri($"https://i.ytimg.com/vi/{videoId}/hqdefault.jpg"), 2_500_000, imageOnly: true);
+    }
+
+    private async Task<byte[]?> LoadInstagramThumbnailAsync(Uri url)
+    {
+        if (!url.Host.EndsWith("instagram.com", StringComparison.OrdinalIgnoreCase)) return null;
+        var parts = url.AbsolutePath.Trim('/').Split('/');
+        if (parts.Length < 2 || parts[0] is not ("p" or "reel" or "tv")) return null;
+        return await DownloadBytesAsync(new Uri($"https://www.instagram.com/{parts[0]}/{parts[1]}/media/?size=l"), 2_500_000, imageOnly: true);
+    }
+
+    private static string? GetYoutubeVideoId(Uri url)
+    {
+        if (url.Host.EndsWith("youtu.be", StringComparison.OrdinalIgnoreCase)) return url.AbsolutePath.Trim('/').Split('/').FirstOrDefault();
+        if (!url.Host.Contains("youtube.com", StringComparison.OrdinalIgnoreCase)) return null;
+        if (url.AbsolutePath.StartsWith("/shorts/", StringComparison.OrdinalIgnoreCase)) return url.AbsolutePath.Split('/').ElementAtOrDefault(2);
+        return url.Query.TrimStart('?').Split('&')
+            .Select(part => part.Split('=', 2))
+            .Where(part => part.Length == 2 && part[0] == "v")
+            .Select(part => Uri.UnescapeDataString(part[1]))
+            .FirstOrDefault();
+    }
+
+    private static async Task<string?> ReadHtmlAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: false);
+        var buffer = new char[8_192];
+        var builder = new StringBuilder();
+        int read;
+        while ((read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken)) > 0)
+        {
+            if (builder.Length + read > 350_000) return null;
+            builder.Append(buffer, 0, read);
+        }
+        return builder.ToString();
+    }
+
+    private static string? FindMetaContent(string html, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            var escapedName = Regex.Escape(name);
+            var propertyFirst = Regex.Match(html, $"<meta\\b(?=[^>]*(?:property|name)\\s*=\\s*['\\\"]{escapedName}['\\\"])[^>]*\\bcontent\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"]", RegexOptions.IgnoreCase);
+            if (propertyFirst.Success) return WebUtility.HtmlDecode(propertyFirst.Groups[1].Value);
+            var contentFirst = Regex.Match(html, $"<meta\\b(?=[^>]*\\bcontent\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"])[^>]*(?:property|name)\\s*=\\s*['\\\"]{escapedName}['\\\"]", RegexOptions.IgnoreCase);
+            if (contentFirst.Success) return WebUtility.HtmlDecode(contentFirst.Groups[1].Value);
+        }
+        return null;
+    }
+
+    private static string? FindTitle(string html)
+    {
+        var match = Regex.Match(html, @"<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        return match.Success ? WebUtility.HtmlDecode(Regex.Replace(match.Groups[1].Value, "\\s+", " ").Trim()) : null;
+    }
+
+    private static string? FindInstagramCaption(string html)
+    {
+        var match = Regex.Match(html, "\\\"caption\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"", RegexOptions.IgnoreCase);
+        if (!match.Success) return null;
+        try { return JsonSerializer.Deserialize<string>($"\\\"{match.Groups[1].Value}\\\""); }
+        catch { return null; }
+    }
+
+    private static string? TrimPreviewText(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim()[..Math.Min(text.Trim().Length, 180)];
+
+    private static async Task<bool> IsSafeExternalUrlAsync(Uri url)
+    {
+        if (url.Scheme is not ("http" or "https") || url.IsLoopback || string.Equals(url.Host, "localhost", StringComparison.OrdinalIgnoreCase)) return false;
+        if (IPAddress.TryParse(url.Host, out var address)) return !IsPrivateAddress(address);
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(url.DnsSafeHost);
+            return addresses.Length > 0 && addresses.All(address => !IsPrivateAddress(address));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsPrivateAddress(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address) || address.AddressFamily == AddressFamily.InterNetworkV6 && (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal)) return true;
+        if (address.AddressFamily != AddressFamily.InterNetwork) return false;
+        var bytes = address.GetAddressBytes();
+        return bytes[0] == 10 || bytes[0] == 127 || bytes[0] == 0 ||
+               bytes[0] == 169 && bytes[1] == 254 ||
+               bytes[0] == 172 && bytes[1] is >= 16 and <= 31 ||
+               bytes[0] == 192 && bytes[1] == 168;
+    }
+
+    private static string WalkingUrl(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude) =>
+        string.Create(CultureInfo.InvariantCulture,
+            $"https://www.google.com/maps/dir/?api=1&origin={fromLatitude},{fromLongitude}&destination={toLatitude},{toLongitude}&travelmode=walking");
+
+    private static string FormatDistance(double kilometers) => kilometers < 1
+        ? $"{Math.Round(kilometers * 1000 / 10) * 10:N0} m"
+        : $"{kilometers:0.0} km";
+
+    private static readonly Regex UrlRegex = new("https?://[^\\s<>\\\"']+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }

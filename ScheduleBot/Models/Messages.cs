@@ -76,6 +76,7 @@ public static class Messages
     public const string MapifySelectSuggestionCategories = "Select the kinds of places you want. A location can match any selected category.\n\nSelected: {0}/{1}";
     public const string MapifyAskSuggestionPin = "Send your current pin and I will suggest nearby matching places.";
     public const string MapifyNoSuggestions = "There are no saved locations matching those categories.";
+    public const string MapifyNoNearbySuggestions = "There are no matching saved locations within 10 km of your pin.";
     public const string MapifySuggestions = "<b>Nearby suggestions</b>\n\n{0}";
     public const string MapifyChooseAtLeastOneCategory = "Choose at least one category first.";
     public const string MapifySendPin = "📍 Send pin";
