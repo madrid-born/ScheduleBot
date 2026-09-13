@@ -59,6 +59,27 @@ internal static class MapifySuggestionCardRenderer
         }).Single();
     }
 
+    public static byte[] RenderMapOnly(MapifyMapImage mapImage)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        var document = Document.Create(root =>
+        {
+            root.Page(page =>
+            {
+                page.ContinuousSize(270, Unit.Point);
+                page.Margin(0);
+                page.PageColor("#E6EEF6");
+                page.Content().Width(270).Height(210).Svg(mapImage.Svg);
+            });
+        });
+
+        return document.GenerateImages(new ImageGenerationSettings
+        {
+            ImageFormat = ImageFormat.Png,
+            RasterDpi = 288
+        }).Single();
+    }
+
     private static void ComposeMap(IContainer container, MapifyMapImage? mapImage)
     {
         var map = container.Background(Card).CornerRadius(9).Border(1).BorderColor("#D9E2EC").Padding(3).Height(160);

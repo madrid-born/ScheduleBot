@@ -78,6 +78,9 @@ public static class Messages
     public const string MapifyNoSuggestions = "There are no saved locations matching those categories.";
     public const string MapifyNoNearbySuggestions = "There are no matching saved locations within 10 km of your pin.";
     public const string MapifySuggestions = "<b>Nearby suggestions</b>\n\n{0}";
+    public const string MapifySeeMoreSuggestions = "Would you like to see more nearby suggestions?";
+    public const string MapifyAllSuggestionsShown = "Those are all the nearby matching places.";
+    public const string MapifySuggestionsStopped = "Okay — I stopped showing suggestions.";
     public const string MapifyChooseAtLeastOneCategory = "Choose at least one category first.";
     public const string MapifySendPin = "📍 Send pin";
     public const string MapifyCancelled = "Mapify action cancelled.";
@@ -570,6 +573,7 @@ public static class CallBacks
     public const string MapifyEditVisited = "ELV";
     public const string MapifySuggest = "SML";
     public const string MapifySuggestCategories = "SLC";
+    public const string MapifyMoreSuggestions = "SMS";
 
     #endregion
 }
@@ -635,6 +639,8 @@ public static class SessionCallBacks
     public const string MapifyAskEditedLocationScore = "MapifyAskEditedLocationScore";
     public const string MapifyAskLocationToEditPin = "MapifyAskLocationToEditPin";
     public const string MapifyAskSuggestionPin = "MapifyAskSuggestionPin";
+    public const string MapifyAwaitMoreSuggestions = "MapifyAwaitMoreSuggestions";
+    public const string MapifyLoadingSuggestions = "MapifyLoadingSuggestions";
 }
 
 public static class Context
@@ -687,6 +693,9 @@ public static class Context
     public const string MapifyDescription = "MapifyDescription";
     public const string MapifyVisited = "MapifyVisited";
     public const string MapifyScore = "MapifyScore";
+    public const string MapifySuggestionOriginLatitude = "MapifySuggestionOriginLatitude";
+    public const string MapifySuggestionOriginLongitude = "MapifySuggestionOriginLongitude";
+    public const string MapifyShownLocationIds = "MapifyShownLocationIds";
 }
 
 public static class DatePickerMethods

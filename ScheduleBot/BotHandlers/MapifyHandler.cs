@@ -100,6 +100,9 @@ public sealed class MapifyHandler(
             case CallBacks.MapifySuggestCategories:
                 await HandleSuggestionCategorySelection(data);
                 break;
+            case CallBacks.MapifyMoreSuggestions:
+                await HandleMoreSuggestions(data, value);
+                break;
         }
     }
 
@@ -762,23 +765,94 @@ public sealed class MapifyHandler(
     {
         if (session.CallbackData != SessionCallBacks.MapifyAskSuggestionPin) return;
         if (data.Latitude == null || data.Longitude == null) { await AskForLocation(data.ChatId, Messages.MapifyAskSuggestionPin); return; }
-        var results = await mapifyService.GetSuggestionLocationsAsync(data.ChatId, (Guid)session.Context[Context.MapifyMapId],
-            (List<Guid>)session.Context[Context.MapifySelectedCategoryIds]);
-        sessionService.ClearSession(data.ChatId);
-        if (results.Count == 0) { await services.SendMessage(data.ChatId, Messages.MapifyNoSuggestions); return; }
+        session.SetContext(Context.MapifySuggestionOriginLatitude, data.Latitude.Value);
+        session.SetContext(Context.MapifySuggestionOriginLongitude, data.Longitude.Value);
+        session.SetContext(Context.MapifyShownLocationIds, new List<Guid>());
+        session.SetCallBack(SessionCallBacks.MapifyAwaitMoreSuggestions);
+        await SendSuggestionBatch(data.ChatId, session, isFirstBatch: true);
+    }
 
-        var ordered = results.Select(x => new { Suggestion = x, Distance = DistanceInKilometers(data.Latitude.Value, data.Longitude.Value, x.Location.Latitude, x.Location.Longitude) })
-            .Where(x => x.Distance <= 10d)
-            .OrderBy(x => x.Distance)
-            .Take(5)
-            .ToList();
-        if (ordered.Count == 0) { await services.SendMessage(data.ChatId, Messages.MapifyNoNearbySuggestions); return; }
+    private async Task HandleMoreSuggestions(UpdateData data, string? value)
+    {
+        var session = sessionService.GetData(data.ChatId);
+        if (session.Action != Actions.MapifySuggestingLocation || session.CallbackData != SessionCallBacks.MapifyAwaitMoreSuggestions) return;
+        if (value is not (CallBacks.Yes or CallBacks.No)) return;
 
-        for (var index = 0; index < ordered.Count; index++)
+        session.SetCallBack(SessionCallBacks.MapifyLoadingSuggestions);
+        if (value == CallBacks.No)
         {
-            var item = ordered[index];
-            await SendSuggestionCard(data.ChatId, index + 1, data.Latitude.Value, data.Longitude.Value, item.Suggestion, item.Distance);
+            sessionService.ClearSession(data.ChatId);
+            await services.SendMessage(data.ChatId, Messages.MapifySuggestionsStopped);
+            return;
         }
+
+        await SendSuggestionBatch(data.ChatId, session, isFirstBatch: false);
+    }
+
+    private async Task SendSuggestionBatch(long chatId, UserSession session, bool isFirstBatch)
+    {
+        var originLatitude = (double)session.Context[Context.MapifySuggestionOriginLatitude];
+        var originLongitude = (double)session.Context[Context.MapifySuggestionOriginLongitude];
+        var shownLocationIds = (List<Guid>)session.Context[Context.MapifyShownLocationIds];
+        var results = await mapifyService.GetSuggestionLocationsAsync(chatId, (Guid)session.Context[Context.MapifyMapId],
+            (List<Guid>)session.Context[Context.MapifySelectedCategoryIds]);
+        if (results.Count == 0)
+        {
+            sessionService.ClearSession(chatId);
+            await services.SendMessage(chatId, isFirstBatch ? Messages.MapifyNoSuggestions : Messages.MapifyAllSuggestionsShown);
+            return;
+        }
+
+        var ordered = results
+            .Select(suggestion => new MapifyRankedSuggestion(suggestion,
+                DistanceInKilometers(originLatitude, originLongitude, suggestion.Location.Latitude, suggestion.Location.Longitude)))
+            .Where(item => item.Distance <= 10d)
+            .OrderBy(item => item.Distance)
+            .ToList();
+        if (ordered.Count == 0)
+        {
+            sessionService.ClearSession(chatId);
+            await services.SendMessage(chatId, isFirstBatch ? Messages.MapifyNoNearbySuggestions : Messages.MapifyAllSuggestionsShown);
+            return;
+        }
+
+        var batch = ordered.Where(item => !shownLocationIds.Contains(item.Suggestion.Location.Id)).Take(5).ToList();
+        if (batch.Count == 0)
+        {
+            sessionService.ClearSession(chatId);
+            await services.SendMessage(chatId, Messages.MapifyAllSuggestionsShown);
+            return;
+        }
+
+        var firstRank = shownLocationIds.Count + 1;
+        for (var index = 0; index < batch.Count; index++)
+        {
+            var item = batch[index];
+            await SendSuggestionCard(chatId, firstRank + index, originLatitude, originLongitude, item.Suggestion, item.Distance);
+        }
+
+        var overviewMap = await DownloadSuggestionOverviewMapAsync(batch, firstRank);
+        if (overviewMap != null)
+        {
+            var overviewImage = MapifySuggestionCardRenderer.RenderMapOnly(overviewMap);
+            await using var stream = new MemoryStream(overviewImage);
+            await bot.SendPhoto(chatId, new InputFileStream(stream, $"mapify-overview-{firstRank}.png"));
+        }
+
+        shownLocationIds.AddRange(batch.Select(item => item.Suggestion.Location.Id));
+        session.SetContext(Context.MapifyShownLocationIds, shownLocationIds);
+        var hasMore = ordered.Any(item => !shownLocationIds.Contains(item.Suggestion.Location.Id));
+        if (!hasMore)
+        {
+            sessionService.ClearSession(chatId);
+            await services.SendMessage(chatId, Messages.MapifyAllSuggestionsShown);
+            return;
+        }
+
+        List<List<Tuple<string, string>>> buttons = [[new(Messages.Yes, CallBacks.Yes), new(Messages.No, CallBacks.No)]];
+        session.SetCallBack(SessionCallBacks.MapifyAwaitMoreSuggestions);
+        await services.SendMessage(chatId, Messages.MapifySeeMoreSuggestions,
+            services.CreateKeyboard(inlineCollection: buttons, callBackStart: $"{CallBacks.Mapify}|{CallBacks.MapifyMoreSuggestions}|"));
     }
 
     private async Task AskForLocation(long chatId, string message)
@@ -897,6 +971,79 @@ public sealed class MapifyHandler(
                    "<circle cx=\"0\" cy=\"-36\" r=\"3\" fill=\"#102A43\"/>" +
                    "</g></svg>");
         return new MapifyMapImage(svg.ToString());
+    }
+
+    private async Task<MapifyMapImage?> DownloadSuggestionOverviewMapAsync(IReadOnlyList<MapifyRankedSuggestion> suggestions, int firstRank)
+    {
+        if (suggestions.Count == 0) return null;
+
+        const int tileSize = 256;
+        const int imageWidth = 640;
+        const int imageHeight = 500;
+        const int markerPadding = 72;
+        var locations = suggestions.Select(item => item.Suggestion.Location).ToList();
+        var zoom = 17;
+        List<(double X, double Y)> projected = [];
+
+        for (; zoom >= 10; zoom--)
+        {
+            projected = locations.Select(location => ProjectToWorld(location.Latitude, location.Longitude, zoom, tileSize)).ToList();
+            var width = projected.Max(point => point.X) - projected.Min(point => point.X);
+            var height = projected.Max(point => point.Y) - projected.Min(point => point.Y);
+            if (width <= imageWidth - markerPadding * 2 && height <= imageHeight - markerPadding * 2) break;
+        }
+        if (zoom < 10) zoom = 10;
+
+        var centerX = (projected.Min(point => point.X) + projected.Max(point => point.X)) / 2d;
+        var centerY = (projected.Min(point => point.Y) + projected.Max(point => point.Y)) / 2d;
+        var left = centerX - imageWidth / 2d;
+        var top = centerY - imageHeight / 2d;
+        var minTileX = (int)Math.Floor(left / tileSize);
+        var maxTileX = (int)Math.Floor((left + imageWidth - 1) / tileSize);
+        var minTileY = Math.Max(0, (int)Math.Floor(top / tileSize));
+        var maxTileY = Math.Min((1 << zoom) - 1, (int)Math.Floor((top + imageHeight - 1) / tileSize));
+        var tileCount = 1 << zoom;
+        var svg = new StringBuilder($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{imageWidth}\" height=\"{imageHeight}\" viewBox=\"0 0 {imageWidth} {imageHeight}\"><rect width=\"100%\" height=\"100%\" fill=\"#E6EEF6\"/>");
+        var addedTiles = 0;
+
+        for (var tileY = minTileY; tileY <= maxTileY; tileY++)
+        for (var tileX = minTileX; tileX <= maxTileX; tileX++)
+        {
+            var wrappedTileX = ((tileX % tileCount) + tileCount) % tileCount;
+            var tileUrl = $"https://tile.openstreetmap.org/{zoom}/{wrappedTileX}/{tileY}.png";
+            var tile = await _mapTiles.GetOrAdd(tileUrl, DownloadKnownOsmTileAsync);
+            if (tile == null) continue;
+            var x = (tileX * tileSize - left).ToString("0.##", CultureInfo.InvariantCulture);
+            var y = (tileY * tileSize - top).ToString("0.##", CultureInfo.InvariantCulture);
+            svg.Append($"<image x=\"{x}\" y=\"{y}\" width=\"256\" height=\"256\" href=\"data:image/png;base64,{Convert.ToBase64String(tile)}\"/>");
+            addedTiles++;
+        }
+
+        if (addedTiles == 0) return null;
+        for (var index = 0; index < projected.Count; index++)
+        {
+            var markerX = (projected[index].X - left).ToString("0.##", CultureInfo.InvariantCulture);
+            var markerY = (projected[index].Y - top).ToString("0.##", CultureInfo.InvariantCulture);
+            var rank = firstRank + index;
+            svg.Append($"<g transform=\"translate({markerX} {markerY})\">" +
+                       "<ellipse cx=\"0\" cy=\"4\" rx=\"13\" ry=\"5\" fill=\"#102A43\" opacity=\"0.3\"/>" +
+                       "<path d=\"M0 2 C-5 -6 -22 -20 -22 -37 A22 22 0 1 1 22 -37 C22 -20 5 -6 0 2Z\" fill=\"#6D28D9\" stroke=\"#FFFFFF\" stroke-width=\"6\" stroke-linejoin=\"round\"/>" +
+                       $"<text x=\"0\" y=\"-31\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"17\" font-weight=\"700\" fill=\"#FFFFFF\">{rank}</text>" +
+                       "</g>");
+        }
+
+        svg.Append("<rect x=\"408\" y=\"470\" width=\"226\" height=\"24\" rx=\"5\" fill=\"#FFFFFF\" opacity=\"0.88\"/>" +
+                   "<text x=\"621\" y=\"487\" text-anchor=\"end\" font-family=\"Arial, sans-serif\" font-size=\"12\" fill=\"#486581\">© OpenStreetMap contributors</text></svg>");
+        return new MapifyMapImage(svg.ToString());
+    }
+
+    private static (double X, double Y) ProjectToWorld(double latitude, double longitude, int zoom, int tileSize)
+    {
+        var worldSize = tileSize * (1 << zoom);
+        var x = (longitude + 180d) / 360d * worldSize;
+        var latitudeRadians = DegreesToRadians(Math.Clamp(latitude, -85.05112878d, 85.05112878d));
+        var y = (1d - Math.Asinh(Math.Tan(latitudeRadians)) / Math.PI) / 2d * worldSize;
+        return (x, y);
     }
 
     private async Task<byte[]?> DownloadKnownOsmTileAsync(string url)
@@ -1190,6 +1337,8 @@ public sealed class MapifyHandler(
     private static string FormatDistance(double kilometers) => kilometers < 1
         ? $"{Math.Round(kilometers * 1000 / 10) * 10:N0} m"
         : $"{kilometers:0.0} km";
+
+    private sealed record MapifyRankedSuggestion(MapifyLocationSuggestion Suggestion, double Distance);
 
     private static readonly Regex UrlRegex = new("https?://[^\\s<>\\\"']+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }
