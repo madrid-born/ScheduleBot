@@ -387,6 +387,29 @@ public static class Messages
     public const string NotificationOneTime = "One Time";
 
     public const string SelectNotification = "Select the notification you want.";
+    public const string NoNotifications = "You do not have any notifications to manage yet.";
+    public const string NotificationEditor = "<b>{0}</b>\n\nStatus: {1}\nDefault message: {2}\nNext occurrence: {3}\nNext message: {4}\nRepeat: {5}";
+    public const string NotificationActive = "Active";
+    public const string NotificationInactive = "Inactive";
+    public const string NotificationNoNextOccurrence = "Not scheduled";
+    public const string NotificationUsesDefaultMessage = "Uses the default message";
+    public const string NotificationEditName = "Edit name";
+    public const string NotificationEditMessage = "Edit default message";
+    public const string NotificationEditNextTime = "Edit next occurrence";
+    public const string NotificationEditNextMessage = "Edit next message";
+    public const string NotificationEditSeparationType = "Edit repeat type";
+    public const string NotificationEditSeparationValue = "Edit repeat value";
+    public const string NotificationDeactivate = "Deactivate";
+    public const string NotificationActivate = "Activate";
+    public const string NotificationBackToList = "Back to notifications";
+    public const string AskEditedNotificationName = "Send the new notification name.";
+    public const string AskEditedNotificationMessage = "Send the new default notification message.";
+    public const string AskEditedNextMessage = "Send the message for the next occurrence only. Send 'skip' to use the default message.";
+    public const string AskEditedSeparationValue = "Send the new positive repeat value.";
+    public const string SelectNotificationSeparationType = "Select the new repeat type.";
+    public const string NotificationUpdated = "Notification updated.";
+    public const string NotificationUpdateFailed = "I could not update that notification. It may no longer exist or the value may be invalid.";
+    public const string NotificationActivationFailed = "Set a future next occurrence before activating this notification.";
 
     #endregion
 }
@@ -532,6 +555,11 @@ public static class CallBacks
     public const string NotificationManagement = "NM";
     
     public const string NotificationsHowOften = "NHO";
+    public const string NotificationSelect = "NS";
+    public const string NotificationEditField = "NEF";
+    public const string NotificationEditType = "NET";
+    public const string NotificationToggleActive = "NTA";
+    public const string NotificationBackToList = "NBL";
     public const int NotificationOneTime = 0;
     public const int NotificationHour = 1;
     public const int NotificationDay = 2;
@@ -602,6 +630,7 @@ public static class Actions
     public const string AwaitingTrackReview = "CategorizePlaylist";
     
     public const string SetUpNotification = "SetUpNotification";
+    public const string EditNotification = "EditNotification";
 
     public const string MetroNavigation = "MetroNavigation";
     public const string MapifyCreateMap = "MapifyCreateMap";
@@ -624,6 +653,10 @@ public static class SessionCallBacks
     public const string AskNotificationName = "AskNotificationName";
     public const string AskNotificationOftenUnit = "AskNotificationOftenUnit";
     public const string AskReminderMessage = "AskReminderMessage";
+    public const string AskEditedNotificationName = "AskEditedNotificationName";
+    public const string AskEditedNotificationMessage = "AskEditedNotificationMessage";
+    public const string AskEditedNextMessage = "AskEditedNextMessage";
+    public const string AskEditedSeparationValue = "AskEditedSeparationValue";
 
     public const string AskMetroOriginLocation = "AskMetroOriginLocation";
     public const string AskMetroDestinationLocation = "AskMetroDestinationLocation";
@@ -677,6 +710,7 @@ public static class Context
     public const string ReminderUnit = "ReminderUnit";
     public const string UnitCount = "UnitCount";
     public const string ReminderMessage = "ReminderMessage";
+    public const string NotificationId = "NotificationId";
 
     public const string MetroOriginLatitude = "MetroOriginLatitude";
     public const string MetroOriginLongitude = "MetroOriginLongitude";
@@ -706,6 +740,7 @@ public static class DatePickerMethods
     public const string CustomEndTransactionReport = "CustomEndTransactionReport";
     
     public const string NotificationFirstOccurrence = "NotificationFirstOccurrence";
+    public const string NotificationNextOccurrence = "NotificationNextOccurrence";
 }
 
 public static class Files

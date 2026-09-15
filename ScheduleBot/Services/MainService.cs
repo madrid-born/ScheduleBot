@@ -560,6 +560,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             case DatePickerMethods.NotificationFirstOccurrence:
                 await NotificationHandler.SetFirstOccurrence(chatId, fixedDate, session.DatePickerSetup.IsJalali);
                 break;
+            case DatePickerMethods.NotificationNextOccurrence:
+                await NotificationHandler.SetEditedNextOccurrence(chatId, fixedDate);
+                break;
             default:
                 throw new Exception(Messages.SomethingWentWrong);
         }

@@ -419,6 +419,27 @@ public class MessageHandler(
                         break;
                 }
                 break;
+            case Actions.EditNotification:
+                switch (session.CallbackData)
+                {
+                    case SessionCallBacks.AskEditedNotificationName:
+                        await notificationHandler.EditNotificationName(data);
+                        flag = true;
+                        break;
+                    case SessionCallBacks.AskEditedNotificationMessage:
+                        await notificationHandler.EditNotificationMessage(data);
+                        flag = true;
+                        break;
+                    case SessionCallBacks.AskEditedNextMessage:
+                        await notificationHandler.EditNextMessage(data);
+                        flag = true;
+                        break;
+                    case SessionCallBacks.AskEditedSeparationValue:
+                        await notificationHandler.EditSeparationValue(data);
+                        flag = true;
+                        break;
+                }
+                break;
             case Actions.MetroNavigation:
                 await metroHandler.HandleSession(data);
                 flag = true;

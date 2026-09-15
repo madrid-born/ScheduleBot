@@ -166,7 +166,161 @@ public class NotificationService(
     public async Task<List<Notification>> GetNotificationsByTelId(long chatId)
     {
         var user = await GetUserByTelId(chatId);
-        return await _dbContext.Notification.Where(n => n.UserId == user!.Id).OrderBy(c => c.CreateTime).ToListAsync();
+        return await _dbContext.Notification
+            .Where(n => n.UserId == user!.Id)
+            .OrderBy(c => c.CreateTime)
+            .ToListAsync();
+    }
+
+    public async Task<List<Notification>> GetManageableNotificationsByTelId(long chatId)
+    {
+        var user = await GetUserByTelId(chatId);
+        return await _dbContext.Notification
+            .Where(n => n.UserId == user!.Id && n.SpecialBehavior == 0)
+            .OrderByDescending(c => c.CreateTime)
+            .ToListAsync();
+    }
+
+    public async Task<NotificationManagementDetails?> GetNotificationForManagement(long chatId, Guid notificationId)
+    {
+        var user = await GetUserByTelId(chatId);
+        if (user == null) return null;
+
+        return await _dbContext.Notification
+            .Where(n => n.Id == notificationId && n.UserId == user.Id && n.SpecialBehavior == 0)
+            .Select(n => new NotificationManagementDetails
+            {
+                Id = n.Id,
+                IsActive = n.IsActive,
+                Name = n.Name,
+                Message = n.Message,
+                Type = n.Type,
+                SeparationValue = n.SeparationValue,
+                NextTime = _dbContext.NotificationFutureMessage
+                    .Where(f => f.NotificationId == n.Id)
+                    .Select(f => (DateTime?)f.Time)
+                    .FirstOrDefault(),
+                NextMessage = _dbContext.NotificationFutureMessage
+                    .Where(f => f.NotificationId == n.Id)
+                    .Select(f => f.Message)
+                    .FirstOrDefault()
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<bool> UpdateNotificationName(long chatId, Guid notificationId, string name)
+    {
+        var notification = await FindManagedNotification(chatId, notificationId);
+        if (notification == null) return false;
+
+        notification.Name = name;
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateNotificationMessage(long chatId, Guid notificationId, string message)
+    {
+        var notification = await FindManagedNotification(chatId, notificationId);
+        if (notification == null) return false;
+
+        notification.Message = message;
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateNextOccurrence(long chatId, Guid notificationId, DateTime nextTime)
+    {
+        if (nextTime <= GetIranDateTime()) return false;
+
+        var notification = await FindManagedNotification(chatId, notificationId);
+        if (notification == null) return false;
+
+        var future = await _dbContext.NotificationFutureMessage
+            .FirstOrDefaultAsync(f => f.NotificationId == notification.Id);
+        if (future == null)
+        {
+            future = new Future
+            {
+                Id = Guid.NewGuid(),
+                NotificationId = notification.Id,
+                Time = nextTime
+            };
+            _dbContext.NotificationFutureMessage.Add(future);
+        }
+        else
+        {
+            future.Time = nextTime;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateNextMessage(long chatId, Guid notificationId, string? message)
+    {
+        var notification = await FindManagedNotification(chatId, notificationId);
+        if (notification == null) return false;
+
+        var future = await _dbContext.NotificationFutureMessage
+            .FirstOrDefaultAsync(f => f.NotificationId == notification.Id);
+        if (future == null) return false;
+
+        future.Message = message;
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateSeparationType(long chatId, Guid notificationId, int type)
+    {
+        if (type is < CallBacks.NotificationOneTime or > CallBacks.NotificationMonthJalali) return false;
+
+        var notification = await FindManagedNotification(chatId, notificationId);
+        if (notification == null) return false;
+
+        notification.Type = type;
+        notification.SeparationValue = type == CallBacks.NotificationOneTime
+            ? null
+            : notification.SeparationValue is > 0 ? notification.SeparationValue : 1;
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateSeparationValue(long chatId, Guid notificationId, int separationValue)
+    {
+        if (separationValue <= 0) return false;
+
+        var notification = await FindManagedNotification(chatId, notificationId);
+        if (notification == null || notification.Type == CallBacks.NotificationOneTime) return false;
+
+        notification.SeparationValue = separationValue;
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> ToggleNotificationActive(long chatId, Guid notificationId)
+    {
+        var notification = await FindManagedNotification(chatId, notificationId);
+        if (notification == null) return false;
+
+        if (!notification.IsActive)
+        {
+            var future = await _dbContext.NotificationFutureMessage
+                .FirstOrDefaultAsync(f => f.NotificationId == notification.Id);
+            if (future == null || future.Time <= GetIranDateTime()) return false;
+        }
+
+        notification.IsActive = !notification.IsActive;
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    private async Task<Notification?> FindManagedNotification(long chatId, Guid notificationId)
+    {
+        var user = await GetUserByTelId(chatId);
+        if (user == null) return null;
+
+        return await _dbContext.Notification.FirstOrDefaultAsync(n =>
+            n.Id == notificationId && n.UserId == user.Id && n.SpecialBehavior == 0);
     }
 
     public async Task<NotificationAccess?> GetNotificationAccessByChatId(long chatId, Guid notificationId)

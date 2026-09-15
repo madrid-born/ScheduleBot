@@ -46,3 +46,15 @@ public class ToBeSentNotification
     public string Message { get; set; }
     public int SpecialBehavior { get; set; }
 }
+
+public class NotificationManagementDetails
+{
+    public Guid Id { get; set; }
+    public bool IsActive { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public int Type { get; set; }
+    public int? SeparationValue { get; set; }
+    public DateTime? NextTime { get; set; }
+    public string? NextMessage { get; set; }
+}
