@@ -37,10 +37,31 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         }
     }
     
-    public async Task<int> SendMessage(long chatId, string message, ReplyMarkup? replyMarkup = null, string? imageUrl = null, InputFileStream? document = null, ParseMode parseMode = ParseMode.Markdown)
+    /// <summary>Escapes plain text for Telegram's legacy Markdown parse mode.</summary>
+    public static string EscapeMarkdown(string? message)
     {
-        message = message.Replace("_", "-");
-        
+        if (string.IsNullOrEmpty(message)) return message ?? string.Empty;
+
+        var escaped = new System.Text.StringBuilder(message.Length);
+        var previousCharacter = '\0';
+        foreach (var character in message)
+        {
+            if (character is '_' or '*' or '[' && previousCharacter != '\\') escaped.Append('\\');
+            previousCharacter = character;
+            escaped.Append(character);
+        }
+
+        return escaped.ToString();
+    }
+
+    private static string PrepareMessageForTelegram(string message, ParseMode parseMode) =>
+        parseMode == ParseMode.Markdown ? EscapeMarkdown(message) : message;
+
+    public async Task<int> SendMessage(long chatId, string message, ReplyMarkup? replyMarkup = null,
+        string? imageUrl = null, InputFileStream? document = null, ParseMode parseMode = ParseMode.Markdown)
+    {
+        message = PrepareMessageForTelegram(message, parseMode);
+
         if (imageUrl != null)
             return (await bot.SendPhoto(chatId, photo: new InputFileUrl(imageUrl), caption: message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
         
@@ -55,8 +76,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     {
         if(!string.IsNullOrEmpty(message))
         {
-            message = message.Replace("_", "-");
-
+            message = PrepareMessageForTelegram(message, parseMode);
             await bot.EditMessageText(chatId: chatId, messageId: messageId, text: message, replyMarkup: replyMarkup as InlineKeyboardMarkup, parseMode: parseMode);
         }
         else

@@ -1,6 +1,7 @@
 ﻿using ScheduleBot.Models;
 using ScheduleBot.Services;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
 
@@ -22,6 +23,14 @@ public class BotPollingService(
         {
             AllowedUpdates = Array.Empty<UpdateType>()
         };
+
+        // This application uses long polling, which Telegram will reject while a
+        // webhook is configured. Clear any webhook left by an older deployment
+        // before starting the receiver, while preserving pending updates.
+        await botClient.DeleteWebhook(
+            dropPendingUpdates: false,
+            cancellationToken: stoppingToken);
+        logger.LogInformation("Confirmed that no Telegram webhook is configured.");
 
         var me = await botClient.GetMe(stoppingToken);
         logger.LogInformation($"Bot started: @{me.Username}");
@@ -69,12 +78,32 @@ public class BotPollingService(
         }
     }
 
-    private Task HandleErrorAsync(
+    private async Task HandleErrorAsync(
         ITelegramBotClient botClient1,
         Exception exception,
         CancellationToken cancellationToken)
     {
         logger.LogError(exception, "Bot error occurred");
-        return Task.CompletedTask;
+
+        if (exception is ApiRequestException { ErrorCode: 409 } &&
+            exception.Message.Contains("webhook", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("A Telegram webhook conflict was detected. Removing the webhook and resuming polling.");
+
+            try
+            {
+                await botClient1.DeleteWebhook(
+                    dropPendingUpdates: false,
+                    cancellationToken: cancellationToken);
+                logger.LogInformation("Telegram webhook removed successfully. Polling will resume automatically.");
+            }
+            catch (Exception deleteWebhookException) when (deleteWebhookException is not OperationCanceledException)
+            {
+                logger.LogError(deleteWebhookException, "Failed to remove the conflicting Telegram webhook.");
+            }
+        }
+
+        // Avoid a tight retry loop when Telegram or the network is unavailable.
+        await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
     }
 }
