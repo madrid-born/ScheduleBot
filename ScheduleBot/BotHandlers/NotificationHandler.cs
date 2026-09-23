@@ -435,52 +435,63 @@ public class NotificationHandler(
     
     public async Task CheckAndSendNotifications(bool install = false)
     {
-        var now = services.GetIranDateTime();
-        var session = sessionService.GetData(0);
-        List<ToBeSentNotification> notifications = null!;
         try
         {
-            notifications = (List<ToBeSentNotification>) session.Context[Context.BotNotifications];
-        }
-        catch (Exception)
-        {
-            install = true;
-        }
-
-        
-        if (install || now.TimeOfDay.Minutes == 0)
-        {
-            var notificationsForNextHour = await nServices.GetNotificationsForNextHour(now);
-            session.SetContext(Context.BotNotifications, notificationsForNextHour);
-        }
-        else
-        {
-            foreach (var notification in notifications.Where(notification => notification.Time <= now).ToList())
+            var now = services.GetIranDateTime();
+            var session = sessionService.GetData(0);
+            List<ToBeSentNotification> notifications = null!;
+            try
             {
-                notifications.Remove(notification);
-                await nServices.RenewFutureNotifications(notification.FutureNotificationId);
-                try
+                notifications = (List<ToBeSentNotification>) session.Context[Context.BotNotifications];
+            }
+            catch (Exception)
+            {
+                install = true;
+            }
+
+            
+            if (install || now.TimeOfDay.Minutes == 0)
+            {
+                var notificationsForNextHour = await nServices.GetNotificationsForNextHour(now);
+                session.SetContext(Context.BotNotifications, notificationsForNextHour);
+            }
+            else
+            {
+                foreach (var notification in notifications.Where(notification => notification.Time <= now).ToList())
                 {
-                    switch (notification.SpecialBehavior)
+                    notifications.Remove(notification);
+                    await nServices.RenewFutureNotifications(notification.FutureNotificationId);
+                    try
                     {
-                        case CallBacks.SpecialAdminCheckSpotify:
-                            await spotifyHandler.CheckForNewDeleted(notification.ChatId);
-                            break;
-                        case CallBacks.SpecialPeriodTracker:
-                            await cycleTrackerHandler.SendPeriodTrackerNotifications(notification.NotificationId);
-                            break;
-                        default:
+                        switch (notification.SpecialBehavior)
+                        {
+                            case CallBacks.SpecialAdminCheckSpotify:
+                                await spotifyHandler.CheckForNewDeleted(notification.ChatId);
+                                break;
+                            case CallBacks.SpecialPeriodTracker:
+                                await cycleTrackerHandler.SendPeriodTrackerNotifications(notification.NotificationId);
+                                break;
+                            default:
+                                await services.SendMessage(notification.ChatId, notification.Message);
+                                break;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        if (notification.SpecialBehavior == 0 && !string.IsNullOrWhiteSpace(notification.Message))
                             await services.SendMessage(notification.ChatId, notification.Message);
-                            break;
                     }
                 }
-                catch (Exception)
-                {
-                    if (notification.SpecialBehavior == 0 && !string.IsNullOrWhiteSpace(notification.Message))
-                        await services.SendMessage(notification.ChatId, notification.Message);
-                }
+                session.SetContext(Context.BotNotifications, notifications);
             }
-            session.SetContext(Context.BotNotifications, notifications);
+            
+        }
+        catch (Exception e)
+        {
+            if (DateTime.Now.Minute == 0)
+            {
+                await services.SendMessage(services.AdminChatId, "Notification handler is down\n\n" + e.Message);
+            }
         }
     }
 
