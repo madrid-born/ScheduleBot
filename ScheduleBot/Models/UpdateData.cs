@@ -13,6 +13,7 @@ public class UpdateData
     public string? MessageText { get; set; }
     public bool IsReplied { get; set; }
     public string? RepliedMessage { get; set; }
+    public int? RepliedMessageId { get; set; }
     public string? Command { get; set; }
     public string? ExistedProductName { get; set; }
     public List<string> DataSeparated { get; set; } = new();

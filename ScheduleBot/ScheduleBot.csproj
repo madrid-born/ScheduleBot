@@ -7,6 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Remove="Tests\**\*.cs" />
+        <Content Remove="Tests\**" />
+        <None Remove="Tests\**" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="ClosedXML" Version="0.105.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.24"/>
         <PackageReference Include="QuestPDF" Version="2026.7.2" />

@@ -18,16 +18,21 @@ public class MessageHandler(
     NotificationHandler notificationHandler,
     MetroHandler metroHandler,
     MapifyHandler mapifyHandler,
+    SurveyHandler surveyHandler,
     MainService services,
     IConfiguration configuration)
 {
     public async Task HandleUpdateAsync(ITelegramBotClient bot1, Update update, CancellationToken ct)
     {
-        long chatId = 0;
+        long chatId = update.Message?.Chat.Id ?? update.CallbackQuery?.Message?.Chat.Id ?? 0;
+        var surveyUpload = update.Message?.Document != null && sessionService.GetOrSetData(chatId).Action == SurveyHandler.SessionAction;
+        UpdateData? updateData = null;
         try
         {
-            var updateData = await ExtractUpdateDataAsync(update);
+            updateData = await ExtractUpdateDataAsync(update);
             chatId = updateData.ChatId;
+            if (update.CallbackQuery != null && updateData.DataSeparated.FirstOrDefault() == CallBacks.Survey)
+                await bot.AnswerCallbackQuery(update.CallbackQuery.Id, cancellationToken: ct);
             if (!await userHandler.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
                 await HandleCallbackAsync(updateData);
@@ -44,6 +49,11 @@ public class MessageHandler(
 
             await services.SendMessage(chatId, Messages.SomethingWentWrong);
             if (chatId == adminChatId) await services.SendMessage(chatId, ex.Message);
+        }
+        finally
+        {
+            if (updateData?.Document?.FileAddress is { } path && surveyUpload)
+                File.Delete(path);
         }
     }
 
@@ -85,9 +95,12 @@ public class MessageHandler(
 
             if (update.Message.Document != null)
             {
+                if (sessionService.GetOrSetData(data.ChatId).Action == SurveyHandler.SessionAction &&
+                    update.Message.Document.FileSize > SurveyService.MaxJsonBytes)
+                    throw new IOException("Survey files must be at most 256 KB.");
                 data.DocumentName = update.Message.Document.FileName;
                 data.MessageText = update.Message.Caption;
-                var extension = Path.GetExtension(data.DocumentName)!.TrimStart('.');
+                var extension = (Path.GetExtension(data.DocumentName) ?? "").TrimStart('.');
                 data.Document = new ImportedFile(await LoadFile(update.Message.Document, extension));
             }
             
@@ -96,6 +109,7 @@ public class MessageHandler(
             if (update.Message.ReplyToMessage == null) return data;
             data.IsReplied = true;
             data.RepliedMessage = update.Message.ReplyToMessage.Text;
+            data.RepliedMessageId = update.Message.ReplyToMessage.MessageId;
             
             data.ReplyMessageSeparated = (update.Message.ReplyToMessage.Text ?? "").Split('\n').ToList();
             if (data.ReplyMessageSeparated.Count == 0) data.ReplyMessageSeparated.Add(update.Message.ReplyToMessage.Text!);
@@ -151,12 +165,20 @@ public class MessageHandler(
             case CallBacks.Mapify:
                 await mapifyHandler.HandleCallBack(data);
                 break;
+            case CallBacks.Survey:
+                await surveyHandler.HandleCallBack(data);
+                break;
         }
     }
 
     private async Task<bool> CheckDocument(UpdateData data)
     {
         if (data.Document == null) return false;
+        if (sessionService.GetOrSetData(data.ChatId).Action == SurveyHandler.SessionAction)
+        {
+            await surveyHandler.HandleSession(data);
+            return true;
+        }
         try
         {
             var result = await CheckSession(data);
@@ -165,7 +187,7 @@ public class MessageHandler(
         catch (Exception e) { /*ignored*/ }
         
         var session = sessionService.GetOrSetData(data.ChatId);
-        if (Regex.IsMatch(data.DocumentName!, Pattern.BluPattern) && Regex.IsMatch(data.MessageText!, "Share " + Pattern.BluPattern))
+        if (Regex.IsMatch(data.DocumentName ?? "", Pattern.BluPattern) && Regex.IsMatch(data.MessageText ?? "", "Share " + Pattern.BluPattern))
         {
             session.SetAction(Actions.AwaitingBluFile);
             var walletId = await transactionHandler.SelectWalletForFile(data.ChatId);
@@ -231,6 +253,16 @@ public class MessageHandler(
                 var splitter = parts[1].Split("_").ToList();
                 switch (splitter[0])
                 {
+                    case CallBacks.Survey:
+                    {
+                        if (splitter.Count == 3 && splitter[1] == "join")
+                        {
+                            data.MessageText = splitter[2];
+                            await surveyHandler.JoinSurveyByCode(data);
+                            flag = true;
+                        }
+                        break;
+                    }
                     case CallBacks.Cart:
                     {
                         switch (splitter[1])
@@ -287,6 +319,8 @@ public class MessageHandler(
                 return flag;
             }
             flag = true;
+            if (sessionService.GetOrSetData(data.ChatId).Action == SurveyHandler.SessionAction)
+                sessionService.ClearSession(data.ChatId);
             await services.SendMessage(data.ChatId, Messages.Welcome);
         }
         return flag;
@@ -303,6 +337,11 @@ public class MessageHandler(
         }
         catch (Exception e) { /*ignored*/ }
         
+        if (keyboardSymbol is Messages.PeriodTracker or Messages.Cart or Messages.Transaction or Messages.Spotify
+            or Messages.Notification or Messages.Metro or Messages.Mapify or Messages.About &&
+            sessionService.GetOrSetData(data.ChatId).Action == SurveyHandler.SessionAction)
+            sessionService.ClearSession(data.ChatId);
+
         switch (keyboardSymbol)
         {
             case Messages.PeriodTracker:
@@ -333,6 +372,10 @@ public class MessageHandler(
                 await mapifyHandler.HandleSection(data);
                 flag = true;
                 break;
+            case Messages.Survey:
+                await surveyHandler.HandleSection(data);
+                flag = true;
+                break;
             case Messages.About:
                 flag = true;
                 break;
@@ -343,7 +386,12 @@ public class MessageHandler(
     private async Task<bool> CheckSession(UpdateData data)
     {
         var flag = false;
-        var session = sessionService.GetData(data.ChatId);
+        var session = sessionService.GetOrSetData(data.ChatId);
+        if (session.Action == SurveyHandler.SessionAction)
+        {
+            await surveyHandler.HandleSession(data);
+            return true;
+        }
         if (session.Timestamp.AddHours(1) < DateTime.UtcNow)
         {
             sessionService.ClearSession(data.ChatId);

@@ -9,6 +9,7 @@ public static class Pattern
 
 public static class Messages
 {
+    public const string Survey = "📋 Surveys";
     #region Command
     
     public const string Start = "/start";
@@ -421,6 +422,7 @@ public static class Messages
 
 public static class CallBacks
 {
+    public const string Survey = "SV";
     #region Universal
 
     public const string Yes = "Yes";
