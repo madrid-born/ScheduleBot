@@ -98,8 +98,8 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
     {
         var collection = new List<List<string>>
         {
-            new() { Messages.PeriodTracker, Messages.Cart },
-            new() { Messages.Transaction,   Messages.Notification},
+            new() { Messages.PeriodTracker, Messages.Notification },
+            new() { Messages.Transaction, Messages.Cart },
             new() { Messages.Metro, Messages.Mapify },
             new() { Messages.Survey },
         };

@@ -99,6 +99,7 @@ builder.Services.AddScoped<MapifyHandler>();
 builder.Services.AddScoped<MapifyService>();
 builder.Services.AddScoped<SurveyHandler>();
 builder.Services.AddScoped<SurveyService>();
+builder.Services.AddScoped<SurveyReportService>();
 builder.Services.AddHttpClient<SpotifyService>(client =>
 {
     var baseUrl = builder.Configuration["SpotifyApi:BaseUrl"];

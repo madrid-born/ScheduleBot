@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ScheduleBot.Models;
 
@@ -11,9 +12,11 @@ using ScheduleBot.Models;
 namespace ScheduleBot.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260923122713_AddSurveyPrivacyAndStates")]
+    partial class AddSurveyPrivacyAndStates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -423,14 +426,6 @@ namespace ScheduleBot.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<string>("StateOneName")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("StateTwoName")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<Guid>("SurveyId")
                         .HasColumnType("uniqueidentifier");
 
@@ -444,10 +439,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("SurveyId", "Position")
                         .IsUnique();
 
-                    b.ToTable("SurveyQuestion", t =>
-                        {
-                            t.HasCheckConstraint("CK_SurveyQuestion_States", "([StateOneName] IS NULL AND [StateTwoName] IS NULL) OR ([StateOneName] IS NOT NULL AND [StateTwoName] IS NOT NULL)");
-                        });
+                    b.ToTable("SurveyQuestion");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.Survey", b =>
@@ -473,6 +465,14 @@ namespace ScheduleBot.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("StateOneName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("StateTwoName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatorId");
@@ -480,7 +480,10 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("InvitationCode")
                         .IsUnique();
 
-                    b.ToTable("Survey");
+                    b.ToTable("Survey", t =>
+                        {
+                            t.HasCheckConstraint("CK_Survey_States", "([StateOneName] IS NULL AND [StateTwoName] IS NULL) OR ([StateOneName] IS NOT NULL AND [StateTwoName] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.SurveyAccess", b =>

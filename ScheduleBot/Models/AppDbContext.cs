@@ -49,16 +49,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Question>().Property(x => x.Title).HasMaxLength(1000);
         modelBuilder.Entity<Question>().Property(x => x.RightAnswer).HasMaxLength(1000);
         modelBuilder.Entity<Question>().Property(x => x.DataType).HasMaxLength(20);
+        modelBuilder.Entity<Question>().Property(x => x.StateOneName).HasMaxLength(50);
+        modelBuilder.Entity<Question>().Property(x => x.StateTwoName).HasMaxLength(50);
+        modelBuilder.Entity<Question>().ToTable(table => table.HasCheckConstraint("CK_SurveyQuestion_States",
+            "([StateOneName] IS NULL AND [StateTwoName] IS NULL) OR ([StateOneName] IS NOT NULL AND [StateTwoName] IS NOT NULL)"));
         modelBuilder.Entity<Answer>().HasOne<Question>().WithMany().HasForeignKey(x => x.QuestionId);
         modelBuilder.Entity<Answer>().HasIndex(x => new { x.QuestionId, x.Position }).IsUnique();
         modelBuilder.Entity<Answer>().Property(x => x.Value).HasMaxLength(100);
         modelBuilder.Entity<Answer>().Property(x => x.DataType).HasMaxLength(20);
-        modelBuilder.Entity<UserAnswer>().HasIndex(x => new { x.UserId, x.SurveyId, x.QuestionId }).IsUnique();
+        modelBuilder.Entity<UserAnswer>().HasIndex(x => new { x.UserId, x.SurveyId, x.QuestionId, x.StateIndex }).IsUnique();
         modelBuilder.Entity<UserAnswer>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<UserAnswer>().HasOne<Survey>().WithMany().HasForeignKey(x => x.SurveyId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<UserAnswer>().HasOne<Question>().WithMany().HasForeignKey(x => x.QuestionId);
         modelBuilder.Entity<UserAnswer>().HasOne<Answer>().WithMany().HasForeignKey(x => x.AnswerId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<UserAnswer>().Property(x => x.Value).HasMaxLength(1000);
+        modelBuilder.Entity<UserAnswer>().ToTable(table => table.HasCheckConstraint("CK_SurveyUserAnswer_StateIndex", "[StateIndex] IN (0, 1)"));
 
         modelBuilder.Entity<Notification>()
             .HasIndex(x => new { x.SpecialBehavior, x.SpecialBehaviorTargetId })

@@ -9,7 +9,6 @@ public static class Pattern
 
 public static class Messages
 {
-    public const string Survey = "📋 Surveys";
     #region Command
     
     public const string Start = "/start";
@@ -25,7 +24,8 @@ public static class Messages
     public const string Notification = "⏰ Notification Cneter";
     public const string Metro = "🚇 Tehran Metro";
     public const string Mapify = "📍 Mapify";
-    
+    public const string Survey = "📋 Surveys";
+
     public const string Spotify = "🎵 Spotify";
     
     #endregion
