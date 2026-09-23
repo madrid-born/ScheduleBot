@@ -65,6 +65,9 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
             case CallBacks.BluAction:
                 await BluAction(data);
                 break;
+            case CallBacks.SelectWalletToProcess when Guid.TryParse(value, out var walletId):
+                await LoadProcessBlu(data, walletId);
+                break;
             
             case CallBacks.GenerateReport when Guid.TryParse(value, out var walletId):
                 await StartReport(data, walletId);
@@ -138,6 +141,22 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
             await services.SendMessage(data.ChatId, string.Format(Messages.WalletJoined, wallet!.Name));
         else
             await services.SendMessage(data.ChatId, Messages.CycleIdIsWrong);
+    }
+    
+    public async Task<Guid?> SelectWalletForFile(long chatId)
+    {
+        var list = await tServices.GetWalletsByTelId(chatId);
+        if (list.Count == 1) return list.FirstOrDefault()!.Id;
+        await LoadWallets(chatId, CallBacks.SelectWalletToProcess);
+        return Guid.Empty;
+    }
+    
+    private async Task LoadProcessBlu(UpdateData data, Guid walletId)
+    {
+        var session = sessionService.GetData(data.ChatId);
+        session.SetCallBack(walletId.ToString());
+        var fileAddress = (string?)session.Context[Context.FileAddress];
+        await ProcessBluFile(data, fileAddress!);
     }
     
     #endregion
@@ -255,12 +274,12 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
         await services.SendMessage(chatId, Messages.KeyboardAddTransaction, replyMarkup: keyboard);
     }
 
-    public async Task ProcessBluFile(UpdateData data)
+    public async Task ProcessBluFile(UpdateData data, string fileAddress)
     {
         var session = sessionService.GetData(data.ChatId);
         var walletId = Guid.Parse(session.CallbackData);
         var transactionProcesses = new List<TransactionProcess>();
-        using var workbook = new XLWorkbook(data.Document!.FileAddress);
+        using var workbook = new XLWorkbook(fileAddress);
         var ws = workbook.Worksheet(1);
         var savedTransactions = await tServices.GetTransactionByWalletAndUser(data.ChatId, walletId);
         for (var row = 12; !ws.Cell(row, 19).IsEmpty(); row++)
@@ -283,7 +302,7 @@ public class TransactionHandler(UserSessionService sessionService, MainService s
                 Processed = false
             });
         }
-        File.Delete(data.Document!.FileAddress);
+        File.Delete(fileAddress);
         transactionProcesses.Reverse();
         session.SetAction(Actions.AwaitingBluReview);
         session.SetContext(Context.Tps, transactionProcesses);

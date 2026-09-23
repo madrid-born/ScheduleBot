@@ -1,4 +1,5 @@
-﻿using ScheduleBot.Models;
+﻿using System.Text.RegularExpressions;
+using ScheduleBot.Models;
 using ScheduleBot.Services;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -84,10 +85,10 @@ public class MessageHandler(
 
             if (update.Message.Document != null)
             {
-                if (update.Message.Document.FileName!.EndsWith(".xlsx"))
-                {
-                    data.Document = new ImportedFile(await ProcessExcelFile(update.Message.Document));
-                }
+                data.DocumentName = update.Message.Document.FileName;
+                data.MessageText = update.Message.Caption;
+                var extension = Path.GetExtension(data.DocumentName)!.TrimStart('.');
+                data.Document = new ImportedFile(await LoadFile(update.Message.Document, extension));
             }
             
             data.Command = update.Message.Text;
@@ -107,13 +108,10 @@ public class MessageHandler(
         return data;
     }
 
-    private async Task<string> ProcessExcelFile(Document document)
+    private async Task<string> LoadFile(Document document, string format)
     {
         var file = await bot.GetFile(document.FileId);
-
-        var fileAddress = Path.Combine(
-            Path.GetTempPath(),
-            $"{Guid.NewGuid()}.xlsx");
+        var fileAddress = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.{format}");
 
         await using var fs = File.Create(fileAddress);
         await bot.DownloadFile(file.FilePath!, fs);
@@ -159,6 +157,25 @@ public class MessageHandler(
     private async Task<bool> CheckDocument(UpdateData data)
     {
         if (data.Document == null) return false;
+        try
+        {
+            var result = await CheckSession(data);
+            if (result) return true;
+        }
+        catch (Exception e) { /*ignored*/ }
+        
+        var session = sessionService.GetOrSetData(data.ChatId);
+        if (Regex.IsMatch(data.DocumentName!, Pattern.BluPattern) && Regex.IsMatch(data.MessageText!, "Share " + Pattern.BluPattern))
+        {
+            session.SetAction(Actions.AwaitingBluFile);
+            var walletId = await transactionHandler.SelectWalletForFile(data.ChatId);
+            if (walletId == Guid.Empty)
+            {
+                session.SetContext(Context.FileAddress, data.Document!.FileAddress);
+                return true;
+            }
+            session.SetCallBack(walletId.ToString()!);
+        }
         return await CheckSession(data);
     }
 
@@ -338,7 +355,7 @@ public class MessageHandler(
             switch (session.Action)
             {
                 case Actions.AwaitingBluFile:
-                    await transactionHandler.ProcessBluFile(data);
+                    await transactionHandler.ProcessBluFile(data, data.Document!.FileAddress);
                     flag = true;
                     break;
             }

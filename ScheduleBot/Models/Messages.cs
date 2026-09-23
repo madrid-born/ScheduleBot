@@ -2,6 +2,11 @@
 
 namespace ScheduleBot.Models;
 
+public static class Pattern
+{
+    public const string BluPattern = @"14\d{12}\.xlsx";
+} 
+
 public static class Messages
 {
     #region Command
@@ -502,6 +507,7 @@ public static class CallBacks
     public const string Transaction = "Transaction";
     public const string CreateWallet = "CW";
     public const string WalletManagement = "WM";
+    public const string SelectWalletToProcess = "SWTP";
     public const string InviteToWallet = "ITW";
     public const string AddTransaction = "AT";
     // public const string GenerateReport = "GR";
@@ -686,6 +692,7 @@ public static class Context
     public const string Section = "Section";
     public const string MessageId = "MessageId";
 
+    public const string FileAddress = "FileAddress";
     public const string ReportWalletId = "ReportWalletId";
     public const string ReportSelectedCategories = "ReportSelectedCategories";
     public const string ReportAllSelected = "ReportAllSelected";
