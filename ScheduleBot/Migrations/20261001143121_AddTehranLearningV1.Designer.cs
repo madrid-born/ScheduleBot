@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ScheduleBot.Models;
 
@@ -11,9 +12,11 @@ using ScheduleBot.Models;
 namespace ScheduleBot.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001143121_AddTehranLearningV1")]
+    partial class AddTehranLearningV1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -241,7 +244,7 @@ namespace ScheduleBot.Migrations
 
                     b.HasIndex("IsPublished", "Position");
 
-                    b.ToTable("TeaMapLessons", t =>
+                    b.ToTable("Lessons", t =>
                         {
                             t.HasCheckConstraint("CK_Lesson_Difficulty", "[Difficulty] >= 1 AND [Difficulty] <= 5");
                         });
@@ -272,7 +275,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("LessonId", "Position")
                         .IsUnique();
 
-                    b.ToTable("TeaMapLessonPlaces");
+                    b.ToTable("LessonPlaces");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.MapifyCategory", b =>
@@ -526,7 +529,7 @@ namespace ScheduleBot.Migrations
                         .IsUnique()
                         .HasFilter("[ExternalId] IS NOT NULL");
 
-                    b.ToTable("TeaMapPlaces", t =>
+                    b.ToTable("Places", t =>
                         {
                             t.HasCheckConstraint("CK_Place_Latitude", "[Latitude] >= -90 AND [Latitude] <= 90");
 
@@ -565,7 +568,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("PlaceId", "Name", "LanguageCode")
                         .IsUnique();
 
-                    b.ToTable("TeaMapPlaceAliases");
+                    b.ToTable("PlaceAliases");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.PlaceRelationship", b =>
@@ -599,7 +602,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("FromPlaceId", "ToPlaceId", "RelationshipType")
                         .IsUnique();
 
-                    b.ToTable("TeaMapPlaceRelationships", t =>
+                    b.ToTable("PlaceRelationships", t =>
                         {
                             t.HasCheckConstraint("CK_PlaceRelationship_Confidence", "[Confidence] IS NULL OR ([Confidence] >= 0 AND [Confidence] <= 100)");
                         });
@@ -662,9 +665,6 @@ namespace ScheduleBot.Migrations
                     b.Property<Guid?>("LessonId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("NightId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Score")
                         .HasColumnType("int");
 
@@ -683,13 +683,9 @@ namespace ScheduleBot.Migrations
 
                     b.HasIndex("LessonId");
 
-                    b.HasIndex("NightId")
-                        .IsUnique()
-                        .HasFilter("[NightId] IS NOT NULL");
-
                     b.HasIndex("UserId", "Status");
 
-                    b.ToTable("TeaMapQuizzes");
+                    b.ToTable("Quizzes");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.QuizAnswer", b =>
@@ -725,7 +721,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("QuizQuestionId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("TeaMapQuizAnswers");
+                    b.ToTable("QuizAnswers");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.QuizQuestion", b =>
@@ -753,19 +749,14 @@ namespace ScheduleBot.Migrations
                     b.Property<Guid>("QuizId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ReferencePlaceId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
                     b.HasIndex("PlaceId");
 
-                    b.HasIndex("ReferencePlaceId");
-
                     b.HasIndex("QuizId", "Position")
                         .IsUnique();
 
-                    b.ToTable("TeaMapQuizQuestions");
+                    b.ToTable("QuizQuestions");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.QuizQuestionOption", b =>
@@ -793,7 +784,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("QuizQuestionId", "Position")
                         .IsUnique();
 
-                    b.ToTable("TeaMapQuizQuestionOptions");
+                    b.ToTable("QuizQuestionOptions");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.ScoreTransaction", b =>
@@ -827,7 +818,7 @@ namespace ScheduleBot.Migrations
 
                     b.HasIndex("UserId", "CreatedAtUtc");
 
-                    b.ToTable("TeaMapScoreTransactions");
+                    b.ToTable("ScoreTransactions");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.Survey", b =>
@@ -911,46 +902,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("TeaMapTehranGameProfiles");
-                });
-
-            modelBuilder.Entity("ScheduleBot.Models.TehranLearningNight", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("FirstPlaceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("LearntCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateOnly>("LocalDate")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("SecondPlaceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FirstPlaceId");
-
-                    b.HasIndex("SecondPlaceId");
-
-                    b.HasIndex("UserId", "LocalDate")
-                        .IsUnique();
-
-                    b.ToTable("TeaMapLearningNights", t =>
-                        {
-                            t.HasCheckConstraint("CK_TeaMapLearningNight_Count", "[LearntCount] BETWEEN 0 AND 2");
-                        });
+                    b.ToTable("TehranGameProfiles");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.TransactionRecord", b =>
@@ -1074,13 +1026,7 @@ namespace ScheduleBot.Migrations
                     b.Property<int>("CorrectAnswers")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsLearnt")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime?>("LastAnsweredAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("LearntAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("NextReviewAtUtc")
@@ -1104,7 +1050,7 @@ namespace ScheduleBot.Migrations
                     b.HasIndex("UserId", "PlaceId")
                         .IsUnique();
 
-                    b.ToTable("TeaMapUserPlaceLearningProgress");
+                    b.ToTable("UserPlaceLearningProgress");
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.Wallet", b =>
@@ -1205,11 +1151,6 @@ namespace ScheduleBot.Migrations
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("ScheduleBot.Models.TehranLearningNight", null)
-                        .WithMany()
-                        .HasForeignKey("NightId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("ScheduleBot.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -1251,11 +1192,6 @@ namespace ScheduleBot.Migrations
                         .HasForeignKey("QuizId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("ScheduleBot.Models.Place", null)
-                        .WithMany()
-                        .HasForeignKey("ReferencePlaceId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.QuizQuestionOption", b =>
@@ -1302,27 +1238,6 @@ namespace ScheduleBot.Migrations
 
             modelBuilder.Entity("ScheduleBot.Models.TehranGameProfile", b =>
                 {
-                    b.HasOne("ScheduleBot.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ScheduleBot.Models.TehranLearningNight", b =>
-                {
-                    b.HasOne("ScheduleBot.Models.Place", null)
-                        .WithMany()
-                        .HasForeignKey("FirstPlaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ScheduleBot.Models.Place", null)
-                        .WithMany()
-                        .HasForeignKey("SecondPlaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("ScheduleBot.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

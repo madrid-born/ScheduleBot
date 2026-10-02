@@ -18,6 +18,7 @@ public class MessageHandler(
     NotificationHandler notificationHandler,
     MetroHandler metroHandler,
     MapifyHandler mapifyHandler,
+    TehranLearningHandler tehranLearningHandler,
     SurveyHandler surveyHandler,
     MainService services,
     IConfiguration configuration)
@@ -31,7 +32,8 @@ public class MessageHandler(
         {
             updateData = await ExtractUpdateDataAsync(update);
             chatId = updateData.ChatId;
-            if (update.CallbackQuery != null && updateData.DataSeparated.FirstOrDefault() == CallBacks.Survey)
+            if (update.CallbackQuery != null &&
+                updateData.DataSeparated.FirstOrDefault() is CallBacks.Survey or CallBacks.Tehran)
                 await bot.AnswerCallbackQuery(update.CallbackQuery.Id, cancellationToken: ct);
             if (!await userHandler.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
@@ -164,6 +166,9 @@ public class MessageHandler(
                 break;
             case CallBacks.Mapify:
                 await mapifyHandler.HandleCallBack(data);
+                break;
+            case CallBacks.Tehran:
+                await tehranLearningHandler.HandleCallBack(data);
                 break;
             case CallBacks.Survey:
                 await surveyHandler.HandleCallBack(data);
@@ -338,7 +343,7 @@ public class MessageHandler(
         catch (Exception e) { /*ignored*/ }
         
         if (keyboardSymbol is Messages.PeriodTracker or Messages.Cart or Messages.Transaction or Messages.Spotify
-            or Messages.Notification or Messages.Metro or Messages.Mapify or Messages.About &&
+            or Messages.Notification or Messages.Metro or Messages.Mapify or Messages.TehranQuiz or "🗺 Tehran Quiz" or Messages.About &&
             sessionService.GetOrSetData(data.ChatId).Action == SurveyHandler.SessionAction)
             sessionService.ClearSession(data.ChatId);
 
@@ -370,6 +375,11 @@ public class MessageHandler(
                 break;
             case Messages.Mapify:
                 await mapifyHandler.HandleSection(data);
+                flag = true;
+                break;
+            case Messages.TehranQuiz:
+            case "🗺 Tehran Quiz":
+                await tehranLearningHandler.HandleSection(data);
                 flag = true;
                 break;
             case Messages.Survey:

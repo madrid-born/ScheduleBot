@@ -97,6 +97,11 @@ builder.Services.AddScoped<MetroHandler>();
 builder.Services.AddScoped<MetroService>();
 builder.Services.AddScoped<MapifyHandler>();
 builder.Services.AddScoped<MapifyService>();
+builder.Services.AddScoped<TehranLearningHandler>();
+builder.Services.AddScoped<TehranLearningService>();
+builder.Services.AddScoped<TehranCatalogSeeder>();
+builder.Services.AddSingleton(new TehranMapCatalog(Path.Combine(builder.Environment.ContentRootPath,
+    "Data", "Tehran", "roads.osm.json.gz")));
 builder.Services.AddScoped<SurveyHandler>();
 builder.Services.AddScoped<SurveyService>();
 builder.Services.AddScoped<SurveyReportService>();
@@ -108,6 +113,10 @@ builder.Services.AddHttpClient<SpotifyService>(client =>
 builder.Services.AddHostedService<BotPollingService>();
 
 var app = builder.Build();
+
+// Idempotent catalog expansion; schema migrations remain an explicit deployment step.
+using (var scope = app.Services.CreateScope())
+    await scope.ServiceProvider.GetRequiredService<TehranCatalogSeeder>().EnsureAsync();
 
 if (app.Environment.IsDevelopment())
 {

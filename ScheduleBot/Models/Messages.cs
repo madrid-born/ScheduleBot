@@ -25,9 +25,23 @@ public static class Messages
     public const string Metro = "🚇 Tehran Metro";
     public const string Mapify = "📍 Mapify";
     public const string Survey = "📋 Surveys";
+    public const string TehranQuiz = "🗺 Tehran Map";
 
     public const string Spotify = "🎵 Spotify";
     
+    #endregion
+
+    #region Tehran Learning
+
+    public const string TehranWelcome = "Tehran Quiz\n\nScore: {0}\nCurrent streak: {1}\nAvailable places: {2}\nPublished lessons: {3}";
+    public const string TehranStartQuiz = "Start quiz";
+    public const string TehranRefresh = "Refresh progress";
+    public const string TehranNoLessonData = "The Tehran lessons are not ready yet. Add and publish a lesson with at least two places first.";
+    public const string TehranCorrect = "Correct! +10 points.";
+    public const string TehranIncorrect = "Not quite. The next question is ready.";
+    public const string TehranAnswerAlreadySubmitted = "That question has already been answered.";
+    public const string TehranQuizCompleted = "Quiz complete! Score: {0}. {1}";
+
     #endregion
 
     #region Mapify
@@ -586,6 +600,15 @@ public static class CallBacks
     public const string MetroStationDetails = "MSD";
     public const string MetroLineSelected = "MLS";
     public const string MetroStationSelected = "MSS";
+
+    #endregion
+
+    #region Tehran Learning
+
+    public const string Tehran = "Tehran";
+    public const string TehranStartQuiz = "START";
+    public const string TehranRefresh = "REFRESH";
+    public const string TehranAnswer = "ANSWER";
 
     #endregion
 

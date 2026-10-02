@@ -101,7 +101,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             new() { Messages.PeriodTracker, Messages.Notification },
             new() { Messages.Transaction, Messages.Cart },
             new() { Messages.Metro, Messages.Mapify },
-            new() { Messages.Survey },
+            new() { Messages.TehranQuiz, Messages.Survey },
         };
         if (isAdmin) collection.Add([Messages.Spotify]);
         

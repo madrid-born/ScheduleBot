@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ScheduleBot.Models;
 
@@ -11,9 +12,11 @@ using ScheduleBot.Models;
 namespace ScheduleBot.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001143604_uyuy6hj6")]
+    partial class uyuy6hj6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -662,9 +665,6 @@ namespace ScheduleBot.Migrations
                     b.Property<Guid?>("LessonId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("NightId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Score")
                         .HasColumnType("int");
 
@@ -682,10 +682,6 @@ namespace ScheduleBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("LessonId");
-
-                    b.HasIndex("NightId")
-                        .IsUnique()
-                        .HasFilter("[NightId] IS NOT NULL");
 
                     b.HasIndex("UserId", "Status");
 
@@ -753,14 +749,9 @@ namespace ScheduleBot.Migrations
                     b.Property<Guid>("QuizId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ReferencePlaceId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
                     b.HasIndex("PlaceId");
-
-                    b.HasIndex("ReferencePlaceId");
 
                     b.HasIndex("QuizId", "Position")
                         .IsUnique();
@@ -914,45 +905,6 @@ namespace ScheduleBot.Migrations
                     b.ToTable("TeaMapTehranGameProfiles");
                 });
 
-            modelBuilder.Entity("ScheduleBot.Models.TehranLearningNight", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("FirstPlaceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("LearntCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateOnly>("LocalDate")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("SecondPlaceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FirstPlaceId");
-
-                    b.HasIndex("SecondPlaceId");
-
-                    b.HasIndex("UserId", "LocalDate")
-                        .IsUnique();
-
-                    b.ToTable("TeaMapLearningNights", t =>
-                        {
-                            t.HasCheckConstraint("CK_TeaMapLearningNight_Count", "[LearntCount] BETWEEN 0 AND 2");
-                        });
-                });
-
             modelBuilder.Entity("ScheduleBot.Models.TransactionRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1074,13 +1026,7 @@ namespace ScheduleBot.Migrations
                     b.Property<int>("CorrectAnswers")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsLearnt")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime?>("LastAnsweredAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("LearntAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("NextReviewAtUtc")
@@ -1205,11 +1151,6 @@ namespace ScheduleBot.Migrations
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("ScheduleBot.Models.TehranLearningNight", null)
-                        .WithMany()
-                        .HasForeignKey("NightId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("ScheduleBot.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -1251,11 +1192,6 @@ namespace ScheduleBot.Migrations
                         .HasForeignKey("QuizId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("ScheduleBot.Models.Place", null)
-                        .WithMany()
-                        .HasForeignKey("ReferencePlaceId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ScheduleBot.Models.QuizQuestionOption", b =>
@@ -1302,27 +1238,6 @@ namespace ScheduleBot.Migrations
 
             modelBuilder.Entity("ScheduleBot.Models.TehranGameProfile", b =>
                 {
-                    b.HasOne("ScheduleBot.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ScheduleBot.Models.TehranLearningNight", b =>
-                {
-                    b.HasOne("ScheduleBot.Models.Place", null)
-                        .WithMany()
-                        .HasForeignKey("FirstPlaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ScheduleBot.Models.Place", null)
-                        .WithMany()
-                        .HasForeignKey("SecondPlaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("ScheduleBot.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

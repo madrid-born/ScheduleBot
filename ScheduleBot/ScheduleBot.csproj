@@ -28,6 +28,7 @@
 
     <ItemGroup>
       <Folder Include="Fonts\" />
+      <Content Include="Data\Tehran\roads.osm.json.gz" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>
