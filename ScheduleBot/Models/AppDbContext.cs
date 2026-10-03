@@ -4,6 +4,10 @@ namespace ScheduleBot.Models;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<ScoreGroup> ScoreGroups { get; set; }
+    public DbSet<ScoreMember> ScoreMembers { get; set; }
+    public DbSet<ScoreRequest> ScoreRequests { get; set; }
+    public DbSet<ScoreApproval> ScoreApprovals { get; set; }
     public DbSet<User> Users { get; set; }
     
     public DbSet<CycleDetail> CycleDetails { get; set; }
@@ -51,6 +55,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ScoreGroup>().Property(x => x.Name).HasMaxLength(200);
+        modelBuilder.Entity<ScoreGroup>().Property(x => x.Revision).IsConcurrencyToken();
+        modelBuilder.Entity<ScoreGroup>().HasIndex(x => x.InvitationCode).IsUnique();
+        modelBuilder.Entity<ScoreGroup>().HasOne<User>().WithMany().HasForeignKey(x => x.CreatorId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ScoreMember>().HasIndex(x => new { x.GroupId, x.UserId }).IsUnique();
+        modelBuilder.Entity<ScoreMember>().HasOne<ScoreGroup>().WithMany().HasForeignKey(x => x.GroupId);
+        modelBuilder.Entity<ScoreMember>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ScoreRequest>().HasIndex(x => new { x.GroupId, x.CreatedAtUtc });
+        modelBuilder.Entity<ScoreRequest>().HasOne<ScoreGroup>().WithMany().HasForeignKey(x => x.GroupId);
+        modelBuilder.Entity<ScoreRequest>().HasOne<User>().WithMany().HasForeignKey(x => x.InitiatorId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ScoreRequest>().HasOne<User>().WithMany().HasForeignKey(x => x.FromUserId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ScoreRequest>().HasOne<User>().WithMany().HasForeignKey(x => x.ToUserId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ScoreRequest>().ToTable(t => t.HasCheckConstraint("CK_ScoreRequest_Amount", "[Amount] > 0"));
+        modelBuilder.Entity<ScoreApproval>().HasIndex(x => new { x.RequestId, x.UserId }).IsUnique();
+        modelBuilder.Entity<ScoreApproval>().HasOne<ScoreRequest>().WithMany().HasForeignKey(x => x.RequestId);
+        modelBuilder.Entity<ScoreApproval>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Survey>().Property(x => x.Name).HasMaxLength(200);
         modelBuilder.Entity<Survey>().HasIndex(x => x.InvitationCode).IsUnique();

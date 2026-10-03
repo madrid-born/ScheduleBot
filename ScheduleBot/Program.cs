@@ -90,6 +90,8 @@ builder.Services.AddScoped<CartHandler>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<TransactionHandler>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<ScoreCounterHandler>();
+builder.Services.AddScoped<ScoreCounterService>();
 builder.Services.AddScoped<SpotifyHandler>();
 builder.Services.AddScoped<NotificationHandler>();
 builder.Services.AddScoped<NotificationService>();

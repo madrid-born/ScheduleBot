@@ -20,6 +20,7 @@ public class MessageHandler(
     MapifyHandler mapifyHandler,
     TehranLearningHandler tehranLearningHandler,
     SurveyHandler surveyHandler,
+    ScoreCounterHandler scoreCounterHandler,
     MainService services,
     IConfiguration configuration)
 {
@@ -32,8 +33,13 @@ public class MessageHandler(
         {
             updateData = await ExtractUpdateDataAsync(update);
             chatId = updateData.ChatId;
+            if (updateData.DataSeparated.FirstOrDefault() == CallBacks.ScoreCounter && update.CallbackQuery?.From.Id != chatId)
+            {
+                await bot.AnswerCallbackQuery(update.CallbackQuery!.Id, "Use Score Counter in your private chat with the bot.", cancellationToken: ct);
+                return;
+            }
             if (update.CallbackQuery != null &&
-                updateData.DataSeparated.FirstOrDefault() is CallBacks.Survey or CallBacks.Tehran)
+                updateData.DataSeparated.FirstOrDefault() is CallBacks.Survey or CallBacks.Tehran or CallBacks.ScoreCounter)
                 await bot.AnswerCallbackQuery(update.CallbackQuery.Id, cancellationToken: ct);
             if (!await userHandler.CheckUserStatusAsync(updateData)) return;
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
@@ -173,6 +179,9 @@ public class MessageHandler(
             case CallBacks.Survey:
                 await surveyHandler.HandleCallBack(data);
                 break;
+            case CallBacks.ScoreCounter:
+                await scoreCounterHandler.HandleCallBack(data);
+                break;
         }
     }
 
@@ -245,6 +254,17 @@ public class MessageHandler(
         var flag = false;
         var text = data.MessageText;
         if (string.IsNullOrEmpty(text) || !text.StartsWith('/')) return flag;
+        var command = text.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0].Split('@')[0];
+        if (command == "/demand")
+        {
+            await scoreCounterHandler.Demand(data);
+            return true;
+        }
+        if (command == "/cancel" && sessionService.GetOrSetData(data.ChatId).Action == ScoreCounterHandler.SessionAction)
+        {
+            await scoreCounterHandler.HandleSection(data);
+            return true;
+        }
         if (text.StartsWith("/Test") && data.ChatId == services.AdminChatId)
         {
             await services.SendMessage(data.ChatId, "Nothing in here");
@@ -258,6 +278,13 @@ public class MessageHandler(
                 var splitter = parts[1].Split("_").ToList();
                 switch (splitter[0])
                 {
+                    case CallBacks.ScoreCounter:
+                        if (splitter.Count == 3 && splitter[1] == "join")
+                        {
+                            await scoreCounterHandler.Join(data, splitter[2]);
+                            flag = true;
+                        }
+                        break;
                     case CallBacks.Survey:
                     {
                         if (splitter.Count == 3 && splitter[1] == "join")
@@ -324,6 +351,8 @@ public class MessageHandler(
                 return flag;
             }
             flag = true;
+            if (sessionService.GetOrSetData(data.ChatId).Action == ScoreCounterHandler.SessionAction)
+                sessionService.ClearSession(data.ChatId);
             if (sessionService.GetOrSetData(data.ChatId).Action == SurveyHandler.SessionAction)
                 sessionService.ClearSession(data.ChatId);
             await services.SendMessage(data.ChatId, Messages.Welcome);
@@ -343,12 +372,15 @@ public class MessageHandler(
         catch (Exception e) { /*ignored*/ }
         
         if (keyboardSymbol is Messages.PeriodTracker or Messages.Cart or Messages.Transaction or Messages.Spotify
-            or Messages.Notification or Messages.Metro or Messages.Mapify or Messages.TehranQuiz or "🗺 Tehran Quiz" or Messages.About &&
-            sessionService.GetOrSetData(data.ChatId).Action == SurveyHandler.SessionAction)
+            or Messages.Notification or Messages.Metro or Messages.Mapify or Messages.TehranQuiz or "🗺 Tehran Quiz" or Messages.About or Messages.Survey or Messages.ScoreCounter &&
+            sessionService.GetOrSetData(data.ChatId).Action is SurveyHandler.SessionAction or ScoreCounterHandler.SessionAction)
             sessionService.ClearSession(data.ChatId);
 
         switch (keyboardSymbol)
         {
+            case Messages.ScoreCounter:
+                await scoreCounterHandler.HandleSection(data);
+                return true;
             case Messages.PeriodTracker:
                 await cycleTrackerHandler.HandleSection(data);
                 flag = true;
@@ -406,6 +438,11 @@ public class MessageHandler(
         {
             sessionService.ClearSession(data.ChatId);
             return flag;
+        }
+        if (session.Action == ScoreCounterHandler.SessionAction)
+        {
+            await scoreCounterHandler.HandleSession(data);
+            return true;
         }
 
         if (data.Document != null)

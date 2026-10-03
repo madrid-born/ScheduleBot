@@ -25,6 +25,7 @@ public static class Messages
     public const string Metro = "🚇 Tehran Metro";
     public const string Mapify = "📍 Mapify";
     public const string Survey = "📋 Surveys";
+    public const string ScoreCounter = "🏆 Score Counter";
     public const string TehranQuiz = "🗺 Tehran Map";
 
     public const string Spotify = "🎵 Spotify";
@@ -437,6 +438,7 @@ public static class Messages
 public static class CallBacks
 {
     public const string Survey = "SV";
+    public const string ScoreCounter = "SC";
     #region Universal
 
     public const string Yes = "Yes";
