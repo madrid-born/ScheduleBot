@@ -13,6 +13,9 @@
         <Content Remove="tmp\**" />
         <None Remove="Tests\**" />
         <None Remove="tmp\**" />
+        <None Remove="Docs\TeaMapRequestedPlaces20261003\README.md" />
+        <None Remove="Docs\TeaMapPriority20261003\rollback.sql" />
+        <None Remove="Docs\TeaMapPriority20261003\priority-audit.csv" />
     </ItemGroup>
 
     <ItemGroup>
@@ -27,8 +30,8 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Docs\TeaMapRequestedPlaces20261003\" />
       <Folder Include="Fonts\" />
-      <Content Include="Data\Tehran\roads.osm.json.gz" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>

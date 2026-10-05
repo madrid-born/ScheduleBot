@@ -252,7 +252,7 @@ public sealed class TehranLearningService(AppDbContext db, TehranMapCatalog maps
             var current = await GetCurrentQuestionAsync(userId, quiz.Id, ct);
             if (current?.QuestionId != question.Id) return null;
             var now = Now;
-            var points = option.IsCorrect ? 10 : 0;
+            var points = option.IsCorrect ? 1 : 0;
             db.TeaMapQuizAnswers.Add(new QuizAnswer { Id = Guid.NewGuid(), UserId = userId,
                 QuizQuestionId = question.Id, SelectedOptionId = optionId, IsCorrect = option.IsCorrect,
                 ScoreAwarded = points, AnsweredAtUtc = now });
@@ -298,7 +298,7 @@ public sealed class TehranLearningService(AppDbContext db, TehranMapCatalog maps
             }
             await db.SaveChangesAsync(ct);
             return new TehranAnswerResult(true, option.IsCorrect, points, completed, quiz.Score, correctName,
-                completed ? null : await GetCurrentQuestionAsync(userId, quiz.Id, ct)) { MaximumScore = total * 10 };
+                completed ? null : await GetCurrentQuestionAsync(userId, quiz.Id, ct)) { MaximumScore = total };
         }, ct);
 
     private async Task<T> InTransaction<T>(Guid userId, Func<Task<T>> operation, CancellationToken ct)

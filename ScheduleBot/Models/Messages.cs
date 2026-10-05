@@ -785,7 +785,7 @@ public static class Files
 
 public static class SpotifyApi
 {
-    public const string AllSongsPlaylistId = "21SgdiMHUdSgXrZpnuqc56";
+    public const string AllSongsPlaylistId = "0R37XmZXLrE7zgAFYvIfdr";
     public const string NotCategorizedPlaylistId = "21SgdiMHUdSgXrZpnuqc56";
     public const string ApiPassword = "VeryStrongPasswordForAuthentication";
     public const string ApiCallSignIn = "/api/Authorization/SignIn";

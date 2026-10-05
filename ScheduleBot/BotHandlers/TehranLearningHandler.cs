@@ -83,7 +83,7 @@ public sealed class TehranLearningHandler(DatabaseService database, TehranLearni
                         // An old/deleted message cannot be edited. The committed answer still advances.
                     }
                 }
-                var feedback = result.IsCorrect ? $"Correct — {result.CorrectName}! +10 points." :
+                var feedback = result.IsCorrect ? $"Correct — {result.CorrectName}! +1 points." :
                     $"Correct answer: {result.CorrectName}. Take another look at the map.";
                 if (result.QuizCompleted)
                     await services.SendMessage(data.ChatId, $"{feedback}\n\nTonight complete! Score: {result.QuizScore}/{result.MaximumScore}. Your two new places are on your Map. Come back next night for two more.", Menu());

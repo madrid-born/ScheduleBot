@@ -71,6 +71,22 @@ public sealed class TehranMapCatalog
         }
         if (added.Count < 121) throw new InvalidOperationException("The road snapshot must supply at least 121 distinct named streets.");
         AdditionalPlaces = added;
+        // Resolve explicitly requested streets without changing the original
+        // 121-road import selection or its deterministic identifiers.
+        names["Jolfa Street"] = ["جلفا"];
+        names["Ghanbarzadeh Street"] = ["قنبر قنبرزاده"];
+        names["Khajeh Abdollah Ansari Street"] = ["خواجه عبدالله انصاری"];
+        names["Abuzar Ghaffari Street"] = ["ابوذر غفاری"];
+        names["Mojtabaei Street"] = ["رضا مجتبایی"];
+        names["Madar Square"] = ["میدان مادر"];
+        names["Mofateh Street"] = ["دکتر مفتح شمالی", "دکتر مفتح جنوبی"];
+        names["Bahar Shiraz Street"] = ["بهار شیراز"];
+        names["Ghodousi Street"] = ["آیت الله قدوسی"];
+        names["Gol Nabi Street"] = ["شهید گل نبی", "گل نبی"];
+        names["Gandhi Street"] = ["گاندی", "گاندی شمالی"];
+        names["Gheytarieh Boulevard"] = ["بلوار قیطریه"];
+        names["Zaferaniyeh Street"] = ["ولی‌ الله فلاحی"];
+        names["Elahiyeh Street"] = ["الهیه"];
     }
 
     private static bool IsStreet(MapRoad r) => r.RoadClass is "motorway" or "trunk" or "primary" or "secondary" or "tertiary";
