@@ -1,0 +1,4 @@
+# Bot authorization state; never commit or publish these credentials.
+/Data/Telegram/
+*.session
+*.session-journal

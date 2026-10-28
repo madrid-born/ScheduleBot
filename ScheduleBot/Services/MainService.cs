@@ -58,7 +58,8 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         parseMode == ParseMode.Markdown ? EscapeMarkdown(message) : message;
 
     public async Task<int> SendMessage(long chatId, string message, ReplyMarkup? replyMarkup = null,
-        string? imageUrl = null, InputFileStream? document = null, ParseMode parseMode = ParseMode.Markdown)
+        string? imageUrl = null, InputFileStream? document = null, ParseMode parseMode = ParseMode.Markdown,
+        bool disableLinkPreview = false, CancellationToken ct = default)
     {
         message = PrepareMessageForTelegram(message, parseMode);
 
@@ -68,7 +69,9 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
         if (document != null)
             return (await bot.SendDocument(chatId, document, caption: message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
         
-        return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode)).MessageId;
+        return (await bot.SendMessage(chatId, message, replyMarkup: replyMarkup ?? GetMainKeyboard(chatId == AdminChatId), parseMode: parseMode,
+            linkPreviewOptions: disableLinkPreview ? new LinkPreviewOptions { IsDisabled = true } : null,
+            cancellationToken: ct)).MessageId;
     }
     
     public async Task EditMessage(long chatId, int messageId, string? message = null, ReplyMarkup? replyMarkup = null,
@@ -102,7 +105,7 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
             new() { Messages.Transaction, Messages.Cart },
             new() { Messages.Metro, Messages.Mapify },
             new() { Messages.TehranQuiz, Messages.Survey },
-            new() { Messages.ScoreCounter },
+            new() { Messages.ScoreCounter, Messages.FileLinks },
         };
         if (isAdmin) collection.Add([Messages.Spotify]);
         

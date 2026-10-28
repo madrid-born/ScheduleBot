@@ -22,7 +22,8 @@ public class MessageHandler(
     SurveyHandler surveyHandler,
     ScoreCounterHandler scoreCounterHandler,
     MainService services,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    FileLinkHandler fileLinkHandler)
 {
     public async Task HandleUpdateAsync(ITelegramBotClient bot1, Update update, CancellationToken ct)
     {
@@ -45,7 +46,7 @@ public class MessageHandler(
             if (updateData.IsCallback && !string.IsNullOrEmpty(updateData.CallbackData))
                 await HandleCallbackAsync(updateData);
             else
-                await HandleMessageAsync(updateData);
+                await HandleMessageAsync(updateData, ct);
         }
         catch (IOException ex)
         {
@@ -74,6 +75,7 @@ public class MessageHandler(
             data.IsCallback = true;
             data.DeleteCallback = true;
             data.ChatId = update.CallbackQuery.Message!.Chat.Id;
+            data.IsPrivateChat = update.CallbackQuery.Message.Chat.Type == Telegram.Bot.Types.Enums.ChatType.Private;
             data.Username = update.CallbackQuery.Message!.Chat.Username;
             data.MessageId = update.CallbackQuery.Message.MessageId;
             data.CallbackData = update.CallbackQuery.Data;
@@ -91,6 +93,13 @@ public class MessageHandler(
         else if (update.Message != null)
         {
             data.ChatId = update.Message.Chat.Id;
+            data.IsPrivateChat = update.Message.Chat.Type == Telegram.Bot.Types.Enums.ChatType.Private;
+            if (configuration.GetValue<bool>("FileLinks:Enabled"))
+            {
+                data.TelegramFile = FileLinkHandler.GetFileReference(update.Message);
+                if (update.Message.ReplyToMessage != null)
+                    data.RepliedTelegramFile = FileLinkHandler.GetFileReference(update.Message.ReplyToMessage);
+            }
             data.Username = update.Message.Chat.Username;
             data.MessageId = update.Message.MessageId;
             data.MessageText = update.Message.Text;
@@ -109,7 +118,11 @@ public class MessageHandler(
                 data.DocumentName = update.Message.Document.FileName;
                 data.MessageText = update.Message.Caption;
                 var extension = (Path.GetExtension(data.DocumentName) ?? "").TrimStart('.');
-                data.Document = new ImportedFile(await LoadFile(update.Message.Document, extension));
+                var session = sessionService.GetOrSetData(data.ChatId);
+                var fileLinkUpload = configuration.GetValue<bool>("FileLinks:Enabled") && data.IsPrivateChat
+                    && session.Action == Actions.CreateFileLink && session.Timestamp.AddHours(1) > DateTime.UtcNow;
+                if (!fileLinkUpload)
+                    data.Document = new ImportedFile(await LoadFile(update.Message.Document, extension));
             }
             
             data.Command = update.Message.Text;
@@ -146,6 +159,9 @@ public class MessageHandler(
 
         switch (data.DataSeparated[0])
         {
+            case CallBacks.FileLinks when configuration.GetValue<bool>("FileLinks:Enabled"):
+                await fileLinkHandler.HandleCallBack(data);
+                break;
             case CallBacks.MainSection:
                 await services.HandleCallBack(data);
                 break;
@@ -215,13 +231,13 @@ public class MessageHandler(
         return await CheckSession(data);
     }
 
-    private async Task HandleMessageAsync(UpdateData data)
+    private async Task HandleMessageAsync(UpdateData data, CancellationToken ct = default)
     {
         if (await CheckDocument(data)) return;
         if (await CheckReplied(data)) return;
-        if (await CheckCommand(data)) return;
+        if (await CheckCommand(data, ct)) return;
         if (await CheckKeyboard(data)) return;
-        if (await CheckSession(data)) return;
+        if (await CheckSession(data, ct)) return;
         await services.SendMessage(data.ChatId, Messages.NotFound);
     }
 
@@ -249,12 +265,25 @@ public class MessageHandler(
         return flag;
     }
 
-    private async Task<bool> CheckCommand(UpdateData data)
+    private async Task<bool> CheckCommand(UpdateData data, CancellationToken ct = default)
     {
         var flag = false;
         var text = data.MessageText;
         if (string.IsNullOrEmpty(text) || !text.StartsWith('/')) return flag;
         var command = text.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0].Split('@')[0];
+        if (configuration.GetValue<bool>("FileLinks:Enabled"))
+        {
+            if (command == "/getlink")
+            {
+                await fileLinkHandler.CreateLink(data, data.RepliedTelegramFile, ct);
+                return true;
+            }
+            if (command == "/revokelink")
+            {
+                await fileLinkHandler.RevokeLink(data, text.Split(' ', 2).ElementAtOrDefault(1) ?? "", ct);
+                return true;
+            }
+        }
         if (command == "/demand")
         {
             await scoreCounterHandler.Demand(data);
@@ -371,13 +400,17 @@ public class MessageHandler(
         }
         catch (Exception e) { /*ignored*/ }
         
-        if (keyboardSymbol is Messages.PeriodTracker or Messages.Cart or Messages.Transaction or Messages.Spotify
-            or Messages.Notification or Messages.Metro or Messages.Mapify or Messages.TehranQuiz or "🗺 Tehran Quiz" or Messages.About or Messages.Survey or Messages.ScoreCounter &&
-            sessionService.GetOrSetData(data.ChatId).Action is SurveyHandler.SessionAction or ScoreCounterHandler.SessionAction)
+        if ((keyboardSymbol is Messages.PeriodTracker or Messages.Cart or Messages.Transaction or Messages.Spotify
+            or Messages.Notification or Messages.Metro or Messages.Mapify or Messages.TehranQuiz or "🗺 Tehran Quiz" or Messages.About or Messages.Survey or Messages.ScoreCounter
+            || keyboardSymbol == Messages.FileLinks && configuration.GetValue<bool>("FileLinks:Enabled")) &&
+            sessionService.GetOrSetData(data.ChatId).Action is SurveyHandler.SessionAction or ScoreCounterHandler.SessionAction or Actions.CreateFileLink or Actions.RevokeFileLink)
             sessionService.ClearSession(data.ChatId);
 
         switch (keyboardSymbol)
         {
+            case Messages.FileLinks when configuration.GetValue<bool>("FileLinks:Enabled"):
+                await fileLinkHandler.HandleSection(data);
+                return true;
             case Messages.ScoreCounter:
                 await scoreCounterHandler.HandleSection(data);
                 return true;
@@ -425,7 +458,7 @@ public class MessageHandler(
         return flag;
     }
 
-    private async Task<bool> CheckSession(UpdateData data)
+    private async Task<bool> CheckSession(UpdateData data, CancellationToken ct = default)
     {
         var flag = false;
         var session = sessionService.GetOrSetData(data.ChatId);
@@ -457,6 +490,11 @@ public class MessageHandler(
         }
         switch (session.Action)
         {
+            case Actions.CreateFileLink:
+            case Actions.RevokeFileLink:
+                if (!configuration.GetValue<bool>("FileLinks:Enabled")) return false;
+                await fileLinkHandler.HandleSession(data, ct);
+                return true;
             case Actions.Register:
                 switch (session.CallbackData)
                 {

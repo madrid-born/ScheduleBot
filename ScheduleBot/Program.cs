@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Http;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -82,6 +83,23 @@ builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 builder.Services.AddSingleton<UserSessionService>();
 builder.Services.AddScoped<MainService>();
 builder.Services.AddScoped<DatabaseService>();
+builder.Services.AddScoped<FileLinkHandler>();
+builder.Services.AddScoped<FileLinkService>();
+builder.Services.AddOptions<FileLinkOptions>().Bind(builder.Configuration.GetSection("FileLinks"))
+    .Validate(o => !o.Enabled || (o.ExpirationMinutes is > 0 and <= 525600 && o.MaxConcurrentDownloads is > 0 and <= 1024
+        && o.RequestsPerMinute is > 0 and <= 100000 && o.MaxActiveLinksPerUser is > 0 and <= 10000
+        && o.DownloadTimeoutMinutes is > 0 and <= 1440 && o.MaxDownloadBytes is > 0 and <= 4L * 1024 * 1024 * 1024), "Invalid FileLinks limits.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(TimeProvider.System);
+if (builder.Configuration.GetValue<bool>("FileLinks:Enabled"))
+{
+    builder.Services.AddSingleton<TelegramFileService>();
+    builder.Services.AddSingleton<MtProtoTelegramFileService>();
+    builder.Services.AddSingleton<ITelegramFileSource>(sp => builder.Configuration.GetValue<bool>("FileLinks:UseMtProto")
+        ? sp.GetRequiredService<MtProtoTelegramFileService>() : sp.GetRequiredService<TelegramFileService>());
+    builder.Services.AddSingleton<FileDownloadLimits>();
+    builder.Services.AddScoped<FileDownloadService>();
+}
 builder.Services.AddScoped<MessageHandler>();
 builder.Services.AddScoped<UserHandler>();
 builder.Services.AddScoped<CycleTrackerHandler>();
@@ -116,6 +134,14 @@ builder.Services.AddHostedService<BotPollingService>();
 
 var app = builder.Build();
 
+if (builder.Configuration.GetValue<bool>("FileLinks:Enabled") &&
+    !app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<FileLinkOptions>>().Value.HasPublicBaseUrl)
+    app.Logger.LogWarning("File Links cannot create links until FileLinks:PublicBaseUrl is set to an HTTPS address or an HTTP loopback address for local testing. Other bot features remain available.");
+
+if (builder.Configuration.GetValue<bool>("FileLinks:Enabled") && builder.Configuration.GetValue<bool>("FileLinks:UseMtProto") &&
+    !app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<FileLinkOptions>>().Value.HasMtProtoCredentials)
+    app.Logger.LogWarning("MTProto downloads need FileLinks:MtProtoApiId, MtProtoApiHash and a writable MtProtoSessionPath. Configure application credentials before creating file links.");
+
 // Idempotent catalog expansion; schema migrations remain an explicit deployment step.
 using (var scope = app.Services.CreateScope())
     await scope.ServiceProvider.GetRequiredService<TehranCatalogSeeder>().EnsureAsync();
@@ -126,6 +152,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Nginx on this machine terminates TLS. Retain the default loopback-only proxy trust.
+app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedProto });
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();

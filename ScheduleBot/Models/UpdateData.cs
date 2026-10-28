@@ -21,6 +21,9 @@ public class UpdateData
     public List<string> ReplyMessageSeparated { get; set; } = new();
     public ImportedFile? Document { get; set; }
     public string? DocumentName { get; set; }
+    public FileLink? TelegramFile { get; set; }
+    public FileLink? RepliedTelegramFile { get; set; }
+    public bool IsPrivateChat { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 }

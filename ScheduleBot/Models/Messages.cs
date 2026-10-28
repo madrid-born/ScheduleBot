@@ -26,10 +26,31 @@ public static class Messages
     public const string Mapify = "📍 Mapify";
     public const string Survey = "📋 Surveys";
     public const string ScoreCounter = "🏆 Score Counter";
+    public const string FileLinks = "🔗 File Links";
     public const string TehranQuiz = "🗺 Tehran Map";
 
     public const string Spotify = "🎵 Spotify";
     
+    #endregion
+
+    #region File Links
+
+    public const string FileLinksWelcome = "Welcome to File Links. What do you want to do?";
+    public const string CreateFileLink = "Create download link";
+    public const string RevokeFileLink = "Revoke download link";
+    public const string AskFileLinkFile = "Send a file to create a download link, or reply to a file with /getlink. Use Cancel to stop.";
+    public const string AskFileLinkToRevoke = "Send the download URL or token you want to revoke.";
+    public const string FileLinkPrivateOnly = "Use File Links in your private chat with the bot.";
+    public const string FileLinkTooLarge = "Telegram's hosted Bot API only supports downloads up to 20 MB.";
+    public const string FileLinkMtProtoNotConfigured = "Large-file downloads need FileLinks:MtProtoApiId and MtProtoApiHash configured on the server.";
+    public const string FileLinkConfiguredLimit = "This file exceeds the configured download size limit.";
+    public const string FileLinkLimitReached = "Active link limit reached. Revoke a link or wait for expiration.";
+    public const string FileLinkNotFound = "Link not found. Send a download URL or token created by you.";
+    public const string FileLinkRevoked = "Link revoked. Downloads already in progress may finish.";
+    public const string FileLinkCancelled = "File link action cancelled.";
+    public const string FileLinkUnavailable = "File link service is temporarily unavailable.";
+    public const string FileLinkPublicUrlMissing = "File Links is not configured yet. Set FileLinks:PublicBaseUrl to an HTTPS address, or http://localhost:5208 for local testing, then restart the bot.";
+
     #endregion
 
     #region Tehran Learning
@@ -437,6 +458,9 @@ public static class Messages
 
 public static class CallBacks
 {
+    public const string FileLinks = "FL";
+    public const string CreateFileLink = "CFL";
+    public const string RevokeFileLink = "RFL";
     public const string Survey = "SV";
     public const string ScoreCounter = "SC";
     #region Universal
@@ -555,6 +579,8 @@ public static class CallBacks
 
     public const string Spotify = "Spotify";
     public const string CategorizePlaylist = "CP";
+    public const string GoodShuffle = "GS";
+    public const string MixPlaylist = "MP";
     public const string NotCategorizePlaylist = "NCP";
     
     public const string TrackAction = "TA";
@@ -646,6 +672,8 @@ public static class Errors
 
 public static class Actions
 {
+    public const string CreateFileLink = "CreateFileLink";
+    public const string RevokeFileLink = "RevokeFileLink";
     public const string Register = "Register";
     
     public const string SetUpPeriod = "SetUpPeriod";

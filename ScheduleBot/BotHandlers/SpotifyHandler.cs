@@ -16,6 +16,8 @@ public class SpotifyHandler(
             new()
             {
                 new (Messages.KeyboardCategorizePlaylist, $"{CallBacks.Spotify}|{CallBacks.CategorizePlaylist}"),
+                new (Messages.KeyboardCategorizePlaylist, $"{CallBacks.Spotify}|{CallBacks.GoodShuffle}"),
+                new (Messages.KeyboardCategorizePlaylist, $"{CallBacks.Spotify}|{CallBacks.MixPlaylist}"),
             }
         };
         var keyboard = services.CreateKeyboard(inlineCollection: collection);
@@ -34,6 +36,12 @@ public class SpotifyHandler(
         switch (data.DataSeparated[1])
         {
             case CallBacks.CategorizePlaylist:
+                await AskForPlaylistId(data);
+                break;
+            case CallBacks.GoodShuffle:
+                await AskForPlaylistId(data);
+                break;
+            case CallBacks.MixPlaylist:
                 await AskForPlaylistId(data);
                 break;
             case CallBacks.NotCategorizePlaylist:

@@ -34,6 +34,9 @@ public sealed class TehranMapCatalog
 
     public TehranMapCatalog(string path)
     {
+        try
+        {
+
         using var file = File.OpenRead(path);
         using var zip = new GZipStream(file, CompressionMode.Decompress);
         using var json = JsonDocument.Parse(zip);
@@ -87,6 +90,12 @@ public sealed class TehranMapCatalog
         names["Gheytarieh Boulevard"] = ["بلوار قیطریه"];
         names["Zaferaniyeh Street"] = ["ولی‌ الله فلاحی"];
         names["Elahiyeh Street"] = ["الهیه"];
+        
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("FIX ME ");
+        }
     }
 
     private static bool IsStreet(MapRoad r) => r.RoadClass is "motorway" or "trunk" or "primary" or "secondary" or "tertiary";

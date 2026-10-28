@@ -4,6 +4,7 @@ namespace ScheduleBot.Models;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<FileLink> FileLinks { get; set; }
     public DbSet<ScoreGroup> ScoreGroups { get; set; }
     public DbSet<ScoreMember> ScoreMembers { get; set; }
     public DbSet<ScoreRequest> ScoreRequests { get; set; }
@@ -55,6 +56,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<FileLink>().HasIndex(x => new { x.OwnerId, x.ExpiresAtUtc });
 
         modelBuilder.Entity<ScoreGroup>().Property(x => x.Name).HasMaxLength(200);
         modelBuilder.Entity<ScoreGroup>().Property(x => x.Revision).IsConcurrencyToken();
