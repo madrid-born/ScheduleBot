@@ -15,7 +15,7 @@ using Telegram.Bot;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connString = builder.Environment.IsDevelopment() ? "DefaultConnectionTest" : "DefaultConnection";
+var connString = builder.Environment.IsDevelopment() ? "DefaultConnectionLocal" : "DefaultConnection";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
