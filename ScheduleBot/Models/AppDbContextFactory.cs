@@ -8,15 +8,13 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
 {
     public AppDbContext CreateDbContext(string[] args)
     {
-        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-                          ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Development";
-        var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false)
-            .AddJsonFile($"appsettings.{environment}.json", optional: true)
-            .AddEnvironmentVariables().Build();
-        var key = environment == "Development" ? "DefaultConnection" : "DefaultConnection";
-        var connection = config.GetConnectionString(key)
-                         ?? throw new InvalidOperationException($"Connection string '{key}' was not found.");
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            Args = args,
+            ApplicationName = typeof(AppDbContextFactory).Assembly.GetName().Name
+        });
+        var connection = builder.Configuration.GetConnectionString("DefaultConnection")
+                         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
         return new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(connection).Options);
     }
 }

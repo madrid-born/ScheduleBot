@@ -430,7 +430,6 @@ public class TransactionService(AppDbContext dbContext, MainService service) : D
                 page.Size(PageSizes.A4);
                 page.PageColor(Colors.White);
                 page.DefaultTextStyle(x => x.FontFamily("Vazirmatn", "Noto Emoji").FontSize(9));
-                page.DefaultTextStyle(x => x.FontSize(9));
                 page.Header().Element(ComposeHeader);
                 page.Content().Element(ComposeContent);
                 page.Footer().Element(ComposeFooter);

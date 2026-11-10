@@ -21,7 +21,7 @@ The `AddScoreCounter` migration adds four tables and their constraints and index
 dotnet ef database update --context AppDbContext
 ```
 
-EF tooling reads `ASPNETCORE_ENVIRONMENT` / `DOTNET_ENVIRONMENT` (Development by default) and the corresponding appsettings and environment variables. Development uses `DefaultConnectionTest`; other environments use `DefaultConnection`. The design-time factory avoids running bot polling or startup catalog seeding.
+The app and EF tooling both use `ConnectionStrings:DefaultConnection` from the selected environment's configuration. Pass `-- --environment Production` to explicitly select Production when running EF commands. The design-time factory avoids running bot polling or startup catalog seeding.
 
 ## Validation
 

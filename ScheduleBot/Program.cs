@@ -15,12 +15,12 @@ using Telegram.Bot;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connString = builder.Environment.IsDevelopment() ? "DefaultConnectionLocal" : "DefaultConnection";
+const string connectionName = "DefaultConnection";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString(connString),
+        builder.Configuration.GetConnectionString(connectionName),
         sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(
@@ -36,8 +36,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.EnableDetailedErrors();
 });
 
-var applicationConnection = builder.Configuration.GetConnectionString(connString)
-    ?? throw new InvalidOperationException($"Connection string '{connString}' was not found.");
+var applicationConnection = builder.Configuration.GetConnectionString(connectionName)
+    ?? throw new InvalidOperationException($"Connection string '{connectionName}' was not found.");
 var configuredMetroConnection = builder.Configuration.GetConnectionString("MetroConnection");
 var metroConnection = string.IsNullOrWhiteSpace(configuredMetroConnection)
     ? new SqlConnectionStringBuilder(applicationConnection) { InitialCatalog = "metro" }.ConnectionString
@@ -62,8 +62,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var telegramString = builder.Environment.IsDevelopment() ? "Development" : "Production";
-var botTokenString = builder.Configuration[$"{telegramString}:BotToken"];
+const string telegramTokenKey = "Telegram:BotToken";
+var botToken = builder.Configuration[telegramTokenKey];
+if (string.IsNullOrWhiteSpace(botToken))
+{
+    // Existing deployments may still store the token under the old environment-specific key.
+    var legacySection = builder.Environment.IsDevelopment() ? "Development" : "Production";
+    var legacyTokenKey = $"{legacySection}:BotToken";
+    botToken = builder.Configuration[legacyTokenKey];
+    if (string.IsNullOrWhiteSpace(botToken))
+        throw new InvalidOperationException($"Bot token not found. Configure '{telegramTokenKey}' or '{legacyTokenKey}'.");
+
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { [telegramTokenKey] = botToken });
+}
 
 HttpClient httpClient;
 if (builder.Environment.IsDevelopment())
@@ -74,8 +85,6 @@ if (builder.Environment.IsDevelopment())
         : new HttpClient();
 }
 else httpClient = new HttpClient();
-
-var botToken = botTokenString ?? throw new InvalidOperationException("Bot token not found");
 
 var bot = new TelegramBotClient(botToken, httpClient);
 builder.Services.AddSingleton<ITelegramBotClient>(bot);
@@ -146,11 +155,9 @@ if (builder.Configuration.GetValue<bool>("FileLinks:Enabled") && builder.Configu
 using (var scope = app.Services.CreateScope())
     await scope.ServiceProvider.GetRequiredService<TehranCatalogSeeder>().EnsureAsync();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // Nginx on this machine terminates TLS. Retain the default loopback-only proxy trust.
 app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedProto });

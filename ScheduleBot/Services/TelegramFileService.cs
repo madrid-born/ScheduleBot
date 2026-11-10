@@ -20,7 +20,7 @@ public sealed class TelegramFileService : ITelegramFileSource, IDisposable
     public TelegramFileService(ITelegramBotClient bot, IConfiguration config, IHostEnvironment environment)
     {
         this.bot = bot;
-        token = config[$"{(environment.IsDevelopment() ? "Development" : "Production")}:BotToken"]!;
+        token = config["Telegram:BotToken"]!;
         var handler = new SocketsHttpHandler
         {
             AllowAutoRedirect = false, UseCookies = false, AutomaticDecompression = DecompressionMethods.None,

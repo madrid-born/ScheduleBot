@@ -104,7 +104,7 @@ public sealed class MtProtoTelegramFileService : ITelegramFileSource, IAsyncDisp
 
     private async Task LoginAsync()
     {
-        var token = config[$"{(environment.IsDevelopment() ? "Development" : "Production")}:BotToken"]
+        var token = config["Telegram:BotToken"]
             ?? throw new InvalidOperationException("Bot token is missing.");
         await client!.LoginBotIfNeeded(token);
         client.DisableUpdates();

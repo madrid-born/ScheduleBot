@@ -13,9 +13,8 @@ public class MainService(ITelegramBotClient bot,IServiceProvider serviceProvider
 
     #region Statics
 
-    private string Dop => environment.IsDevelopment() ? "Development" : "Production";
-    public string Url => configuration[$"{Dop}:Url"]!;
-    public string BotToken => configuration[$"{Dop}:BotToken"]!;
+    public string Url => configuration["Telegram:Url"]!;
+    public string BotToken => configuration["Telegram:BotToken"]!;
     public long AdminChatId => long.Parse(configuration["Telegram:AdminChatId"]!);
     private CycleTrackerHandler CycleTrackerHandler => serviceProvider.GetRequiredService<CycleTrackerHandler>();
     private TransactionHandler TransactionHandler => serviceProvider.GetRequiredService<TransactionHandler>();
